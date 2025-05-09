@@ -81,7 +81,7 @@
     onAuthStateChanged(auth, (user) => {
       if (user) {
         // Check user role and redirect accordingly
-        const userRole = user.displayName; // Use displayName or another user attribute for the role
+        const userRole = user.displayName || "customer"; // Default to customer if displayName is undefined
         window.location.href = userRole === 'admin' ? 'admin.html' : 'customer.html'; 
       }
     });
@@ -93,10 +93,16 @@
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
 
+      // Check if email and password fields are filled
+      if (!email || !password) {
+        document.getElementById("errorMessage").innerText = "Please enter both email and password.";
+        return;
+      }
+
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         console.log("User logged in:", userCredential.user);  // Debugging: Check user data
-        window.location.href = "index.html"; // Redirect to dashboard
+        window.location.href = "index.html"; // Redirect to dashboard (you can modify this to user-role specific pages)
       } catch (error) {
         console.error("Login failed:", error.message);  // Debugging: Log error
         document.getElementById("errorMessage").innerText = "Login failed: " + error.message; // Show error message
