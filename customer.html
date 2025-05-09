@@ -1,1 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bradley GigRunner - Customer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { getFirestore, collection, addDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_BUCKET",
+      messagingSenderId: "YOUR_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth();
+    let currentUserId = null;
+
+    onAuthStateChanged(auth, user => {
+      if (!user) window.location.href = "login.html";
+      else {
+        currentUserId = user.uid;
+        loadMyRequests();
+      }
+    });
+
+    async function logout() {
+      await signOut(auth);
+      location.reload();
+    }
+
+    window.submitRequest = async () => {
+      const pickup = document.getElementById("pickup").value;
+      const dropoff = document.getElementById("dropoff").value;
+      const details = document.getElementById("details").value;
+      await addDoc(collection(db, "requests"), {
+        pickup, dropoff, details,
+        status: "pending",
+        userId: currentUserId,
+        timestamp: Date.now()
+      });
+      alert("Request submitted!");
+    };
+
+    function loadMyRequests() {
+      const q = query(collection(db, "requests"), where("userId", "==", currentUserId));
+      const container = document.getElementById("myJobs");
+      onSnapshot(q, snapshot => {
+        container.innerHTML = "";
+        snapshot.forEach(docSnap => {
+          const d = docSnap.data();
+          container.innerHTML += `
+            <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
+              <p><strong>Pickup:</strong> ${d.pickup}</p>
+              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+              <p><strong>Details:</strong> ${d.details}</p>
+              <p><strong>Status:</strong> ${d.status}</p>
+            </div>`;
+        });
+      });
+    }
+
+    window.logout = logout;
+  </script>
+</head>
+<body>
+  <h1>Customer Dashboard</h1>
+  <button onclick="logout()">Logout</button>
+
+  <h2>Create Delivery Request</h2>
+  <input type="text" id="pickup" placeholder="Pickup Location" /><br>
+  <input type="text" id="dropoff" placeholder="Dropoff Location" /><br>
+  <input type="text" id="details" placeholder="Package/Food Details" /><br>
+  <button onclick="submitRequest()">Submit Request</button>
+
+  <h2>My Delivery Requests</h2>
+  <div id="myJobs"></div>
+</body>
+</html>
 
