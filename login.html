@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Login – Bradley GigRunner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="favicon.ico" />
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .box {
+      background: white;
+      padding: 2em;
+      border-radius: 12px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      max-width: 400px;
+      width: 90%;
+    }
+    h1 {
+      color: #1a4d2e;
+      text-align: center;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #1a4d2e;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #145032;
+    }
+    .footer {
+      margin-top: 1em;
+      text-align: center;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Bradley GigRunner</h1>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+    <div class="footer">
+      Don't have an account? <a href="index.html">Sign Up</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+      authDomain: "bradley-gigrunner.firebaseapp.com",
+      projectId: "bradley-gigrunner",
+      storageBucket: "bradley-gigrunner.firebasestorage.app",
+      messagingSenderId: "497753581430",
+      appId: "1:497753581430:web:db6c22866194dd3285bc57",
+      measurementId: "G-FB45MP5R5G"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        window.location.href = "index.html";
+      }
+    });
+
+    window.login = async () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (error) {
+        alert("Login failed: " + error.message);
+      }
+    };
+  </script>
+</body>
+</html>
