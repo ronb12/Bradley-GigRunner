@@ -54,7 +54,7 @@
 
   <h1>Admin Dashboard</h1>
   <div class="box">
-    <button class="logout" onclick="logout()">Logout</button>
+    <button class="logout" id="logoutButton">Logout</button>
     <h2>All Requests</h2>
     <table>
       <thead>
@@ -112,12 +112,8 @@
 
     // Logout function
     async function logout() {
-      try {
-        await signOut(auth);
-        window.location.href = "login.html";  // Redirect to login after sign out
-      } catch (error) {
-        console.error("Logout failed: ", error);
-      }
+      await signOut(auth);
+      window.location.href = "login.html"; // Redirect to login after sign out
     }
 
     // Load requests from Firestore
@@ -141,6 +137,9 @@
         });
       });
     }
+
+    // Event listener for logout
+    document.getElementById("logoutButton").addEventListener("click", logout);
   </script>
 </body>
 </html>
