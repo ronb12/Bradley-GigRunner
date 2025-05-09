@@ -1,12 +1,14 @@
-
 {
   "name": "Bradley GigRunner",
-  "short_name": "GigRunner",
+  "short_name": "Bradley GigRunner",
   "start_url": "index.html",
+  "scope": "./",
+  "id": "/index.html",
   "display": "standalone",
   "background_color": "#1a4d2e",
   "theme_color": "#1a4d2e",
   "orientation": "portrait",
+  "description": "A simple gig delivery app for customers and drivers.",
   "icons": [
     {
       "src": "icons/icon-192.png",
