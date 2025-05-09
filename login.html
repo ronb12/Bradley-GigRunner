@@ -63,7 +63,6 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -76,29 +75,14 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const auth = getAuth();
 
     // On Auth State Change
-    onAuthStateChanged(auth, async (user) => {
+    onAuthStateChanged(auth, (user) => {
       if (user) {
-        try {
-          // Fetch the user's role from Firestore
-          const userDocRef = doc(db, "users", user.uid);
-          const userDocSnap = await getDoc(userDocRef);
-          if (userDocSnap.exists()) {
-            const userRole = userDocSnap.data().role;
-            // Redirect user based on role
-            if (userRole === 'admin') {
-              window.location.href = 'admin.html';
-            } else {
-              window.location.href = 'customer.html';
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching user role:", error);
-          document.getElementById("errorMessage").innerText = "Error fetching user role.";
-        }
+        // Check user role and redirect accordingly
+        const userRole = user.displayName; // Use displayName or another user attribute for the role
+        window.location.href = userRole === 'admin' ? 'admin.html' : 'customer.html'; 
       }
     });
 
@@ -108,12 +92,14 @@
       e.preventDefault(); // Prevent page reload on button click
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
+
       try {
-        await signInWithEmailAndPassword(auth, email, password);
-        // Clear error message on successful login
-        document.getElementById("errorMessage").innerText = '';
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        console.log("User logged in:", userCredential.user);  // Debugging: Check user data
+        window.location.href = "index.html"; // Redirect to dashboard
       } catch (error) {
-        document.getElementById("errorMessage").innerText = "Login failed: " + error.message;
+        console.error("Login failed:", error.message);  // Debugging: Log error
+        document.getElementById("errorMessage").innerText = "Login failed: " + error.message; // Show error message
       }
     });
   </script>
