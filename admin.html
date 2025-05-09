@@ -73,8 +73,9 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, Timestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { getDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -90,28 +91,35 @@
     const db = getFirestore(app);
     const auth = getAuth();
 
+    // Check for authenticated user and if they are an admin
     onAuthStateChanged(auth, async user => {
       if (!user) {
-        window.location.href = "login.html";
+        window.location.href = "login.html"; // Redirect to login if no user is authenticated
       } else {
-        loadRequests();
+        const userDoc = await getDoc(doc(db, "users", user.uid)); // Get user document from Firestore
+        if (userDoc.exists() && userDoc.data().role === 'admin') {
+          loadRequests(); // Load requests only if the user is an admin
+        } else {
+          alert("You are not authorized to access the Admin Dashboard.");
+          window.location.href = "login.html"; // Redirect to login if not an admin
+        }
       }
     });
 
+    // Logout function
     async function logout() {
       await signOut(auth);
       location.reload();
     }
 
+    // Load requests from Firestore
     function loadRequests() {
       const tbody = document.getElementById("requestsTable");
       onSnapshot(collection(db, "requests"), snapshot => {
-        tbody.innerHTML = "";
+        tbody.innerHTML = ""; // Clear the table
         snapshot.forEach(doc => {
           const d = doc.data();
-          const created = d.timestamp
-            ? new Date(d.timestamp).toLocaleString()
-            : "—";
+          const created = d.timestamp ? new Date(d.timestamp.seconds * 1000).toLocaleString() : "—"; // Convert Firestore timestamp
           tbody.innerHTML += `
             <tr>
               <td>${d.pickup}</td>
