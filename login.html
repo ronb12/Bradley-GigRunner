@@ -63,6 +63,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -76,13 +77,26 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth();
+    const db = getFirestore(app);
 
     // On Auth State Change
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // Check user role and redirect accordingly
-        const userRole = user.displayName || "customer"; // Default to customer if displayName is undefined
-        window.location.href = userRole === 'admin' ? 'admin.html' : 'customer.html'; 
+        // Retrieve user role from Firestore
+        const userRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists()) {
+          const userRole = userDoc.data().role;
+          if (userRole === 'admin') {
+            window.location.href = 'admin.html'; // Redirect to admin page
+          } else if (userRole === 'customer') {
+            window.location.href = 'customer.html'; // Redirect to customer page
+          }
+        } else {
+          alert("User data not found.");
+          window.location.href = "login.html";
+        }
       }
     });
 
@@ -102,7 +116,7 @@
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         console.log("User logged in:", userCredential.user);  // Debugging: Check user data
-        window.location.href = "index.html"; // Redirect to dashboard (you can modify this to user-role specific pages)
+        // Redirect is handled in onAuthStateChanged
       } catch (error) {
         console.error("Login failed:", error.message);  // Debugging: Log error
         document.getElementById("errorMessage").innerText = "Login failed: " + error.message; // Show error message
