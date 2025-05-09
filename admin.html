@@ -112,8 +112,12 @@
 
     // Logout function
     async function logout() {
-      await signOut(auth);
-      location.reload();
+      try {
+        await signOut(auth);
+        window.location.href = "login.html";  // Redirect to login after sign out
+      } catch (error) {
+        console.error("Logout failed: ", error);
+      }
     }
 
     // Load requests from Firestore
