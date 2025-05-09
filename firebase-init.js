@@ -1,47 +1,297 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
-  authDomain: "bradley-gigrunner.firebaseapp.com",
-  projectId: "bradley-gigrunner",
-  storageBucket: "bradley-gigrunner.firebasestorage.app",
-  messagingSenderId: "497753581430",
-  appId: "1:497753581430:web:db6c22866194dd3285bc57",
-  measurementId: "G-FB45MP5R5G"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    // Check for admin role
-    const idTokenResult = await user.getIdTokenResult();
-    const role = idTokenResult.claims.role;  // 'role' is the custom claim added for admin users
-    
-    if (role === "admin") {
-      window.location.href = "admin.html";  // Redirect to admin dashboard if admin
-    } else if (role === "customer") {
-      window.location.href = "customer.html";  // Redirect to customer dashboard
-    } else if (role === "driver") {
-      window.location.href = "driver.html";  // Redirect to driver dashboard
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bradley GigRunner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="favicon.ico" />
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    body { font-family: Arial, sans-serif; background: #f9fafb; padding: 20px; margin: 0; }
+    h1 { color: #1a4d2e; margin-bottom: 5px; }
+    .tagline { color: #4b5563; font-size: 1.1em; margin-bottom: 20px; }
+    .box { background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    button { background: #1a4d2e; color: white; padding: 10px; border: none; border-radius: 5px; margin-top: 10px; cursor: pointer; }
+    input, select { padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+    .hidden { display: none; }
+    #splash {
+      position: fixed; inset: 0; background: #1a4d2e; color: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2em; z-index: 10;
     }
-  } else {
-    window.location.href = "login.html";  // Redirect to login if not authenticated
-  }
-});
+    #chatModal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      justify-content: center; align-items: center; z-index: 1000;
+    }
+    #chatModal .modal-box {
+      background: white; width: 90%; max-width: 400px;
+      padding: 20px; border-radius: 10px; position: relative;
+    }
+    #chatMessages { display: flex; flex-direction: column; }
+  </style>
+</head>
+<body>
 
-// Login function
-window.login = async () => {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-  } catch (error) {
-    alert("Login failed: " + error.message);
+<div id="splash">Bradley GigRunner</div>
+
+<header>
+  <h1>Bradley GigRunner</h1>
+  <div class="tagline">Your errands, our hustle.</div>
+  <div id="authControls">
+    <span id="userEmail"></span>
+    <button onclick="logout()">Logout</button>
+  </div>
+</header>
+
+<div id="authBox" class="box">
+  <h2>Login / Signup</h2>
+  <input type="email" id="email" placeholder="Email" />
+  <input type="password" id="password" placeholder="Password" />
+  <button onclick="login()">Login</button>
+  <button onclick="signup()">Sign Up</button>
+</div>
+
+<div class="box role-switch hidden" id="roleSwitchBox">
+  <label>Role:
+    <select id="roleSelect">
+      <option value="customer">Customer</option>
+      <option value="driver">Driver</option>
+    </select>
+  </label>
+</div>
+
+<div id="customerView" class="box hidden">
+  <h2>Create Delivery Request</h2>
+  <input type="text" id="pickup" placeholder="Pickup Location" />
+  <input type="text" id="dropoff" placeholder="Dropoff Location" />
+  <input type="text" id="details" placeholder="Food / Package Details" />
+  <button onclick="createRequest()">Submit Request</button>
+  <div id="myRequestStatus" style="margin-top:20px;"></div>
+</div>
+
+<div id="driverView" class="box hidden">
+  <h2>Available & Accepted Jobs</h2>
+  <div id="requestsList"></div>
+</div>
+
+<!-- 🔹 Chat Modal -->
+<div id="chatModal">
+  <div class="modal-box">
+    <h3>Chat</h3>
+    <div id="chatMessages" style="height:300px; overflow-y:auto; border:1px solid #ddd; padding:10px; margin-bottom:10px;"></div>
+    <input type="text" id="chatInput" placeholder="Type a message..." style="width:100%; padding:8px;" />
+    <button onclick="sendMessage()" style="margin-top:10px; width:100%;">Send</button>
+    <button onclick="closeChat()" style="position:absolute; top:10px; right:10px; background:#ccc; border:none; padding:5px;">X</button>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, updateDoc, doc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+    authDomain: "bradley-gigrunner.firebaseapp.com",
+    projectId: "bradley-gigrunner",
+    storageBucket: "bradley-gigrunner.firebasestorage.app",
+    messagingSenderId: "497753581430",
+    appId: "1:497753581430:web:db6c22866194dd3285bc57",
+    measurementId: "G-FB45MP5R5G"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  let currentUserId = null;
+  let currentRole = "customer";
+  let activeChatRequestId = null;
+
+  // Splash
+  window.addEventListener('load', () => {
+    setTimeout(() => document.getElementById('splash').style.display = 'none', 1000);
+  });
+
+  // Auth
+  window.login = async () => {
+    const email = document.getElementById("email").value;
+    const pass = document.getElementById("password").value;
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch (error) {
+      alert("Login failed: " + error.message);
+    }
+  };
+
+  window.signup = async () => {
+    const email = document.getElementById("email").value;
+    const pass = document.getElementById("password").value;
+    try {
+      await createUserWithEmailAndPassword(auth, email, pass);
+    } catch (error) {
+      alert("Signup failed: " + error.message);
+    }
+  };
+
+  window.logout = async () => {
+    await signOut(auth);
+    location.reload();
+  };
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      currentUserId = user.uid;
+      document.getElementById("authBox").classList.add("hidden");
+      document.getElementById("roleSwitchBox").classList.remove("hidden");
+      document.getElementById("userEmail").innerText = user.email;
+
+      // Check user role
+      checkRole(user);
+    }
+  });
+
+  function checkRole(user) {
+    const userDocRef = doc(db, "users", user.uid);
+    onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        console.log("User role:", data.role); // Check if role is being fetched correctly
+        if (data.role === "admin") {
+          // Admin user, redirect to admin view
+          window.location.href = "admin.html";
+        } else {
+          // Normal user, load customer/driver view
+          document.getElementById("roleSelect").value = "customer"; // Default to customer
+          toggleRoleView();
+        }
+      }
+    });
   }
-};
+
+  // Role Switch
+  const roleSelect = document.getElementById("roleSelect");
+  const customerView = document.getElementById("customerView");
+  const driverView = document.getElementById("driverView");
+
+  roleSelect.addEventListener("change", () => {
+    currentRole = roleSelect.value;
+    customerView.classList.toggle("hidden", currentRole !== "customer");
+    driverView.classList.toggle("hidden", currentRole !== "driver");
+    if (currentRole === "driver") loadRequests();
+    if (currentRole === "customer") loadMyRequests();
+  });
+
+  // Create Request
+  window.createRequest = async () => {
+    const pickup = document.getElementById("pickup").value;
+    const dropoff = document.getElementById("dropoff").value;
+    const details = document.getElementById("details").value;
+
+    await addDoc(collection(db, "requests"), {
+      pickup, dropoff, details,
+      status: "pending",
+      userId: currentUserId,
+      timestamp: Date.now()
+    });
+
+    alert("Request submitted!");
+    loadMyRequests();
+  };
+
+  function loadMyRequests() {
+    const display = document.getElementById("myRequestStatus");
+    const q = query(collection(db, "requests"), where("userId", "==", currentUserId));
+    onSnapshot(q, (snap) => {
+      display.innerHTML = "";
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const id = docSnap.id;
+        display.innerHTML += `
+          <div class="box">
+            <p><strong>Pickup:</strong> ${d.pickup}</p>
+            <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+            <p><strong>Status:</strong> ${d.status.toUpperCase()}</p>
+            <button onclick="openChat('${id}')">Chat</button>
+          </div>
+        `;
+      });
+    });
+  }
+
+  function loadRequests() {
+    const list = document.getElementById("requestsList");
+    const q = query(collection(db, "requests"), where("status", "!=", "delivered"));
+    onSnapshot(q, (snapshot) => {
+      list.innerHTML = "";
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        const id = docSnap.id;
+        let buttons = "";
+        if (d.status === "pending") buttons = `<button onclick="acceptRequest('${id}')">Accept</button>`;
+        else if (d.status === "accepted") buttons = `<button onclick="markPickedUp('${id}')">Picked Up</button>`;
+        else if (d.status === "picked_up") buttons = `<button onclick="markDelivered('${id}')">Delivered</button>`;
+
+        const box = document.createElement("div");
+        box.className = "box";
+        box.innerHTML = `
+          <p><strong>Pickup:</strong> ${d.pickup}</p>
+          <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+          <p><strong>Details:</strong> ${d.details}</p>
+          <p><strong>Status:</strong> ${d.status.toUpperCase()}</p>
+          ${buttons}
+          <button onclick="openChat('${id}')">Chat</button>
+        `;
+        list.appendChild(box);
+      });
+    });
+  }
+
+  window.acceptRequest = async (id) => await updateDoc(doc(db, "requests", id), { status: "accepted" });
+  window.markPickedUp = async (id) => await updateDoc(doc(db, "requests", id), { status: "picked_up" });
+  window.markDelivered = async (id) => await updateDoc(doc(db, "requests", id), { status: "delivered" });
+
+  // Chat Modal
+  window.openChat = (id) => {
+    activeChatRequestId = id;
+    document.getElementById("chatModal").style.display = "flex";
+    loadMessages(id);
+  };
+
+  window.closeChat = () => {
+    document.getElementById("chatModal").style.display = "none";
+    document.getElementById("chatMessages").innerHTML = "";
+    activeChatRequestId = null;
+  };
+
+  function loadMessages(requestId) {
+    const chatBox = document.getElementById("chatMessages");
+    const msgsRef = collection(db, "requests", requestId, "messages");
+    onSnapshot(msgsRef, snapshot => {
+      chatBox.innerHTML = "";
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        const msgDiv = document.createElement("div");
+        msgDiv.style.marginBottom = "5px";
+        msgDiv.innerHTML = `<strong>${d.sender}:</strong> ${d.text}`;
+        chatBox.appendChild(msgDiv);
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+  }
+
+  window.sendMessage = async () => {
+    const input = document.getElementById("chatInput");
+    const text = input.value.trim();
+    if (!text || !activeChatRequestId) return;
+    await addDoc(collection(db, "requests", activeChatRequestId, "messages"), {
+      sender: currentRole,
+      text,
+      timestamp: Date.now()
+    });
+    input.value = "";
+  };
+</script>
+</body>
+</html>
