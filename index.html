@@ -10,8 +10,8 @@
     .tagline { color: #4b5563; font-size: 1.1em; margin-bottom: 20px; }
     .box { background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     button { background: #1a4d2e; color: white; padding: 10px; border: none; border-radius: 5px; margin-top: 10px; cursor: pointer; }
-    input { padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
-    .role-switch { margin-bottom: 20px; }
+    input, select { padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+    .hidden { display: none; }
     #splash {
       position: fixed;
       inset: 0;
@@ -27,120 +27,197 @@
 </head>
 <body>
 
-  <div id="splash">Bradley GigRunner</div>
+<div id="splash">Bradley GigRunner</div>
 
-  <header>
-    <h1>Bradley GigRunner</h1>
-    <div class="tagline">Your errands, our hustle.</div>
-  </header>
-
-  <div class="role-switch">
-    <label>Role:
-      <select id="roleSelect">
-        <option value="customer">Customer</option>
-        <option value="driver">Driver</option>
-      </select>
-    </label>
+<header>
+  <h1>Bradley GigRunner</h1>
+  <div class="tagline">Your errands, our hustle.</div>
+  <div id="authControls">
+    <span id="userEmail"></span>
+    <button onclick="logout()">Logout</button>
   </div>
+</header>
 
-  <div id="customerView" class="box" style="display:none;">
-    <h2>Create Delivery Request</h2>
-    <input type="text" id="pickup" placeholder="Pickup Location" />
-    <input type="text" id="dropoff" placeholder="Dropoff Location" />
-    <input type="text" id="details" placeholder="Food / Package Details" />
-    <button onclick="createRequest()">Submit Request</button>
-  </div>
+<div id="authBox" class="box">
+  <h2>Login / Signup</h2>
+  <input type="email" id="email" placeholder="Email" />
+  <input type="password" id="password" placeholder="Password" />
+  <button onclick="login()">Login</button>
+  <button onclick="signup()">Sign Up</button>
+</div>
 
-  <div id="driverView" class="box" style="display:none;">
-    <h2>Available Requests</h2>
-    <div id="requestsList"></div>
-  </div>
+<div class="box role-switch hidden" id="roleSwitchBox">
+  <label>Role:
+    <select id="roleSelect">
+      <option value="customer">Customer</option>
+      <option value="driver">Driver</option>
+    </select>
+  </label>
+</div>
 
-  <!-- Firebase Modular SDK Setup -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, updateDoc, doc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+<div id="customerView" class="box hidden">
+  <h2>Create Delivery Request</h2>
+  <input type="text" id="pickup" placeholder="Pickup Location" />
+  <input type="text" id="dropoff" placeholder="Dropoff Location" />
+  <input type="text" id="details" placeholder="Food / Package Details" />
+  <button onclick="createRequest()">Submit Request</button>
+  <div id="myRequestStatus" style="margin-top:20px;"></div>
+</div>
 
-    // Splash screen timeout
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        document.getElementById('splash').style.display = 'none';
-      }, 1200);
-    });
+<div id="driverView" class="box hidden">
+  <h2>Available & Accepted Jobs</h2>
+  <div id="requestsList"></div>
+</div>
 
-    // Your Firebase config
-    const firebaseConfig = {
-      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
-      authDomain: "bradley-gigrunner.firebaseapp.com",
-      projectId: "bradley-gigrunner",
-      storageBucket: "bradley-gigrunner.firebasestorage.app",
-      messagingSenderId: "497753581430",
-      appId: "1:497753581430:web:db6c22866194dd3285bc57",
-      measurementId: "G-FB45MP5R5G"
-    };
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, updateDoc, doc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+  const firebaseConfig = {
+    apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+    authDomain: "bradley-gigrunner.firebaseapp.com",
+    projectId: "bradley-gigrunner",
+    storageBucket: "bradley-gigrunner.firebasestorage.app",
+    messagingSenderId: "497753581430",
+    appId: "1:497753581430:web:db6c22866194dd3285bc57",
+    measurementId: "G-FB45MP5R5G"
+  };
 
-    // Role switch logic
-    const roleSelect = document.getElementById("roleSelect");
-    const customerView = document.getElementById("customerView");
-    const driverView = document.getElementById("driverView");
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
 
-    roleSelect.addEventListener("change", () => {
-      const role = roleSelect.value;
-      customerView.style.display = role === "customer" ? "block" : "none";
-      driverView.style.display = role === "driver" ? "block" : "none";
-      if (role === "driver") loadRequests();
-    });
+  let currentUserId = null;
+  let currentRole = "customer";
 
-    // Create a new delivery request
-    window.createRequest = async function() {
-      const pickup = document.getElementById("pickup").value;
-      const dropoff = document.getElementById("dropoff").value;
-      const details = document.getElementById("details").value;
+  // Splash
+  window.addEventListener('load', () => {
+    setTimeout(() => document.getElementById('splash').style.display = 'none', 1000);
+  });
 
-      await addDoc(collection(db, "requests"), {
-        pickup,
-        dropoff,
-        details,
-        status: "pending",
-        timestamp: Date.now()
-      });
+  // Auth
+  window.login = async function () {
+    const email = document.getElementById("email").value;
+    const pass = document.getElementById("password").value;
+    await signInWithEmailAndPassword(auth, email, pass);
+  };
 
-      alert("Request submitted!");
-      document.getElementById("pickup").value = "";
-      document.getElementById("dropoff").value = "";
-      document.getElementById("details").value = "";
-    };
+  window.signup = async function () {
+    const email = document.getElementById("email").value;
+    const pass = document.getElementById("password").value;
+    await createUserWithEmailAndPassword(auth, email, pass);
+  };
 
-    // Load pending requests for driver view
-    function loadRequests() {
-      const list = document.getElementById("requestsList");
-      const q = query(collection(db, "requests"), where("status", "==", "pending"));
-      onSnapshot(q, (snapshot) => {
-        list.innerHTML = "";
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          const box = document.createElement("div");
-          box.className = "box";
-          box.innerHTML = `
-            <p><strong>Pickup:</strong> ${data.pickup}</p>
-            <p><strong>Dropoff:</strong> ${data.dropoff}</p>
-            <p><strong>Details:</strong> ${data.details}</p>
-            <button onclick="acceptRequest('${docSnap.id}')">Accept Job</button>
-          `;
-          list.appendChild(box);
-        });
-      });
+  window.logout = async function () {
+    await signOut(auth);
+    location.reload();
+  };
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      currentUserId = user.uid;
+      document.getElementById("authBox").classList.add("hidden");
+      document.getElementById("roleSwitchBox").classList.remove("hidden");
+      document.getElementById("userEmail").innerText = user.email;
+    } else {
+      currentUserId = null;
     }
+  });
 
-    // Accept a delivery request
-    window.acceptRequest = async function(id) {
-      await updateDoc(doc(db, "requests", id), { status: "accepted" });
-      alert("Job accepted!");
-    };
-  </script>
+  // Role switching
+  const roleSelect = document.getElementById("roleSelect");
+  const customerView = document.getElementById("customerView");
+  const driverView = document.getElementById("driverView");
+
+  roleSelect.addEventListener("change", () => {
+    currentRole = roleSelect.value;
+    customerView.classList.toggle("hidden", currentRole !== "customer");
+    driverView.classList.toggle("hidden", currentRole !== "driver");
+    if (currentRole === "driver") loadRequests();
+    if (currentRole === "customer") loadMyRequests();
+  });
+
+  // Create delivery request
+  window.createRequest = async function () {
+    const pickup = document.getElementById("pickup").value;
+    const dropoff = document.getElementById("dropoff").value;
+    const details = document.getElementById("details").value;
+
+    await addDoc(collection(db, "requests"), {
+      pickup,
+      dropoff,
+      details,
+      status: "pending",
+      userId: currentUserId,
+      timestamp: Date.now()
+    });
+
+    alert("Request submitted!");
+    loadMyRequests();
+  };
+
+  // Watch this user's requests
+  function loadMyRequests() {
+    const display = document.getElementById("myRequestStatus");
+    const q = query(collection(db, "requests"), where("userId", "==", currentUserId));
+    onSnapshot(q, (snap) => {
+      display.innerHTML = "";
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        display.innerHTML += `
+          <div class="box">
+            <p><strong>Pickup:</strong> ${d.pickup}</p>
+            <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+            <p><strong>Status:</strong> ${d.status.replace("_", " ").toUpperCase()}</p>
+          </div>
+        `;
+      });
+    });
+  }
+
+  // Load jobs for driver
+  function loadRequests() {
+    const list = document.getElementById("requestsList");
+    const q = query(collection(db, "requests"), where("status", "!=", "delivered"));
+    onSnapshot(q, (snapshot) => {
+      list.innerHTML = "";
+      snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        const id = docSnap.id;
+        let buttons = "";
+
+        if (d.status === "pending") buttons = `<button onclick="acceptRequest('${id}')">Accept</button>`;
+        if (d.status === "accepted") buttons = `<button onclick="markPickedUp('${id}')">Picked Up</button>`;
+        if (d.status === "picked_up") buttons = `<button onclick="markDelivered('${id}')">Delivered</button>`;
+
+        const box = document.createElement("div");
+        box.className = "box";
+        box.innerHTML = `
+          <p><strong>Pickup:</strong> ${d.pickup}</p>
+          <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+          <p><strong>Details:</strong> ${d.details}</p>
+          <p><strong>Status:</strong> ${d.status.replace("_", " ").toUpperCase()}</p>
+          ${buttons}
+        `;
+        list.appendChild(box);
+      });
+    });
+  }
+
+  // Status functions
+  window.acceptRequest = async (id) => {
+    await updateDoc(doc(db, "requests", id), { status: "accepted" });
+  };
+
+  window.markPickedUp = async (id) => {
+    await updateDoc(doc(db, "requests", id), { status: "picked_up" });
+  };
+
+  window.markDelivered = async (id) => {
+    await updateDoc(doc(db, "requests", id), { status: "delivered" });
+    alert("Delivery complete!");
+  };
+</script>
 </body>
 </html>
