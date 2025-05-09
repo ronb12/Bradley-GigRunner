@@ -96,12 +96,17 @@
       if (!user) {
         window.location.href = "login.html"; // Redirect to login if no user is authenticated
       } else {
-        const userDoc = await getDoc(doc(db, "users", user.uid)); // Get user document from Firestore
-        if (userDoc.exists() && userDoc.data().role === 'admin') {
-          loadRequests(); // Load requests only if the user is an admin
-        } else {
-          alert("You are not authorized to access the Admin Dashboard.");
-          window.location.href = "login.html"; // Redirect to login if not an admin
+        try {
+          const userDoc = await getDoc(doc(db, "users", user.uid)); // Get user document from Firestore
+          if (userDoc.exists() && userDoc.data().role === 'admin') {
+            loadRequests(); // Load requests only if the user is an admin
+          } else {
+            alert("You are not authorized to access the Admin Dashboard.");
+            window.location.href = "login.html"; // Redirect to login if not an admin
+          }
+        } catch (error) {
+          alert("Error fetching user data: " + error.message);
+          window.location.href = "login.html"; // Redirect on error
         }
       }
     });
