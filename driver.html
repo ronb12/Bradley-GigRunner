@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bradley GigRunner - Driver</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_BUCKET",
+      messagingSenderId: "YOUR_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth();
+
+    onAuthStateChanged(auth, user => {
+      if (!user) window.location.href = "login.html";
+      else loadJobs();
+    });
+
+    async function logout() {
+      await signOut(auth);
+      location.reload();
+    }
+
+    function loadJobs() {
+      const q = query(collection(db, "requests"), where("status", "!=", "delivered"));
+      onSnapshot(q, snapshot => {
+        const list = document.getElementById("jobList");
+        list.innerHTML = "";
+        snapshot.forEach(docSnap => {
+          const d = docSnap.data();
+          const id = docSnap.id;
+          let btn = "";
+          if (d.status === "pending") btn = `<button onclick="accept('${id}')">Accept</button>`;
+          else if (d.status === "accepted") btn = `<button onclick="pickup('${id}')">Picked Up</button>`;
+          else if (d.status === "picked_up") btn = `<button onclick="deliver('${id}')">Delivered</button>`;
+
+          list.innerHTML += `
+            <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
+              <p><strong>Pickup:</strong> ${d.pickup}</p>
+              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+              <p><strong>Details:</strong> ${d.details}</p>
+              <p><strong>Status:</strong> ${d.status}</p>
+              ${btn}
+            </div>`;
+        });
+      });
+    }
+
+    window.accept = async id => await updateDoc(doc(db, "requests", id), { status: "accepted" });
+    window.pickup = async id => await updateDoc(doc(db, "requests", id), { status: "picked_up" });
+    window.deliver = async id => await updateDoc(doc(db, "requests", id), { status: "delivered" });
+    window.logout = logout;
+  </script>
+</head>
+<body>
+  <h1>Driver Dashboard</h1>
+  <button onclick="logout()">Logout</button>
+  <h2>Available & Accepted Jobs</h2>
+  <div id="jobList"></div>
+</body>
+</html>
