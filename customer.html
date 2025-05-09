@@ -6,6 +6,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      background: #f9fafb; 
+      padding: 20px; 
+      margin: 0; 
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      text-align: center;
+    }
+    .box { 
+      background: white; 
+      padding: 20px; 
+      border-radius: 12px; 
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+      max-width: 400px;
+      width: 100%;
+    }
+    h1 { color: #1a4d2e; margin-bottom: 20px; }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #1a4d2e;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #145032; }
+    .footer { font-size: 0.9em; margin-top: 10px; }
+    .error-message { color: red; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Customer Dashboard</h1>
+    <button onclick="logout()">Logout</button>
+
+    <h2>Create Delivery Request</h2>
+    <input type="text" id="pickup" placeholder="Pickup Location" /><br>
+    <input type="text" id="dropoff" placeholder="Dropoff Location" /><br>
+    <input type="text" id="details" placeholder="Package/Food Details" /><br>
+    <button onclick="submitRequest()">Submit Request</button>
+
+    <h2>My Delivery Requests</h2>
+    <div id="myJobs"></div>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
@@ -25,40 +82,44 @@
     const auth = getAuth();
     let currentUserId = null;
 
+    // Auth state change listener
     onAuthStateChanged(auth, async user => {
       if (!user) {
-        window.location.href = "login.html";
+        window.location.href = "login.html";  // Redirect to login if not authenticated
       } else {
         currentUserId = user.uid;
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (!userDoc.exists() || userDoc.data().role !== "customer") {
           alert("Access denied: not a customer.");
-          window.location.href = "index.html";
+          window.location.href = "index.html";  // Redirect to home if not a customer
         } else {
-          loadMyRequests();
+          loadMyRequests();  // Load requests if user is a customer
         }
       }
     });
 
+    // Logout function
     async function logout() {
-      await signOut(auth);
-      location.reload();
+      await signOut(auth);  // Sign out the user
+      location.reload();  // Reload to reset the UI
     }
 
+    // Function to submit a delivery request
     window.submitRequest = async () => {
       const pickup = document.getElementById("pickup").value;
       const dropoff = document.getElementById("dropoff").value;
       const details = document.getElementById("details").value;
       await addDoc(collection(db, "requests"), {
         pickup, dropoff, details,
-        status: "pending",
-        userId: currentUserId,
+        status: "pending", 
+        userId: currentUserId, 
         timestamp: Date.now(),
         paid: false
       });
-      alert("Request submitted!");
+      alert("Request submitted!");  // Notify user
     };
 
+    // Load the current user's requests
     function loadMyRequests() {
       const q = query(collection(db, "requests"), where("userId", "==", currentUserId));
       const container = document.getElementById("myJobs");
@@ -74,31 +135,17 @@
               <p><strong>Details:</strong> ${d.details}</p>
               <p><strong>Status:</strong> ${d.status}</p>
               <p><strong>Paid:</strong> ${d.paid ? "✅ Yes" : "❌ No"}</p>
-              ${d.paid ? "" : `<button onclick=\"markPaid('${id}')\">Simulate Payment</button>`}
+              ${d.paid ? "" : `<button onclick="markPaid('${id}')">Simulate Payment</button>`}
             </div>`;
         });
       });
     }
 
+    // Mark request as paid
     window.markPaid = async (id) => {
       await updateDoc(doc(db, "requests", id), { paid: true });
       alert("Marked as paid");
     };
-
-    window.logout = logout;
   </script>
-</head>
-<body>
-  <h1>Customer Dashboard</h1>
-  <button onclick="logout()">Logout</button>
-
-  <h2>Create Delivery Request</h2>
-  <input type="text" id="pickup" placeholder="Pickup Location" /><br>
-  <input type="text" id="dropoff" placeholder="Dropoff Location" /><br>
-  <input type="text" id="details" placeholder="Package/Food Details" /><br>
-  <button onclick="submitRequest()">Submit Request</button>
-
-  <h2>My Delivery Requests</h2>
-  <div id="myJobs"></div>
 </body>
 </html>
