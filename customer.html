@@ -4,10 +4,12 @@
   <meta charset="UTF-8" />
   <title>Bradley GigRunner - Customer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="favicon.ico" />
+  <link rel="manifest" href="manifest.json" />
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import { getFirestore, collection, addDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, query, where, onSnapshot, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
@@ -23,11 +25,18 @@
     const auth = getAuth();
     let currentUserId = null;
 
-    onAuthStateChanged(auth, user => {
-      if (!user) window.location.href = "login.html";
-      else {
+    onAuthStateChanged(auth, async user => {
+      if (!user) {
+        window.location.href = "login.html";
+      } else {
         currentUserId = user.uid;
-        loadMyRequests();
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (!userDoc.exists() || userDoc.data().role !== "customer") {
+          alert("Access denied: not a customer.");
+          window.location.href = "index.html";
+        } else {
+          loadMyRequests();
+        }
       }
     });
 
@@ -44,7 +53,8 @@
         pickup, dropoff, details,
         status: "pending",
         userId: currentUserId,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        paid: false
       });
       alert("Request submitted!");
     };
@@ -56,16 +66,24 @@
         container.innerHTML = "";
         snapshot.forEach(docSnap => {
           const d = docSnap.data();
+          const id = docSnap.id;
           container.innerHTML += `
             <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
               <p><strong>Pickup:</strong> ${d.pickup}</p>
               <p><strong>Dropoff:</strong> ${d.dropoff}</p>
               <p><strong>Details:</strong> ${d.details}</p>
               <p><strong>Status:</strong> ${d.status}</p>
+              <p><strong>Paid:</strong> ${d.paid ? "✅ Yes" : "❌ No"}</p>
+              ${d.paid ? "" : `<button onclick=\"markPaid('${id}')\">Simulate Payment</button>`}
             </div>`;
         });
       });
     }
+
+    window.markPaid = async (id) => {
+      await updateDoc(doc(db, "requests", id), { paid: true });
+      alert("Marked as paid");
+    };
 
     window.logout = logout;
   </script>
@@ -84,4 +102,3 @@
   <div id="myJobs"></div>
 </body>
 </html>
-
