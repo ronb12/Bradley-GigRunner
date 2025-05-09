@@ -111,7 +111,10 @@
 
   // Splash
   window.addEventListener('load', () => {
-    setTimeout(() => document.getElementById('splash').style.display = 'none', 1000);
+    setTimeout(() => {
+      document.getElementById('splash').style.display = 'none';
+      initializeAppUI(); // Function to initialize UI after splash screen removal
+    }, 1000); // Adjust timeout if needed
   });
 
   // Auth
