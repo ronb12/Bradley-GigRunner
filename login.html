@@ -94,21 +94,27 @@
         const uid = userCredential.user.uid;
         const userDoc = await getDoc(doc(db, "users", uid));
 
-        if (!userDoc.exists()) {
-          throw new Error("User role not found.");
-        }
+        if (!userDoc.exists()) throw new Error("User record not found.");
 
-        // 🔐 Ronell gets role selector
+        const data = userDoc.data();
+        const roles = data.roles || [];
+        
+        // 🔐 Special case for master admin (you)
         if (email === "ronellbradley@gmail.com" || uid === "S3FdZasxMRWRnPTe2NiNtgcp9c93") {
           window.location.href = "role-selector.html";
           return;
         }
 
-        const role = userDoc.data().role;
-
-        if (role === "admin") window.location.href = "admin.html";
-        else if (role === "driver") window.location.href = "driver.html";
-        else window.location.href = "customer.html";
+        // Redirect based on roles
+        if (roles.includes("admin")) {
+          window.location.href = "admin.html";
+        } else if (roles.length === 1) {
+          window.location.href = roles[0] + ".html"; // driver.html or customer.html
+        } else if (roles.includes("driver") && roles.includes("customer")) {
+          window.location.href = "role-selector.html"; // ask which side
+        } else {
+          throw new Error("No valid role assigned.");
+        }
 
       } catch (error) {
         console.error("Login failed:", error.code || error.message);
