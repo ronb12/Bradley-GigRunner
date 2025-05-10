@@ -5,105 +5,190 @@
   <title>Admin Dashboard – Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f5f7fa; margin: 0; padding: 20px; }
-    h1 { color: #1a4d2e; text-align: center; }
-    .box { background: white; padding: 20px; border-radius: 12px; margin: 20px auto; max-width: 1000px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; font-size: 0.9em; }
-    th { background: #e0f0e9; }
-    .logout, .print-btn, .export-btn {
-      background: #1a4d2e; color: white; padding: 8px 12px; border: none;
-      border-radius: 6px; cursor: pointer; margin-left: 8px;
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
+    import { getFirestore, collection, doc, getDoc, updateDoc, deleteDoc, query, onSnapshot, orderBy, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_BUCKET",
+      messagingSenderId: "YOUR_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth();
+    let currentAdminId = null;
+    let allRequests = [];
+    let activeChatRequestId = null;
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) return (window.location.href = "login.html");
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists() || userDoc.data().role !== 'admin') {
+        alert("Access denied.");
+        await signOut(auth);
+        window.location.href = "login.html";
+      } else {
+        currentAdminId = user.uid;
+        loadRequests();
+      }
+    });
+
+    function loadRequests() {
+      const q = query(collection(db, "requests"));
+      onSnapshot(q, async snapshot => {
+        allRequests = [];
+        const messageCounts = {};
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data();
+          const messagesRef = collection(db, `requests/${docSnap.id}/messages`);
+          const msgSnap = await getDoc(doc(db, `requests/${docSnap.id}/meta`));
+          messageCounts[docSnap.id] = msgSnap.exists() && msgSnap.data().newForAdmin;
+          allRequests.push({ id: docSnap.id, ...data });
+        }
+        renderRequests(messageCounts);
+      });
     }
-    .logout:hover, .print-btn:hover, .export-btn:hover { background: #145032; }
-    .filters { margin-bottom: 10px; }
-    .action-btn { background: #1a4d2e; color: white; border: none; padding: 4px 8px; margin: 2px; border-radius: 4px; font-size: 0.8em; cursor: pointer; }
-    .action-btn:hover { background: #145032; }
-    .delete-btn { background: #d9534f; }
-    .delete-btn:hover { background: #c9302c; }
-    .export-menu { position: relative; display: inline-block; }
-    .export-options {
-      display: none; position: absolute; right: 0; background: white; border: 1px solid #ccc; border-radius: 6px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.15); z-index: 10;
+
+    function renderRequests(badges = {}) {
+      const tbody = document.getElementById("requestsTable");
+      tbody.innerHTML = "";
+      allRequests.forEach(req => {
+        const eta = req.eta ? new Date(req.eta) : null;
+        const etaText = eta ? ((min => min < 0 ? `<span style='color:red;'>⏰ overdue</span>` : `<span style='color:${min<=15 ? 'green' : min<=30 ? 'orange' : '#777'}; font-weight:bold;'>in ${min} min</span>`)(Math.round((eta - Date.now()) / 60000))) : "—";
+        const badge = badges[req.id] ? "<span class='badge'>New</span>" : "";
+        const created = req.timestamp ? new Date(req.timestamp.seconds * 1000).toLocaleString() : "";
+        tbody.innerHTML += `
+          <tr>
+            <td>${req.pickup}</td>
+            <td>${req.dropoff}</td>
+            <td>${req.status}</td>
+            <td>${req.paid ? "✅" : "❌"}</td>
+            <td>${created}</td>
+            <td>${req.userId}</td>
+            <td>${etaText}</td>
+            <td>
+              <button class='action-btn' onclick="openEditModal('${req.id}', '${req.driver || ''}', '${req.eta || ''}')">✏️ Edit</button>
+              <button class='action-btn' onclick="openChat('${req.id}')">💬 Chat ${badge}</button>
+              <button class='action-btn delete-btn' onclick="deleteRequest('${req.id}')">🗑 Delete</button>
+            </td>
+          </tr>`;
+      });
     }
-    .export-options button {
-      background: none; border: none; color: #333; padding: 10px 20px; width: 100%; text-align: left; cursor: pointer;
-    }
-    .export-options button:hover { background: #f0f0f0; }
-    .export-menu:hover .export-options { display: block; }
-    @media print {
-      .logout, .print-btn, .filters, .action-btn, .export-menu { display: none !important; }
-    }
-    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
-    .modal-content { background-color: #fff; margin: 10% auto; padding: 20px; border-radius: 10px; width: 90%; max-width: 500px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-    .modal-content h3 { margin-top: 0; }
-    .modal-content input { width: 100%; margin: 8px 0; padding: 10px; font-size: 1em; }
-    .modal-content button { margin-top: 10px; padding: 10px 20px; background: #1a4d2e; color: white; border: none; border-radius: 6px; cursor: pointer; }
-    .modal-content button:hover { background: #145032; }
-  </style>
+
+    window.openEditModal = (id, driver, eta) => {
+      editRequestId = id;
+      document.getElementById("modalDriver").value = driver;
+      document.getElementById("modalETAMins").value = eta ? Math.round((new Date(eta) - Date.now()) / 60000) : "";
+      document.getElementById("editModal").style.display = "block";
+    };
+
+    window.saveRequestChanges = async () => {
+      const driver = document.getElementById("modalDriver").value;
+      const etaMins = parseInt(document.getElementById("modalETAMins").value);
+      if (!editRequestId || isNaN(etaMins)) return;
+      const eta = new Date(Date.now() + etaMins * 60000).toISOString();
+      await updateDoc(doc(db, "requests", editRequestId), { driver, eta });
+      document.getElementById("editModal").style.display = "none";
+    };
+
+    window.deleteRequest = async (id) => {
+      if (confirm("Delete this request?")) await deleteDoc(doc(db, "requests", id));
+    };
+
+    window.openChat = (requestId) => {
+      activeChatRequestId = requestId;
+      document.getElementById("chatModal").style.display = "block";
+      const messagesDiv = document.getElementById("chatMessages");
+      messagesDiv.innerHTML = "Loading...";
+      const q = query(collection(db, `requests/${requestId}/messages`), orderBy("timestamp"));
+      onSnapshot(q, snapshot => {
+        messagesDiv.innerHTML = "";
+        snapshot.forEach(doc => {
+          const m = doc.data();
+          const who = m.userId === currentAdminId ? "🧑‍💼 You" : "👤 Other";
+          messagesDiv.innerHTML += `<p><strong>${who}:</strong> ${m.text}</p>`;
+        });
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      });
+      updateDoc(doc(db, `requests/${requestId}/meta`), { newForAdmin: false });
+    };
+
+    window.sendMessage = async () => {
+      const input = document.getElementById("chatInput");
+      const text = input.value.trim();
+      if (!text || !activeChatRequestId) return;
+      await addDoc(collection(db, `requests/${activeChatRequestId}/messages`), {
+        text,
+        userId: currentAdminId,
+        timestamp: new Date()
+      });
+      await updateDoc(doc(db, `requests/${activeChatRequestId}/meta`), { newForDriver: true });
+      input.value = "";
+    };
+
+    window.closeChat = () => {
+      document.getElementById("chatModal").style.display = "none";
+    };
+
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "login.html";
+    });
+  </script>
 </head>
 <body>
-
-<h1>Admin Dashboard</h1>
-<div class="box">
-  <div style="display: flex; justify-content: space-between;">
-    <div class="filters">
-      <label>Status:
-        <select id="statusFilter">
-          <option value="all">All</option>
-          <option value="pending">Pending</option>
-          <option value="accepted">Accepted</option>
-          <option value="completed">Completed</option>
-        </select>
-      </label>
-      <label>Sort by:
-        <select id="sortOrder">
-          <option value="desc">Newest First</option>
-          <option value="asc">Oldest First</option>
-        </select>
-      </label>
-    </div>
-    <div>
-      <div class="export-menu">
-        <button class="export-btn">📤 Export</button>
-        <div class="export-options">
-          <button onclick="exportToPDF()">Export to PDF</button>
-          <button onclick="exportToCSV()">Export to CSV</button>
-        </div>
+  <h1>Admin Dashboard</h1>
+  <div class="box">
+    <div style="display: flex; justify-content: space-between;">
+      <div class="filters">
+        <label>Status: <select id="statusFilter"></select></label>
+        <label>Sort by: <select id="sortOrder"></select></label>
       </div>
-      <button class="print-btn" onclick="window.print()">🖨️ Print</button>
-      <button class="logout" id="logoutButton">Logout</button>
+      <div>
+        <button class="logout" id="logoutButton">Logout</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Pickup</th>
+          <th>Dropoff</th>
+          <th>Status</th>
+          <th>Paid</th>
+          <th>Created</th>
+          <th>Customer ID</th>
+          <th>ETA</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="requestsTable"></tbody>
+    </table>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <h3>Edit Request Details</h3>
+      <input type="text" id="modalDriver" placeholder="Assigned Driver" />
+      <input type="number" id="modalETAMins" placeholder="ETA (minutes from now)" min="1" />
+      <button onclick="saveRequestChanges()">💾 Save Changes</button>
     </div>
   </div>
 
-  <h2>All Requests</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Pickup</th>
-        <th>Dropoff</th>
-        <th>Status</th>
-        <th>Paid</th>
-        <th>Created</th>
-        <th>Customer ID</th>
-        <th>ETA</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody id="requestsTable">
-      <tr><td colspan="8">Loading requests...</td></tr>
-    </tbody>
-  </table>
-</div>
-
-<div id="editModal" class="modal">
-  <div class="modal-content">
-    <h3>Edit Request Details</h3>
-    <input type="text" id="modalDriver" placeholder="Assigned Driver" />
-    <input type="number" id="modalETAMins" placeholder="ETA (minutes from now)" min="1" />
-    <button onclick="saveRequestChanges()">💾 Save Changes</button>
+  <!-- Chat Modal -->
+  <div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
+    <div class="chat-box">
+      <h3>Chat</h3>
+      <div id="chatMessages" class="chat-messages">Loading...</div>
+      <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
   </div>
-</div>
-
-<!-- JavaScript will be included here in final file output -->
+</body>
+</html>
