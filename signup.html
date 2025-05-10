@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Bradley GigRunner - Sign Up</title>
+  <title>Sign Up – Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
@@ -26,11 +26,8 @@
       max-width: 400px;
       width: 100%;
     }
-    h1 {
-      color: #1a4d2e;
-      margin-bottom: 20px;
-    }
-    input, select {
+    h1 { color: #1a4d2e; margin-bottom: 20px; }
+    input {
       width: 100%;
       padding: 12px;
       margin: 8px 0;
@@ -46,29 +43,16 @@
       border-radius: 6px;
       cursor: pointer;
     }
-    button:hover {
-      background: #145032;
-    }
-    .footer {
-      font-size: 0.9em;
-      margin-top: 10px;
-    }
-    .error-message {
-      color: red;
-      font-size: 0.9em;
-    }
+    button:hover { background: #145032; }
+    .footer { font-size: 0.9em; margin-top: 10px; }
+    .error-message { color: red; font-size: 0.9em; margin-top: 10px; }
   </style>
 </head>
 <body>
   <div class="box">
-    <h1>Sign Up</h1>
+    <h1>Create an Account</h1>
     <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
-    <select id="role">
-      <option value="customer">Customer</option>
-      <option value="driver">Driver</option>
-      <option value="admin">Admin</option>
-    </select>
+    <input type="password" id="password" placeholder="Password (min 6 characters)" />
     <button id="signupBtn">Sign Up</button>
     <div class="footer">
       Already have an account? <a href="login.html">Login</a>
@@ -79,7 +63,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getFirestore, setDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -95,14 +79,14 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    document.getElementById('signupBtn').addEventListener('click', async (e) => {
+    document.getElementById("signupBtn").addEventListener("click", async (e) => {
       e.preventDefault();
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
-      const role = document.getElementById("role").value;
+      const errorDiv = document.getElementById("errorMessage");
 
-      if (!email || !password || !role) {
-        document.getElementById("errorMessage").innerText = "Please fill in all fields.";
+      if (!email || !password) {
+        errorDiv.innerText = "Please fill out all fields.";
         return;
       }
 
@@ -110,14 +94,31 @@
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const uid = userCredential.user.uid;
 
+        // ✅ Save default role to Firestore
         await setDoc(doc(db, "users", uid), {
-          email: email,
-          role: role
+          email,
+          role: "customer",
+          createdAt: new Date().toISOString()
         });
 
         window.location.href = "login.html";
       } catch (error) {
-        document.getElementById("errorMessage").innerText = "Signup failed: " + error.message;
+        console.error("Signup failed:", error.code || error.message);
+        let message = "Signup failed. Please try again.";
+
+        switch (error.code) {
+          case "auth/email-already-in-use":
+            message = "This email is already registered.";
+            break;
+          case "auth/invalid-email":
+            message = "Please enter a valid email address.";
+            break;
+          case "auth/weak-password":
+            message = "Password must be at least 6 characters.";
+            break;
+        }
+
+        errorDiv.innerText = message;
       }
     });
   </script>
