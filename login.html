@@ -46,14 +46,6 @@
     button:hover { background: #145032; }
     .footer { font-size: 0.9em; margin-top: 10px; }
     .error-message { color: red; font-size: 0.9em; }
-    .role-toggle {
-      margin-top: 10px;
-      font-size: 0.9em;
-      color: #333;
-    }
-    .role-toggle input {
-      margin-right: 6px;
-    }
   </style>
 </head>
 <body>
@@ -61,13 +53,7 @@
     <h1>Bradley GigRunner</h1>
     <input type="email" id="email" placeholder="Email" />
     <input type="password" id="password" placeholder="Password" />
-    
-    <div class="role-toggle">
-      <label><input type="checkbox" id="adminToggle" /> Login as Admin</label>
-    </div>
-
     <button id="loginBtn">Login</button>
-
     <div class="footer">
       Don't have an account? <a href="signup.html">Sign Up</a>
     </div>
@@ -77,6 +63,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -89,15 +76,13 @@
     };
 
     const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
     const auth = getAuth();
 
-    // Login button click
-    const loginBtn = document.getElementById('loginBtn');
-    loginBtn.addEventListener('click', async (e) => {
+    document.getElementById('loginBtn').addEventListener('click', async (e) => {
       e.preventDefault();
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
-      const isAdmin = document.getElementById("adminToggle").checked;
 
       if (!email || !password) {
         document.getElementById("errorMessage").innerText = "Please enter both email and password.";
@@ -106,13 +91,18 @@
 
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        console.log("User logged in:", userCredential.user);
-        // Redirect based on toggle
-        if (isAdmin) {
-          window.location.href = "admin.html";
-        } else {
-          window.location.href = "customer.html";
+        const uid = userCredential.user.uid;
+        const userDoc = await getDoc(doc(db, "users", uid));
+
+        if (!userDoc.exists()) {
+          throw new Error("User role not found.");
         }
+
+        const role = userDoc.data().role;
+        if (role === "admin") window.location.href = "admin.html";
+        else if (role === "driver") window.location.href = "driver.html";
+        else window.location.href = "customer.html";
+
       } catch (error) {
         console.error("Login failed:", error.message);
         document.getElementById("errorMessage").innerText = "Login failed: " + error.message;
