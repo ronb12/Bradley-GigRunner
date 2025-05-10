@@ -62,7 +62,6 @@
       addDoc, orderBy
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-    // Request permission for browser notifications
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
@@ -74,12 +73,12 @@
     }
 
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_BUCKET",
-      messagingSenderId: "YOUR_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+      authDomain: "bradley-gigrunner.firebaseapp.com",
+      projectId: "bradley-gigrunner",
+      storageBucket: "bradley-gigrunner.firebasestorage.app",
+      messagingSenderId: "497753581430",
+      appId: "1:497753581430:web:db6c22866194dd3285bc57"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -94,7 +93,8 @@
         window.location.href = "login.html";
       } else {
         const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (!userDoc.exists() || userDoc.data().role !== "driver") {
+        const roles = userDoc.exists() ? (userDoc.data().roles || []) : [];
+        if (!roles.includes("driver")) {
           alert("Access denied: not a driver.");
           await signOut(auth);
           window.location.href = "login.html";
@@ -126,7 +126,6 @@
           if (showMyJobsOnly && !isMine) return;
           if (!showMyJobsOnly && !(isMine || isPendingUnassigned)) return;
 
-          // Notify driver on new job
           if (isPendingUnassigned && !document.getElementById(`job-${id}`)) {
             showNotification("New Delivery Request", `${d.pickup} → ${d.dropoff}`);
           }
@@ -174,7 +173,6 @@
       const snap = await getDoc(ref);
       const data = snap.data();
       await updateDoc(ref, { status: "picked_up" });
-
       await addDoc(collection(db, `users/${data.userId}/notifications`), {
         type: "status_update",
         message: "Your delivery has been picked up.",
@@ -187,7 +185,6 @@
       const snap = await getDoc(ref);
       const data = snap.data();
       await updateDoc(ref, { status: "delivered" });
-
       await addDoc(collection(db, `users/${data.userId}/notifications`), {
         type: "status_update",
         message: "Your delivery has been delivered.",
@@ -207,11 +204,7 @@
       document.getElementById("chatModal").style.display = "block";
       const messagesDiv = document.getElementById("chatMessages");
       messagesDiv.innerHTML = "Loading...";
-
-      const chatQuery = query(
-        collection(db, `requests/${requestId}/messages`),
-        orderBy("timestamp")
-      );
+      const chatQuery = query(collection(db, `requests/${requestId}/messages`), orderBy("timestamp"));
       onSnapshot(chatQuery, snapshot => {
         snapshot.docChanges().forEach(change => {
           if (change.type === "added") {
@@ -221,7 +214,6 @@
             }
           }
         });
-
         messagesDiv.innerHTML = "";
         snapshot.forEach(doc => {
           const m = doc.data();
@@ -254,12 +246,10 @@
 <body>
   <h1>Driver Dashboard</h1>
   <button onclick="logout()">Logout</button>
-
-  <label style="display: block; margin-bottom: 10px;">
+  <label>
     <input type="checkbox" id="myJobsOnlyToggle" onchange="loadJobs()" />
     Show only my accepted jobs
   </label>
-
   <h2>Available & Assigned Jobs</h2>
   <div id="jobList"></div>
 
