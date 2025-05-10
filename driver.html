@@ -2,217 +2,84 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Driver Dashboard – Bradley GigRunner</title>
+  <title>Bradley GigRunner - Driver</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #f9fafb; margin: 0; padding: 20px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      margin: 0;
+      padding: 20px;
+    }
     h1 { color: #1a4d2e; }
     button {
-      padding: 10px 16px; margin: 4px 0;
-      background: #1a4d2e; color: white; border: none;
-      border-radius: 6px; cursor: pointer;
+      padding: 10px 16px;
+      background: #1a4d2e;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 20px;
     }
     button:hover { background: #145032; }
-    .chat-modal {
-      display: none; position: fixed; z-index: 1000;
-      left: 0; top: 0; width: 100%; height: 100%;
+    .job-card {
+      background: white;
+      border: 1px solid #ccc;
+      padding: 12px;
+      margin-bottom: 16px;
+      border-radius: 8px;
+    }
+    .chat-modal, .map-modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
       background: rgba(0,0,0,0.6);
     }
-    .chat-box {
-      background: #fff; max-width: 400px; margin: 10% auto; padding: 20px;
-      border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    .chat-box, .map-box {
+      background: white;
+      max-width: 500px;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 10px;
     }
     .chat-messages {
-      height: 200px; overflow-y: auto;
-      border: 1px solid #ccc; padding: 10px; margin-bottom: 10px;
+      height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
     }
     .chat-input {
-      width: 100%; padding: 10px; font-size: 1em;
+      width: 100%;
+      padding: 10px;
+      font-size: 1em;
     }
-    .job-card {
-      border: 1px solid #ccc; padding: 10px; margin-bottom: 10px;
-      background: #fff; border-radius: 6px;
+    #map {
+      height: 400px;
+      width: 100%;
+      border-radius: 8px;
+      margin-bottom: 10px;
     }
   </style>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import {
-      getFirestore, collection, query, onSnapshot, updateDoc, doc, getDoc,
-      addDoc, orderBy
-    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
-      authDomain: "bradley-gigrunner.firebaseapp.com",
-      projectId: "bradley-gigrunner",
-      storageBucket: "bradley-gigrunner.firebasestorage.app",
-      messagingSenderId: "497753581430",
-      appId: "1:497753581430:web:db6c22866194dd3285bc57"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth();
-
-    let currentDriverId = null;
-    let activeChatRequestId = null;
-
-    if ("Notification" in window && Notification.permission !== "granted") {
-      Notification.requestPermission();
-    }
-
-    function showNotification(title, body) {
-      if (Notification.permission === "granted") {
-        new Notification(title, { body });
-      }
-    }
-
-    onAuthStateChanged(auth, async user => {
-      if (!user) return window.location.href = "login.html";
-      const snap = await getDoc(doc(db, "users", user.uid));
-      const roles = snap.exists() ? snap.data().roles || [] : [];
-      if (!roles.includes("driver")) {
-        alert("Access denied.");
-        await signOut(auth);
-        return window.location.href = "login.html";
-      }
-      currentDriverId = user.uid;
-      loadJobs();
-    });
-
-    window.logout = async () => {
-      await signOut(auth);
-      window.location.reload();
-    };
-
-    window.loadJobs = () => {
-      const showMyOnly = document.getElementById("myJobsOnlyToggle").checked;
-      const q = query(collection(db, "requests"));
-      onSnapshot(q, snap => {
-        const jobList = document.getElementById("jobList");
-        jobList.innerHTML = "";
-        snap.forEach(docSnap => {
-          const d = docSnap.data();
-          const id = docSnap.id;
-          const mine = d.driverId === currentDriverId;
-          const unassigned = d.status === "pending" && !d.driverId;
-          if (showMyOnly && !mine) return;
-          if (!showMyOnly && !(mine || unassigned)) return;
-
-          let btn = "";
-          let etaField = "";
-          let chat = `<button onclick="openChat('${id}')">💬 Chat</button>`;
-          let directions = d.pickup && d.dropoff ? `<a href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(d.pickup)}&destination=${encodeURIComponent(d.dropoff)}" target="_blank"><button>🧭 Navigate</button></a>` : "";
-
-          if (!d.paid) {
-            btn = `<span style='color:red;'>Unpaid</span>`;
-          } else if (d.status === "pending") {
-            btn = `<button onclick="accept('${id}')">Accept</button>`;
-          } else if (d.status === "accepted") {
-            btn = `<button onclick="pickup('${id}')">Picked Up</button>`;
-            etaField = `<input type="number" placeholder="ETA (min)" onchange="updateETA('${id}', this.value)" />`;
-          } else if (d.status === "picked_up") {
-            btn = `<button onclick="deliver('${id}')">Delivered</button>`;
-            etaField = `<input type="number" placeholder="ETA (min)" onchange="updateETA('${id}', this.value)" />`;
-          }
-
-          jobList.innerHTML += `
-            <div class="job-card">
-              <p><strong>Pickup:</strong> ${d.pickup}</p>
-              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
-              <p><strong>Status:</strong> ${d.status}</p>
-              <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
-              ${btn}<br>
-              ${etaField}<br>
-              ${directions}
-              ${chat}
-            </div>
-          `;
-        });
-      });
-    };
-
-    window.accept = async id => {
-      await updateDoc(doc(db, "requests", id), {
-        status: "accepted",
-        driverId: currentDriverId
-      });
-    };
-
-    window.pickup = async id => {
-      const ref = doc(db, "requests", id);
-      const snap = await getDoc(ref);
-      const data = snap.data();
-      await updateDoc(ref, { status: "picked_up" });
-      await addDoc(collection(db, `users/${data.userId}/notifications`), {
-        type: "status_update",
-        message: "Your delivery has been picked up.",
-        timestamp: new Date()
-      });
-    };
-
-    window.deliver = async id => {
-      const ref = doc(db, "requests", id);
-      const snap = await getDoc(ref);
-      const data = snap.data();
-      await updateDoc(ref, { status: "delivered" });
-      await addDoc(collection(db, `users/${data.userId}/notifications`), {
-        type: "status_update",
-        message: "Your delivery has been delivered.",
-        timestamp: new Date()
-      });
-    };
-
-    window.updateETA = async (id, mins) => {
-      if (!mins || isNaN(mins)) return alert("Enter valid ETA.");
-      const eta = new Date(Date.now() + parseInt(mins) * 60000).toISOString();
-      await updateDoc(doc(db, "requests", id), { eta });
-    };
-
-    window.openChat = (id) => {
-      activeChatRequestId = id;
-      document.getElementById("chatModal").style.display = "block";
-      const chatDiv = document.getElementById("chatMessages");
-      chatDiv.innerHTML = "Loading...";
-      const q = query(collection(db, `requests/${id}/messages`), orderBy("timestamp"));
-      onSnapshot(q, snap => {
-        chatDiv.innerHTML = "";
-        snap.forEach(doc => {
-          const m = doc.data();
-          const who = m.userId === currentDriverId ? "🧑‍✈️ You" : "👤 Other";
-          chatDiv.innerHTML += `<p><strong>${who}:</strong> ${m.text}</p>`;
-        });
-        chatDiv.scrollTop = chatDiv.scrollHeight;
-      });
-    };
-
-    window.sendMessage = async () => {
-      const input = document.getElementById("chatInput");
-      const text = input.value.trim();
-      if (!text || !activeChatRequestId) return;
-      await addDoc(collection(db, `requests/${activeChatRequestId}/messages`), {
-        text, userId: currentDriverId, timestamp: new Date()
-      });
-      input.value = "";
-    };
-
-    window.closeChat = () => {
-      document.getElementById("chatModal").style.display = "none";
-    };
-  </script>
 </head>
 <body>
   <h1>Driver Dashboard</h1>
   <button onclick="logout()">Logout</button>
   <label>
-    <input type="checkbox" id="myJobsOnlyToggle" onchange="loadJobs()" /> Show only my accepted jobs
+    <input type="checkbox" id="myJobsOnlyToggle" onchange="loadJobs()" />
+    Show only my accepted jobs
   </label>
   <h2>Available & Assigned Jobs</h2>
-  <div id="jobList"></div>
+  <div id="jobList">Loading...</div>
 
+  <!-- Chat Modal -->
   <div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
     <div class="chat-box">
       <h3>Chat</h3>
@@ -221,5 +88,68 @@
       <button onclick="sendMessage()">Send</button>
     </div>
   </div>
+
+  <!-- Map Modal -->
+  <div id="mapModal" class="map-modal" onclick="if(event.target==this) closeMap()">
+    <div class="map-box">
+      <h3>Directions</h3>
+      <div id="map"></div>
+      <button onclick="closeMap()">Close</button>
+    </div>
+  </div>
+
+  <script>
+    function logout() {
+      alert("Simulated logout.");
+    }
+
+    function loadJobs() {
+      const list = document.getElementById("jobList");
+      list.innerHTML = `
+        <div class='job-card'>
+          <p><strong>Pickup:</strong> 123 Main St</p>
+          <p><strong>Dropoff:</strong> 456 Oak Ave</p>
+          <p><strong>Status:</strong> Accepted</p>
+          <p><strong>Paid:</strong> ✅</p>
+          <p><strong>Payout:</strong> $12.00</p>
+          <p><strong>Tip:</strong> $3.00</p>
+          <p><strong>Fuel Est:</strong> $1.20 • <strong>Maint:</strong> $0.45</p>
+          <button onclick="startNavigation()">🧭 Navigate</button>
+          <button onclick="openChat()">💬 Chat</button>
+        </div>
+      `;
+    }
+
+    function openChat() {
+      document.getElementById("chatModal").style.display = "block";
+    }
+
+    function closeChat() {
+      document.getElementById("chatModal").style.display = "none";
+    }
+
+    function sendMessage() {
+      const input = document.getElementById("chatInput");
+      if (!input.value.trim()) return;
+      alert("Message sent: " + input.value);
+      input.value = "";
+    }
+
+    function startNavigation() {
+      document.getElementById("mapModal").style.display = "block";
+      setTimeout(() => {
+        const map = L.map('map').setView([29.9511, -90.0715], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+        }).addTo(map);
+        L.marker([29.9511, -90.0715]).addTo(map).bindPopup('Pickup: 123 Main St').openPopup();
+        L.marker([29.9611, -90.0815]).addTo(map).bindPopup('Dropoff: 456 Oak Ave');
+      }, 300);
+    }
+
+    function closeMap() {
+      document.getElementById("mapModal").style.display = "none";
+    }
+  </script>
 </body>
 </html>
