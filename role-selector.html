@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Select Role - Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="favicon.ico?v=1" />
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -26,22 +27,29 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      width: 220px;
+      width: 240px;
     }
     .role-button:hover {
       background: #145032;
+    }
+    .logout-button {
+      margin-top: 30px;
+      background: #d9534f;
+    }
+    .logout-button:hover {
+      background: #c9302c;
     }
   </style>
 </head>
 <body>
   <h1>Select Your Role</h1>
-  <button class="role-button" onclick="location.href='admin.html'">👑 Admin Dashboard</button>
-  <button class="role-button" onclick="location.href='driver.html'">🚗 Driver Dashboard</button>
-  <button class="role-button" onclick="location.href='customer.html'">🧍 Customer Dashboard</button>
+  <div id="roleButtons">Loading roles...</div>
+  <button class="role-button logout-button" onclick="logout()">🚪 Logout</button>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -54,12 +62,41 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+    const db = getFirestore(app);
+    const buttonsDiv = document.getElementById("roleButtons");
 
-    onAuthStateChanged(auth, user => {
-      if (!user) {
-        window.location.href = "login.html";
+    onAuthStateChanged(auth, async user => {
+      if (!user) return window.location.href = "login.html";
+
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists()) {
+        buttonsDiv.innerHTML = "<p>User profile not found.</p>";
+        return;
+      }
+
+      const roles = userDoc.data().roles || [];
+
+      buttonsDiv.innerHTML = "";
+
+      if (roles.includes("admin")) {
+        buttonsDiv.innerHTML += `<button class="role-button" onclick="location.href='admin.html'">👑 Admin Dashboard</button>`;
+      }
+      if (roles.includes("driver")) {
+        buttonsDiv.innerHTML += `<button class="role-button" onclick="location.href='driver.html'">🚗 Driver Dashboard</button>`;
+      }
+      if (roles.includes("customer")) {
+        buttonsDiv.innerHTML += `<button class="role-button" onclick="location.href='customer.html'">🧍 Customer Dashboard</button>`;
+      }
+
+      if (buttonsDiv.innerHTML.trim() === "") {
+        buttonsDiv.innerHTML = "<p>No roles assigned to this account.</p>";
       }
     });
+
+    window.logout = async () => {
+      await signOut(auth);
+      window.location.href = "login.html";
+    };
   </script>
 </body>
 </html>
