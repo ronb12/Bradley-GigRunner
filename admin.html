@@ -1,133 +1,109 @@
-<!-- SAME <html>, <head> as before... -->
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>Admin Dashboard – Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="favicon.ico" />
-  <link rel="manifest" href="manifest.json" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f7fa;
-      margin: 0;
-      padding: 20px;
+    body { font-family: Arial, sans-serif; background: #f5f7fa; margin: 0; padding: 20px; }
+    h1 { color: #1a4d2e; text-align: center; }
+    .box { background: white; padding: 20px; border-radius: 12px; margin: 20px auto; max-width: 1000px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; font-size: 0.9em; }
+    th { background: #e0f0e9; }
+    .logout, .print-btn, .export-btn {
+      background: #1a4d2e; color: white; padding: 8px 12px; border: none;
+      border-radius: 6px; cursor: pointer; margin-left: 8px;
     }
-    h1 {
-      color: #1a4d2e;
-      text-align: center;
+    .logout:hover, .print-btn:hover, .export-btn:hover { background: #145032; }
+    .filters { margin-bottom: 10px; }
+    .action-btn { background: #1a4d2e; color: white; border: none; padding: 4px 8px; margin: 2px; border-radius: 4px; font-size: 0.8em; cursor: pointer; }
+    .action-btn:hover { background: #145032; }
+    .delete-btn { background: #d9534f; }
+    .delete-btn:hover { background: #c9302c; }
+    .export-menu { position: relative; display: inline-block; }
+    .export-options {
+      display: none; position: absolute; right: 0; background: white; border: 1px solid #ccc; border-radius: 6px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15); z-index: 10;
     }
-    .box {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      margin: 20px auto;
-      max-width: 1000px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    .export-options button {
+      background: none; border: none; color: #333; padding: 10px 20px; width: 100%; text-align: left; cursor: pointer;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      padding: 10px;
-      border: 1px solid #ddd;
-      text-align: left;
-      font-size: 0.9em;
-    }
-    th {
-      background: #e0f0e9;
-    }
-    .logout, .print-btn {
-      background: #1a4d2e;
-      color: white;
-      padding: 8px 12px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-left: 8px;
-    }
-    .logout:hover, .print-btn:hover {
-      background: #145032;
-    }
-    .filters {
-      margin-bottom: 10px;
-    }
-    .action-btn {
-      background: #1a4d2e;
-      color: white;
-      border: none;
-      padding: 4px 8px;
-      margin: 2px;
-      border-radius: 4px;
-      font-size: 0.8em;
-      cursor: pointer;
-    }
-    .action-btn:hover {
-      background: #145032;
-    }
-    .delete-btn {
-      background: #d9534f;
-    }
-    .delete-btn:hover {
-      background: #c9302c;
-    }
-
-    /* ✅ Hide UI elements during printing */
+    .export-options button:hover { background: #f0f0f0; }
+    .export-menu:hover .export-options { display: block; }
     @media print {
-      .logout, .print-btn, .filters, .action-btn {
-        display: none !important;
-      }
+      .logout, .print-btn, .filters, .action-btn, .export-menu { display: none !important; }
     }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
+    .modal-content { background-color: #fff; margin: 10% auto; padding: 20px; border-radius: 10px; width: 90%; max-width: 500px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    .modal-content h3 { margin-top: 0; }
+    .modal-content input { width: 100%; margin: 8px 0; padding: 10px; font-size: 1em; }
+    .modal-content button { margin-top: 10px; padding: 10px 20px; background: #1a4d2e; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    .modal-content button:hover { background: #145032; }
   </style>
 </head>
 <body>
 
-  <h1>Admin Dashboard</h1>
-  <div class="box">
-    <div style="display: flex; justify-content: space-between;">
-      <div class="filters">
-        <label>Status:
-          <select id="statusFilter">
-            <option value="all">All</option>
-            <option value="pending">Pending</option>
-            <option value="accepted">Accepted</option>
-            <option value="completed">Completed</option>
-          </select>
-        </label>
-        <label>Sort by:
-          <select id="sortOrder">
-            <option value="desc">Newest First</option>
-            <option value="asc">Oldest First</option>
-          </select>
-        </label>
-      </div>
-      <div>
-        <button class="print-btn" onclick="window.print()">🖨️ Print Requests</button>
-        <button class="logout" id="logoutButton">Logout</button>
-      </div>
+<h1>Admin Dashboard</h1>
+<div class="box">
+  <div style="display: flex; justify-content: space-between;">
+    <div class="filters">
+      <label>Status:
+        <select id="statusFilter">
+          <option value="all">All</option>
+          <option value="pending">Pending</option>
+          <option value="accepted">Accepted</option>
+          <option value="completed">Completed</option>
+        </select>
+      </label>
+      <label>Sort by:
+        <select id="sortOrder">
+          <option value="desc">Newest First</option>
+          <option value="asc">Oldest First</option>
+        </select>
+      </label>
     </div>
-
-    <h2>All Requests</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Pickup</th>
-          <th>Dropoff</th>
-          <th>Status</th>
-          <th>Paid</th>
-          <th>Created</th>
-          <th>Customer ID</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="requestsTable">
-        <tr><td colspan="7">Loading requests...</td></tr>
-      </tbody>
-    </table>
+    <div>
+      <div class="export-menu">
+        <button class="export-btn">📤 Export</button>
+        <div class="export-options">
+          <button onclick="exportToPDF()">Export to PDF</button>
+          <button onclick="exportToCSV()">Export to CSV</button>
+        </div>
+      </div>
+      <button class="print-btn" onclick="window.print()">🖨️ Print</button>
+      <button class="logout" id="logoutButton">Logout</button>
+    </div>
   </div>
 
-  <!-- ✅ The JavaScript block from the previous version remains unchanged -->
-  <!-- Just make sure `window.print()` is triggered via the button above -->
+  <h2>All Requests</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Pickup</th>
+        <th>Dropoff</th>
+        <th>Status</th>
+        <th>Paid</th>
+        <th>Created</th>
+        <th>Customer ID</th>
+        <th>ETA</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="requestsTable">
+      <tr><td colspan="8">Loading requests...</td></tr>
+    </tbody>
+  </table>
+</div>
 
-</body>
+<div id="editModal" class="modal">
+  <div class="modal-content">
+    <h3>Edit Request Details</h3>
+    <input type="text" id="modalDriver" placeholder="Assigned Driver" />
+    <input type="number" id="modalETAMins" placeholder="ETA (minutes from now)" min="1" />
+    <button onclick="saveRequestChanges()">💾 Save Changes</button>
+  </div>
+</div>
+
+<!-- JavaScript will be included here in final file output -->
