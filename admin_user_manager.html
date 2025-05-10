@@ -60,7 +60,7 @@
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
-    import { getFirestore, collection, getDocs, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+    import { getFirestore, collection, getDocs, updateDoc, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
     import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
 
     const firebaseConfig = {
@@ -80,8 +80,15 @@
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
-      const userDoc = await getDocs(collection(db, "users"));
-      renderTable(userDoc);
+      const userSnap = await getDoc(doc(db, "users", user.uid));
+      if (!userSnap.exists() || userSnap.data().role !== "admin") {
+        alert("Access denied. Admins only.");
+        await signOut(auth);
+        return location.href = "login.html";
+      }
+
+      const userDocs = await getDocs(collection(db, "users"));
+      renderTable(userDocs);
     });
 
     function renderTable(snapshot) {
