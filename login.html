@@ -7,22 +7,22 @@
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
   <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      background: #f9fafb; 
-      padding: 20px; 
-      margin: 0; 
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      padding: 20px;
+      margin: 0;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
       text-align: center;
     }
-    .box { 
-      background: white; 
-      padding: 20px; 
-      border-radius: 12px; 
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+    .box {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       max-width: 400px;
       width: 100%;
     }
@@ -62,7 +62,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -79,35 +79,34 @@
     const auth = getAuth();
     const db = getFirestore(app);
 
-    // On Auth State Change
+    // Only run redirect if user is on login page
+    const currentPage = window.location.pathname;
     onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // Retrieve user role from Firestore
+      if (user && currentPage.includes("login.html")) {
         const userRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userRef);
 
         if (userDoc.exists()) {
           const userRole = userDoc.data().role;
           if (userRole === 'admin') {
-            window.location.href = 'admin.html'; // Redirect to admin page
+            window.location.href = 'admin.html';
           } else if (userRole === 'customer') {
-            window.location.href = 'customer.html'; // Redirect to customer page
+            window.location.href = 'customer.html';
           }
         } else {
-          alert("User data not found.");
-          window.location.href = "login.html";
+          document.getElementById("errorMessage").innerText = "User data not found in Firestore.";
+          await signOut(auth);
         }
       }
     });
 
-    // Login function
+    // Login logic
     const loginBtn = document.getElementById('loginBtn');
     loginBtn.addEventListener('click', async (e) => {
-      e.preventDefault(); // Prevent page reload on button click
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+      e.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
 
-      // Check if email and password fields are filled
       if (!email || !password) {
         document.getElementById("errorMessage").innerText = "Please enter both email and password.";
         return;
@@ -115,11 +114,11 @@
 
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        console.log("User logged in:", userCredential.user);  // Debugging: Check user data
-        // Redirect is handled in onAuthStateChanged
+        console.log("User logged in:", userCredential.user);
+        // Redirect happens automatically via onAuthStateChanged
       } catch (error) {
-        console.error("Login failed:", error.message);  // Debugging: Log error
-        document.getElementById("errorMessage").innerText = "Login failed: " + error.message; // Show error message
+        console.error("Login failed:", error.message);
+        document.getElementById("errorMessage").innerText = "Login failed: " + error.message;
       }
     });
   </script>
