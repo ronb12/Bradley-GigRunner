@@ -5,18 +5,161 @@
   <title>Admin Dashboard – Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      color: #1a4d2e;
+      text-align: center;
+    }
+    .box {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      max-width: 1000px;
+      margin: 20px auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: left;
+      font-size: 0.95em;
+    }
+    th {
+      background: #e0f0e9;
+    }
+    .action-btn {
+      background: #1a4d2e;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      margin: 2px;
+      cursor: pointer;
+    }
+    .action-btn:hover {
+      background: #145032;
+    }
+    .delete-btn {
+      background: #d9534f;
+    }
+    .delete-btn:hover {
+      background: #c9302c;
+    }
+    .logout {
+      background: #d9534f;
+      color: white;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .logout:hover {
+      background: #c9302c;
+    }
+    .filters {
+      margin-bottom: 10px;
+    }
+    .modal, .chat-modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+    }
+    .modal-content, .chat-box {
+      background: white;
+      margin: 10% auto;
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+      border-radius: 10px;
+    }
+    .chat-messages {
+      height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .chat-input {
+      width: 100%;
+      padding: 10px;
+      font-size: 1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Admin Dashboard</h1>
+  <div class="box">
+    <div style="display: flex; justify-content: space-between;">
+      <div class="filters">
+        <label>Status: <select id="statusFilter"></select></label>
+        <label>Sort by: <select id="sortOrder"></select></label>
+      </div>
+      <button class="logout" id="logoutButton">Logout</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Pickup</th>
+          <th>Dropoff</th>
+          <th>Status</th>
+          <th>Paid</th>
+          <th>Created</th>
+          <th>Customer ID</th>
+          <th>ETA</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="requestsTable"></tbody>
+    </table>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <h3>Edit Request Details</h3>
+      <input type="text" id="modalDriver" placeholder="Assigned Driver" />
+      <input type="number" id="modalETAMins" placeholder="ETA (minutes from now)" min="1" />
+      <button onclick="saveRequestChanges()">💾 Save Changes</button>
+    </div>
+  </div>
+
+  <!-- Chat Modal -->
+  <div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
+    <div class="chat-box">
+      <h3>Chat</h3>
+      <div id="chatMessages" class="chat-messages">Loading...</div>
+      <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
     import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
     import { getFirestore, collection, doc, getDoc, updateDoc, deleteDoc, query, onSnapshot, orderBy, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
 
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_BUCKET",
-      messagingSenderId: "YOUR_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+      authDomain: "bradley-gigrunner.firebaseapp.com",
+      projectId: "bradley-gigrunner",
+      storageBucket: "bradley-gigrunner.firebasestorage.app",
+      messagingSenderId: "497753581430",
+      appId: "1:497753581430:web:db6c22866194dd3285bc57"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -25,11 +168,13 @@
     let currentAdminId = null;
     let allRequests = [];
     let activeChatRequestId = null;
+    let editRequestId = null;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return (window.location.href = "login.html");
       const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists() || userDoc.data().role !== 'admin') {
+      const roles = userDoc.exists() ? (userDoc.data().roles || []) : [];
+      if (!userDoc.exists() || !roles.includes("admin")) {
         alert("Access denied.");
         await signOut(auth);
         window.location.href = "login.html";
@@ -46,9 +191,8 @@
         const messageCounts = {};
         for (const docSnap of snapshot.docs) {
           const data = docSnap.data();
-          const messagesRef = collection(db, `requests/${docSnap.id}/messages`);
-          const msgSnap = await getDoc(doc(db, `requests/${docSnap.id}/meta`));
-          messageCounts[docSnap.id] = msgSnap.exists() && msgSnap.data().newForAdmin;
+          const metaSnap = await getDoc(doc(db, `requests/${docSnap.id}/meta`));
+          messageCounts[docSnap.id] = metaSnap.exists() && metaSnap.data().newForAdmin;
           allRequests.push({ id: docSnap.id, ...data });
         }
         renderRequests(messageCounts);
@@ -141,54 +285,5 @@
       window.location.href = "login.html";
     });
   </script>
-</head>
-<body>
-  <h1>Admin Dashboard</h1>
-  <div class="box">
-    <div style="display: flex; justify-content: space-between;">
-      <div class="filters">
-        <label>Status: <select id="statusFilter"></select></label>
-        <label>Sort by: <select id="sortOrder"></select></label>
-      </div>
-      <div>
-        <button class="logout" id="logoutButton">Logout</button>
-      </div>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Pickup</th>
-          <th>Dropoff</th>
-          <th>Status</th>
-          <th>Paid</th>
-          <th>Created</th>
-          <th>Customer ID</th>
-          <th>ETA</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="requestsTable"></tbody>
-    </table>
-  </div>
-
-  <!-- Edit Modal -->
-  <div id="editModal" class="modal">
-    <div class="modal-content">
-      <h3>Edit Request Details</h3>
-      <input type="text" id="modalDriver" placeholder="Assigned Driver" />
-      <input type="number" id="modalETAMins" placeholder="ETA (minutes from now)" min="1" />
-      <button onclick="saveRequestChanges()">💾 Save Changes</button>
-    </div>
-  </div>
-
-  <!-- Chat Modal -->
-  <div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
-    <div class="chat-box">
-      <h3>Chat</h3>
-      <div id="chatMessages" class="chat-messages">Loading...</div>
-      <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
-      <button onclick="sendMessage()">Send</button>
-    </div>
-  </div>
 </body>
 </html>
