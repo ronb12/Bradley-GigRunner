@@ -48,6 +48,9 @@
       border-radius: 6px;
       cursor: pointer;
     }
+    .logout:hover {
+      background: #c9302c;
+    }
   </style>
 </head>
 <body>
@@ -67,7 +70,9 @@
           <th>Customer ID</th>
         </tr>
       </thead>
-      <tbody id="requestsTable"></tbody>
+      <tbody id="requestsTable">
+        <tr><td colspan="6">Loading requests...</td></tr>
+      </tbody>
     </table>
   </div>
 
@@ -90,56 +95,62 @@
     const db = getFirestore(app);
     const auth = getAuth();
 
-    // Check for authenticated user and if they are an admin
+    // Auth + Role Check
     onAuthStateChanged(auth, async user => {
       if (!user) {
-        window.location.href = "login.html"; // Redirect to login if no user is authenticated
+        window.location.href = "login.html";
       } else {
         try {
-          const userDoc = await getDoc(doc(db, "users", user.uid)); // Get user document from Firestore
+          const userDoc = await getDoc(doc(db, "users", user.uid));
           if (userDoc.exists() && userDoc.data().role === 'admin') {
-            loadRequests(); // Load requests only if the user is an admin
+            loadRequests(); // Only allow access if role is admin
           } else {
-            alert("You are not authorized to access the Admin Dashboard.");
-            window.location.href = "login.html"; // Redirect to login if not an admin
+            alert("Access denied. Admins only.");
+            await signOut(auth);
+            window.location.href = "login.html";
           }
         } catch (error) {
-          alert("Error fetching user data: " + error.message);
-          window.location.href = "login.html"; // Redirect on error
+          alert("Error loading user data: " + error.message);
+          await signOut(auth);
+          window.location.href = "login.html";
         }
       }
     });
 
-    // Logout function
-    async function logout() {
-      await signOut(auth);
-      window.location.href = "login.html"; // Redirect to login after sign out
-    }
-
-    // Load requests from Firestore
+    // Load and render requests
     function loadRequests() {
       const tbody = document.getElementById("requestsTable");
-      onSnapshot(collection(db, "requests"), snapshot => {
-        tbody.innerHTML = ""; // Clear the table
+      const requestsRef = collection(db, "requests");
+
+      onSnapshot(requestsRef, snapshot => {
+        tbody.innerHTML = ""; // Clear table
+        if (snapshot.empty) {
+          tbody.innerHTML = "<tr><td colspan='6'>No requests found.</td></tr>";
+          return;
+        }
+
         snapshot.forEach(doc => {
           const d = doc.data();
-          const created = d.timestamp ? new Date(d.timestamp.seconds * 1000).toLocaleString() : "—"; // Convert Firestore timestamp
+          const created = d.timestamp ? new Date(d.timestamp.seconds * 1000).toLocaleString() : "—";
           tbody.innerHTML += `
             <tr>
-              <td>${d.pickup}</td>
-              <td>${d.dropoff}</td>
-              <td>${d.status}</td>
+              <td>${d.pickup || "-"}</td>
+              <td>${d.dropoff || "-"}</td>
+              <td>${d.status || "-"}</td>
               <td>${d.paid ? "✅" : "❌"}</td>
               <td>${created}</td>
-              <td>${d.userId}</td>
+              <td>${d.userId || "-"}</td>
             </tr>
           `;
         });
       });
     }
 
-    // Event listener for logout
-    document.getElementById("logoutButton").addEventListener("click", logout);
+    // Logout button
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "login.html";
+    });
   </script>
 </body>
 </html>
