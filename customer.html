@@ -6,108 +6,132 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-o9N1jrvvJqMiDR1zSVkR2D7RA8mH3UMscwU5Ff3jrgE="
+    crossorigin=""
+  />
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f9fafb;
-      padding: 20px;
       margin: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      text-align: center;
+      padding: 20px;
     }
-    .box {
+    .container {
+      max-width: 600px;
+      margin: auto;
       background: white;
       padding: 20px;
       border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      max-width: 500px;
-      width: 100%;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     }
     h1, h2 {
       color: #1a4d2e;
-      margin-bottom: 20px;
+      text-align: center;
     }
-    input {
+    input, select, textarea {
       width: 100%;
-      padding: 12px;
-      margin: 8px 0;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 1em;
       border: 1px solid #ccc;
       border-radius: 6px;
     }
     button {
-      width: 100%;
       padding: 12px;
+      width: 100%;
       background: #1a4d2e;
       color: white;
       border: none;
       border-radius: 6px;
+      font-size: 1em;
       cursor: pointer;
+      margin-top: 10px;
     }
-    button:hover { background: #145032; }
+    button:hover {
+      background: #145032;
+    }
     .logout {
-      margin-bottom: 20px;
       background: #d9534f;
     }
-    .logout:hover { background: #c9302c; }
-    .job-card {
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 6px;
-      background: #fefefe;
-      text-align: left;
+    .logout:hover {
+      background: #c9302c;
     }
-    .job-card p { margin: 6px 0; }
+    .job-card {
+      background: #fefefe;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 12px;
+      margin: 10px 0;
+    }
+    .job-card p {
+      margin: 6px 0;
+    }
+    .small-btn {
+      font-size: 0.9em;
+      padding: 6px 10px;
+    }
+    #map {
+      height: 250px;
+      margin: 10px 0;
+      border-radius: 10px;
+      border: 1px solid #ccc;
+    }
   </style>
 </head>
 <body>
-  <div class="box">
+  <div class="container">
     <h1>Customer Dashboard</h1>
     <button class="logout" onclick="logout()">Logout</button>
 
     <h2>Create Delivery Request</h2>
     <input type="text" id="pickup" placeholder="Pickup Location" />
     <input type="text" id="dropoff" placeholder="Dropoff Location" />
-    <input type="text" id="details" placeholder="Package/Food Details" />
-    <button id="submitBtn" onclick="submitRequest()">Submit Request</button>
+    <input type="text" id="details" placeholder="What are you sending?" />
+    <input type="number" id="tip" placeholder="Tip for driver ($)" min="1" />
+    <div id="map"></div>
+    <button onclick="previewRoute()">📍 Preview Route</button>
+    <button onclick="submitRequest()">🚀 Submit Request</button>
 
     <h2>My Delivery Requests</h2>
-    <div id="myJobs">Loading your requests...</div>
+    <div id="jobList">Loading your deliveries...</div>
 
-    <h2>Notifications 
-      <button onclick="clearNotifications()" style="float:right; font-size:0.8em; padding:6px 12px; background:#d9534f; border:none; color:white; border-radius:4px;">🗑 Clear All</button>
-    </h2>
-    <div id="notificationsBox">Loading notifications...</div>
+    <h2>Notifications</h2>
+    <div id="notificationsBox">Loading...</div>
   </div>
-
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-XQoYMqMTK8LvdlxU/3c0mF6tYhHc1p2V7p3pqtKcg3s="
+    crossorigin=""
+  ></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import {
-      getAuth, onAuthStateChanged, signOut
+      getAuth,
+      onAuthStateChanged,
+      signOut
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import {
-      getFirestore, collection, addDoc, query, where, onSnapshot, updateDoc,
-      doc, getDoc, serverTimestamp, getDocs, writeBatch, orderBy
+      getFirestore,
+      collection,
+      query,
+      where,
+      orderBy,
+      addDoc,
+      onSnapshot,
+      doc,
+      getDoc,
+      updateDoc,
+      serverTimestamp
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-
-    if ("Notification" in window && Notification.permission !== "granted") {
-      Notification.requestPermission();
-    }
-
-    function showNotification(title, body) {
-      if (Notification.permission === "granted") {
-        new Notification(title, { body });
-      }
-    }
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
       authDomain: "bradley-gigrunner.firebaseapp.com",
       projectId: "bradley-gigrunner",
-      storageBucket: "bradley-gigrunner.firebasestorage.app",
+      storageBucket: "bradley-gigrunner.appspot.com",
       messagingSenderId: "497753581430",
       appId: "1:497753581430:web:db6c22866194dd3285bc57"
     };
@@ -115,140 +139,136 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth();
+
     let currentUserId = null;
+    let map = null;
+    let routeLayer = null;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return (window.location.href = "login.html");
-      currentUserId = user.uid;
       const userDoc = await getDoc(doc(db, "users", user.uid));
-      const roles = userDoc.exists() ? (userDoc.data().roles || []) : [];
-
-      if (!roles.includes("customer")) {
-        alert("Access denied.");
+      if (!userDoc.exists() || !(userDoc.data().roles || []).includes("customer")) {
+        alert("Access denied");
         await signOut(auth);
-        window.location.href = "login.html";
-      } else {
-        loadMyRequests();
-        loadNotifications();
+        return (window.location.href = "login.html");
       }
+      currentUserId = user.uid;
+      loadJobs();
+      loadNotifications();
+      setupMap();
     });
 
     window.logout = async () => {
       await signOut(auth);
-      window.location.href = "login.html";
+      location.href = "login.html";
     };
+
+    function setupMap() {
+      map = L.map("map").setView([29.9511, -90.0715], 12); // New Orleans center
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap"
+      }).addTo(map);
+    }
+
+    async function previewRoute() {
+      const from = document.getElementById("pickup").value;
+      const to = document.getElementById("dropoff").value;
+      if (!from || !to) return alert("Enter both pickup and dropoff.");
+
+      const [fromData, toData] = await Promise.all([
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${from}`).then(res => res.json()),
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${to}`).then(res => res.json())
+      ]);
+
+      if (!fromData[0] || !toData[0]) return alert("Location not found.");
+      const fromCoords = [parseFloat(fromData[0].lat), parseFloat(fromData[0].lon)];
+      const toCoords = [parseFloat(toData[0].lat), parseFloat(toData[0].lon)];
+
+      if (routeLayer) map.removeLayer(routeLayer);
+      routeLayer = L.polyline([fromCoords, toCoords], { color: "blue" }).addTo(map);
+      map.fitBounds(routeLayer.getBounds());
+
+      const distKm = haversine(fromCoords, toCoords).toFixed(2);
+      const fuelCost = (distKm * 0.35).toFixed(2);
+      alert(`Distance: ${distKm} km | Est. Fuel Cost: $${fuelCost}`);
+    }
+
+    function haversine([lat1, lon1], [lat2, lon2]) {
+      const R = 6371;
+      const toRad = deg => deg * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
 
     window.submitRequest = async () => {
-      const btn = document.getElementById("submitBtn");
-      btn.disabled = true;
-      btn.innerText = "Submitting...";
+      const pickup = document.getElementById("pickup").value.trim();
+      const dropoff = document.getElementById("dropoff").value.trim();
+      const details = document.getElementById("details").value.trim();
+      const tip = parseFloat(document.getElementById("tip").value);
 
-      try {
-        const pickup = document.getElementById("pickup").value.trim();
-        const dropoff = document.getElementById("dropoff").value.trim();
-        const details = document.getElementById("details").value.trim();
-
-        if (!pickup || !dropoff || !details) {
-          alert("Please fill out all fields.");
-          return;
-        }
-
-        await addDoc(collection(db, "requests"), {
-          pickup,
-          dropoff,
-          details,
-          status: "pending",
-          userId: currentUserId,
-          timestamp: serverTimestamp(),
-          paid: false
-        });
-
-        document.getElementById("pickup").value = "";
-        document.getElementById("dropoff").value = "";
-        document.getElementById("details").value = "";
-
-        alert("Request submitted!");
-      } catch (error) {
-        alert("Error submitting request.");
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Submit Request";
+      if (!pickup || !dropoff || !details || isNaN(tip) || tip < 1) {
+        return alert("Please fill out all fields and include a tip of at least $1.");
       }
+
+      await addDoc(collection(db, "requests"), {
+        pickup, dropoff, details, tip,
+        status: "pending",
+        userId: currentUserId,
+        timestamp: serverTimestamp(),
+        paid: false
+      });
+
+      document.getElementById("pickup").value = "";
+      document.getElementById("dropoff").value = "";
+      document.getElementById("details").value = "";
+      document.getElementById("tip").value = "";
+      alert("Request submitted!");
     };
 
-    function loadMyRequests() {
-      const q = query(collection(db, "requests"), where("userId", "==", currentUserId));
-      const container = document.getElementById("myJobs");
+    function loadJobs() {
+      const q = query(collection(db, "requests"), where("userId", "==", currentUserId), orderBy("timestamp", "desc"));
+      const box = document.getElementById("jobList");
 
       onSnapshot(q, snapshot => {
-        if (snapshot.empty) {
-          container.innerHTML = "<p>No requests yet.</p>";
-          return;
-        }
-
-        container.innerHTML = "";
+        if (snapshot.empty) return (box.innerHTML = "<p>No deliveries yet.</p>");
+        box.innerHTML = "";
         snapshot.forEach(docSnap => {
           const d = docSnap.data();
-          const id = docSnap.id;
-          const created = d.timestamp?.seconds ? new Date(d.timestamp.seconds * 1000).toLocaleString() : "—";
-
-          container.innerHTML += `
+          const time = d.timestamp?.seconds ? new Date(d.timestamp.seconds * 1000).toLocaleString() : "—";
+          box.innerHTML += `
             <div class="job-card">
               <p><strong>Pickup:</strong> ${d.pickup}</p>
               <p><strong>Dropoff:</strong> ${d.dropoff}</p>
               <p><strong>Details:</strong> ${d.details}</p>
+              <p><strong>Tip:</strong> $${d.tip?.toFixed(2)}</p>
               <p><strong>Status:</strong> ${d.status}</p>
-              <p><strong>Paid:</strong> ${d.paid ? "✅ Yes" : "❌ No"}</p>
-              <p><strong>Created:</strong> ${created}</p>
-              ${!d.paid ? `<button onclick="markPaid('${id}')">Mark as Paid</button>` : ""}
+              <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
+              <p><small>${time}</small></p>
             </div>`;
         });
       });
     }
 
-    window.markPaid = async (id) => {
-      await updateDoc(doc(db, "requests", id), { paid: true });
-      alert("Marked as paid.");
-    };
-
     function loadNotifications() {
-      const q = query(
-        collection(db, `users/${currentUserId}/notifications`),
-        orderBy("timestamp", "desc")
-      );
+      const q = query(collection(db, `users/${currentUserId}/notifications`), orderBy("timestamp", "desc"));
       const box = document.getElementById("notificationsBox");
 
       onSnapshot(q, snapshot => {
-        if (snapshot.empty) {
-          box.innerHTML = "<p>No notifications yet.</p>";
-          return;
-        }
-
+        if (snapshot.empty) return (box.innerHTML = "<p>No notifications yet.</p>");
         box.innerHTML = "";
-        snapshot.docChanges().forEach(change => {
-          if (change.type === "added") {
-            const n = change.doc.data();
-            const time = n.timestamp?.seconds ? new Date(n.timestamp.seconds * 1000).toLocaleString() : "";
-            showNotification("Update from GigRunner", n.message);
-            box.innerHTML += `
-              <div style="border:1px solid #ccc; margin-top:10px; padding:10px; border-radius:6px; text-align:left;">
-                <p>${n.message}</p>
-                <small>${time}</small>
-              </div>`;
-          }
+        snapshot.forEach(doc => {
+          const n = doc.data();
+          const time = n.timestamp?.seconds ? new Date(n.timestamp.seconds * 1000).toLocaleString() : "";
+          box.innerHTML += `
+            <div class="job-card">
+              <p>${n.message}</p>
+              <p><small>${time}</small></p>
+            </div>`;
         });
       });
     }
-
-    window.clearNotifications = async () => {
-      if (!confirm("Delete all notifications?")) return;
-      const notifRef = collection(db, `users/${currentUserId}/notifications`);
-      const snapshot = await getDocs(notifRef);
-      const batch = writeBatch(db);
-      snapshot.forEach(doc => batch.delete(doc.ref));
-      await batch.commit();
-      alert("Notifications cleared.");
-    };
   </script>
 </body>
 </html>
