@@ -26,16 +26,21 @@
       max-width: 400px;
       width: 100%;
     }
-    h1 {
-      color: #1a4d2e;
-      margin-bottom: 20px;
-    }
-    input {
+    h1 { color: #1a4d2e; margin-bottom: 20px; }
+    input, label {
       width: 100%;
       padding: 12px;
       margin: 8px 0;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    input[type="checkbox"] {
+      width: auto;
+      margin-right: 8px;
+    }
+    .checkbox-group {
+      text-align: left;
+      font-size: 0.9em;
+      margin-bottom: 10px;
     }
     button {
       width: 100%;
@@ -46,9 +51,7 @@
       border-radius: 6px;
       cursor: pointer;
     }
-    button:hover {
-      background: #145032;
-    }
+    button:hover { background: #145032; }
     .footer {
       font-size: 0.9em;
       margin-top: 10px;
@@ -67,6 +70,12 @@
     <input type="tel" id="phone" placeholder="Phone Number" autocomplete="tel" />
     <input type="email" id="email" placeholder="Email" autocomplete="email" />
     <input type="password" id="password" placeholder="Password" autocomplete="new-password" />
+    
+    <div class="checkbox-group">
+      <label><input type="checkbox" id="roleDriver" /> I am a Driver</label><br>
+      <label><input type="checkbox" id="roleCustomer" /> I am a Customer</label>
+    </div>
+
     <button id="signupBtn">Sign Up</button>
     <div class="footer">
       Already have an account? <a href="login.html">Login</a>
@@ -99,12 +108,23 @@
       const phone = document.getElementById("phone").value.trim();
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
+      const isDriver = document.getElementById("roleDriver").checked;
+      const isCustomer = document.getElementById("roleCustomer").checked;
       const errorDiv = document.getElementById("errorMessage");
 
       if (!firstName || !lastName || !phone || !email || !password) {
         errorDiv.innerText = "Please fill out all fields.";
         return;
       }
+
+      if (!isDriver && !isCustomer) {
+        errorDiv.innerText = "Please select at least one role.";
+        return;
+      }
+
+      const roles = [];
+      if (isDriver) roles.push("driver");
+      if (isCustomer) roles.push("customer");
 
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -115,7 +135,7 @@
           lastName,
           phone,
           email,
-          role: "customer",
+          roles,
           createdAt: new Date()
         });
 
