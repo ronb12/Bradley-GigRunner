@@ -47,9 +47,17 @@
     th {
       background: #e0f0e9;
     }
-    select.role-dropdown {
+    .role-badge {
+      display: inline-block;
+      background: #1a4d2e;
+      color: white;
       padding: 4px 8px;
-      font-size: 0.9em;
+      margin: 2px;
+      border-radius: 4px;
+      font-size: 0.85em;
+    }
+    .role-edit {
+      margin-top: 5px;
     }
   </style>
 </head>
@@ -69,18 +77,23 @@
     <thead>
       <tr>
         <th>Email</th>
-        <th>Role</th>
+        <th>Roles</th>
+        <th>Edit</th>
       </tr>
     </thead>
     <tbody id="userTable">
-      <tr><td colspan="2">Loading users...</td></tr>
+      <tr><td colspan="3">Loading users...</td></tr>
     </tbody>
   </table>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
-    import { getFirestore, collection, getDocs, updateDoc, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
+    import {
+      getFirestore, collection, getDocs, updateDoc, doc, getDoc, setDoc, serverTimestamp
+    } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+    import {
+      getAuth, onAuthStateChanged, signOut
+    } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -99,6 +112,7 @@
     const searchBar = document.getElementById("searchBar");
     const roleFilter = document.getElementById("roleFilter");
     const statsDiv = document.getElementById("stats");
+
     let allUsers = [];
     let currentAdmin = null;
 
@@ -106,7 +120,8 @@
       if (!user) return location.href = "login.html";
       currentAdmin = user;
       const userSnap = await getDoc(doc(db, "users", user.uid));
-      if (!userSnap.exists() || userSnap.data().role !== "admin") {
+      const roles = userSnap.exists() ? (userSnap.data().roles || []) : [];
+      if (!roles.includes("admin")) {
         alert("Access denied. Admins only.");
         await signOut(auth);
         return location.href = "login.html";
@@ -122,8 +137,8 @@
       const searchTerm = searchBar.value.toLowerCase();
       const selectedRole = roleFilter.value;
       const filtered = allUsers.filter(u => {
-        const matchesSearch = u.email.toLowerCase().includes(searchTerm);
-        const matchesRole = selectedRole === "all" || (u.role || '').toLowerCase() === selectedRole;
+        const matchesSearch = u.email?.toLowerCase().includes(searchTerm);
+        const matchesRole = selectedRole === "all" || (u.roles || []).includes(selectedRole);
         return matchesSearch && matchesRole;
       });
       renderTable(filtered);
@@ -136,43 +151,66 @@
     function renderTable(users) {
       userTable.innerHTML = "";
       users.forEach(u => {
-        const roleDropdown = document.createElement("select");
-        roleDropdown.className = "role-dropdown";
-        ["admin", "driver", "customer"].forEach(role => {
-          const option = document.createElement("option");
-          option.value = role;
-          option.textContent = role.charAt(0).toUpperCase() + role.slice(1);
-          if (u.role === role) option.selected = true;
-          roleDropdown.appendChild(option);
-        });
-        roleDropdown.onchange = async (e) => {
-          const confirmed = confirm(`Change role of ${u.email} to ${e.target.value}?`);
-          if (!confirmed) {
-            e.target.value = u.role;
-            return;
-          }
-          await updateDoc(doc(db, "users", u.id), { role: e.target.value });
-          u.role = e.target.value;
-          updateStats(users);
-          await logRoleChange(u.email, e.target.value);
-        };
-
         const row = document.createElement("tr");
-        row.innerHTML = `<td>${u.email}</td>`;
-        const roleCell = document.createElement("td");
-        roleCell.appendChild(roleDropdown);
-        row.appendChild(roleCell);
+
+        const emailCell = document.createElement("td");
+        emailCell.textContent = u.email;
+
+        const rolesCell = document.createElement("td");
+        (u.roles || []).forEach(r => {
+          const badge = document.createElement("span");
+          badge.className = "role-badge";
+          badge.textContent = r;
+          rolesCell.appendChild(badge);
+        });
+
+        const editCell = document.createElement("td");
+        const editForm = document.createElement("div");
+        editForm.className = "role-edit";
+
+        ["admin", "driver", "customer"].forEach(role => {
+          const label = document.createElement("label");
+          label.style.marginRight = "10px";
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = (u.roles || []).includes(role);
+          checkbox.onchange = async () => {
+            const confirmed = confirm(`Update roles for ${u.email}?`);
+            if (!confirmed) {
+              checkbox.checked = !checkbox.checked;
+              return;
+            }
+            let updatedRoles = [...(u.roles || [])];
+            if (checkbox.checked && !updatedRoles.includes(role)) {
+              updatedRoles.push(role);
+            } else if (!checkbox.checked) {
+              updatedRoles = updatedRoles.filter(r => r !== role);
+            }
+            await updateDoc(doc(db, "users", u.id), { roles: updatedRoles });
+            u.roles = updatedRoles;
+            filterAndRender();
+            await logRoleChange(u.email, updatedRoles);
+          };
+          label.appendChild(checkbox);
+          label.appendChild(document.createTextNode(" " + role));
+          editForm.appendChild(label);
+        });
+
+        editCell.appendChild(editForm);
+        row.appendChild(emailCell);
+        row.appendChild(rolesCell);
+        row.appendChild(editCell);
         userTable.appendChild(row);
       });
     }
 
-    async function logRoleChange(userEmail, newRole) {
+    async function logRoleChange(userEmail, newRoles) {
       const logRef = doc(collection(db, "logs"));
       await setDoc(logRef, {
         action: "role_change",
         performedBy: currentAdmin.email,
         targetEmail: userEmail,
-        newRole,
+        newRoles,
         timestamp: serverTimestamp()
       });
     }
@@ -180,8 +218,9 @@
     function updateStats(users) {
       const counts = { admin: 0, driver: 0, customer: 0 };
       users.forEach(u => {
-        const r = (u.role || '').toLowerCase();
-        if (counts[r] !== undefined) counts[r]++;
+        (u.roles || []).forEach(role => {
+          if (counts[role] !== undefined) counts[role]++;
+        });
       });
       statsDiv.textContent = `Admins: ${counts.admin} | Drivers: ${counts.driver} | Customers: ${counts.customer}`;
     }
