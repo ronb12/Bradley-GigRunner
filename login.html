@@ -46,6 +46,14 @@
     button:hover { background: #145032; }
     .footer { font-size: 0.9em; margin-top: 10px; }
     .error-message { color: red; font-size: 0.9em; }
+    .role-toggle {
+      margin-top: 10px;
+      font-size: 0.9em;
+      color: #333;
+    }
+    .role-toggle input {
+      margin-right: 6px;
+    }
   </style>
 </head>
 <body>
@@ -53,7 +61,13 @@
     <h1>Bradley GigRunner</h1>
     <input type="email" id="email" placeholder="Email" />
     <input type="password" id="password" placeholder="Password" />
+    
+    <div class="role-toggle">
+      <label><input type="checkbox" id="adminToggle" /> Login as Admin</label>
+    </div>
+
     <button id="loginBtn">Login</button>
+
     <div class="footer">
       Don't have an account? <a href="signup.html">Sign Up</a>
     </div>
@@ -62,8 +76,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -77,35 +90,14 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth();
-    const db = getFirestore(app);
 
-    // Only run redirect if user is on login page
-    const currentPage = window.location.pathname;
-    onAuthStateChanged(auth, async (user) => {
-      if (user && currentPage.includes("login.html")) {
-        const userRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userRef);
-
-        if (userDoc.exists()) {
-          const userRole = userDoc.data().role;
-          if (userRole === 'admin') {
-            window.location.href = 'admin.html';
-          } else if (userRole === 'customer') {
-            window.location.href = 'customer.html';
-          }
-        } else {
-          document.getElementById("errorMessage").innerText = "User data not found in Firestore.";
-          await signOut(auth);
-        }
-      }
-    });
-
-    // Login logic
+    // Login button click
     const loginBtn = document.getElementById('loginBtn');
     loginBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
+      const isAdmin = document.getElementById("adminToggle").checked;
 
       if (!email || !password) {
         document.getElementById("errorMessage").innerText = "Please enter both email and password.";
@@ -115,7 +107,12 @@
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         console.log("User logged in:", userCredential.user);
-        // Redirect happens automatically via onAuthStateChanged
+        // Redirect based on toggle
+        if (isAdmin) {
+          window.location.href = "admin.html";
+        } else {
+          window.location.href = "customer.html";
+        }
       } catch (error) {
         console.error("Login failed:", error.message);
         document.getElementById("errorMessage").innerText = "Login failed: " + error.message;
