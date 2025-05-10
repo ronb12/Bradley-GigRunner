@@ -6,10 +6,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
+  <style>
+    .chat-modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+    }
+    .chat-box {
+      background: #fff;
+      max-width: 400px;
+      margin: 10% auto;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .chat-messages {
+      height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .chat-input {
+      width: 100%;
+      padding: 10px;
+      font-size: 1em;
+    }
+  </style>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, getDoc, addDoc, orderBy } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
@@ -24,6 +54,9 @@
     const db = getFirestore(app);
     const auth = getAuth();
 
+    let currentDriverId = null;
+    let activeChatRequestId = null;
+
     onAuthStateChanged(auth, async user => {
       if (!user) {
         window.location.href = "login.html";
@@ -33,6 +66,7 @@
           alert("Access denied: not a driver.");
           window.location.href = "index.html";
         } else {
+          currentDriverId = user.uid;
           loadJobs();
         }
       }
@@ -52,6 +86,8 @@
           const d = docSnap.data();
           const id = docSnap.id;
           let btn = "";
+          let etaInput = "";
+          let chatBtn = `<button onclick=\"openChat('${id}')\">💬 Chat</button>`;
 
           if (!d.paid) {
             btn = `<span style='color:red;'>Unpaid</span>`;
@@ -59,8 +95,10 @@
             btn = `<button onclick=\"accept('${id}')\">Accept</button>`;
           } else if (d.status === "accepted") {
             btn = `<button onclick=\"pickup('${id}')\">Picked Up</button>`;
+            etaInput = `<input type='number' placeholder='ETA (min)' onchange=\"updateETA('${id}', this.value)\" style='margin-top:5px;' />`;
           } else if (d.status === "picked_up") {
             btn = `<button onclick=\"deliver('${id}')\">Delivered</button>`;
+            etaInput = `<input type='number' placeholder='ETA (min)' onchange=\"updateETA('${id}', this.value)\" style='margin-top:5px;' />`;
           }
 
           list.innerHTML += `
@@ -70,16 +108,56 @@
               <p><strong>Details:</strong> ${d.details}</p>
               <p><strong>Status:</strong> ${d.status}</p>
               <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
-              ${btn}
+              ${btn}<br>${etaInput}<br>${chatBtn}
             </div>`;
         });
       });
     }
 
-    window.accept = async id => await updateDoc(doc(db, "requests", id), { status: "accepted" });
+    window.accept = async id => await updateDoc(doc(db, "requests", id), { status: "accepted", driverId: currentDriverId });
     window.pickup = async id => await updateDoc(doc(db, "requests", id), { status: "picked_up" });
     window.deliver = async id => await updateDoc(doc(db, "requests", id), { status: "delivered" });
+    window.updateETA = async (id, mins) => {
+      if (!mins || isNaN(mins)) return alert("Enter a valid ETA in minutes.");
+      const eta = new Date(Date.now() + parseInt(mins) * 60000).toISOString();
+      await updateDoc(doc(db, "requests", id), { eta });
+      alert("ETA updated");
+    };
     window.logout = logout;
+
+    window.openChat = (requestId) => {
+      activeChatRequestId = requestId;
+      document.getElementById("chatModal").style.display = "block";
+      const messagesDiv = document.getElementById("chatMessages");
+      messagesDiv.innerHTML = "Loading...";
+
+      const chatQuery = query(collection(db, `requests/${requestId}/messages`), orderBy("timestamp"));
+      onSnapshot(chatQuery, snapshot => {
+        messagesDiv.innerHTML = "";
+        snapshot.forEach(doc => {
+          const m = doc.data();
+          const who = m.userId === currentDriverId ? "🧑‍✈️ You" : "👤 Other";
+          messagesDiv.innerHTML += `<p><strong>${who}:</strong> ${m.text}</p>`;
+        });
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      });
+    };
+
+    window.sendMessage = async () => {
+      const input = document.getElementById("chatInput");
+      const text = input.value.trim();
+      if (!text || !activeChatRequestId) return;
+      await addDoc(collection(db, `requests/${activeChatRequestId}/messages`), {
+        text,
+        userId: currentDriverId,
+        timestamp: new Date()
+      });
+      input.value = "";
+    };
+
+    window.closeChat = () => {
+      document.getElementById("chatModal").style.display = "none";
+    };
   </script>
 </head>
 <body>
@@ -87,5 +165,14 @@
   <button onclick="logout()">Logout</button>
   <h2>Available & Accepted Jobs</h2>
   <div id="jobList"></div>
+
+  <div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
+    <div class="chat-box">
+      <h3>Chat</h3>
+      <div id="chatMessages" class="chat-messages">Loading...</div>
+      <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
 </body>
 </html>
