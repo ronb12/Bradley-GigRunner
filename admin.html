@@ -105,12 +105,15 @@
 <body>
   <h1>Admin Dashboard</h1>
   <div class="box">
-    <div style="display: flex; justify-content: space-between;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
       <div class="filters">
         <label>Status: <select id="statusFilter"></select></label>
         <label>Sort by: <select id="sortOrder"></select></label>
       </div>
-      <button class="logout" id="logoutButton">Logout</button>
+      <div>
+        <button class="action-btn" onclick="location.href='admin_user_manager.html'">👥 Manage Users</button>
+        <button class="logout" id="logoutButton">Logout</button>
+      </div>
     </div>
 
     <table>
