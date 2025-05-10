@@ -62,9 +62,7 @@
       background: #fefefe;
       text-align: left;
     }
-    .job-card p {
-      margin: 6px 0;
-    }
+    .job-card p { margin: 6px 0; }
   </style>
 </head>
 <body>
@@ -73,10 +71,10 @@
     <button class="logout" onclick="logout()">Logout</button>
 
     <h2>Create Delivery Request</h2>
-    <input type="text" id="pickup" placeholder="Pickup Location" />
-    <input type="text" id="dropoff" placeholder="Dropoff Location" />
-    <input type="text" id="details" placeholder="Package/Food Details" />
-    <button onclick="submitRequest()">Submit Request</button>
+    <input type="text" id="pickup" placeholder="Pickup Location" autocomplete="street-address" />
+    <input type="text" id="dropoff" placeholder="Dropoff Location" autocomplete="street-address" />
+    <input type="text" id="details" placeholder="Package/Food Details" autocomplete="off" />
+    <button id="submitBtn" onclick="submitRequest()">Submit Request</button>
 
     <h2>My Delivery Requests</h2>
     <div id="myJobs">Loading your requests...</div>
@@ -97,7 +95,6 @@
       doc, getDoc, serverTimestamp, getDocs, writeBatch, orderBy
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-    // ✅ Browser notification setup
     if ("Notification" in window && Notification.permission !== "granted") {
       Notification.requestPermission();
     }
@@ -114,8 +111,7 @@
       projectId: "bradley-gigrunner",
       storageBucket: "bradley-gigrunner.firebasestorage.app",
       messagingSenderId: "497753581430",
-      appId: "1:497753581430:web:db6c22866194dd3285bc57",
-      measurementId: "G-FB45MP5R5G"
+      appId: "1:497753581430:web:db6c22866194dd3285bc57"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -124,57 +120,62 @@
     let currentUserId = null;
 
     onAuthStateChanged(auth, async user => {
-      if (!user) {
+      if (!user) return (window.location.href = "login.html");
+      currentUserId = user.uid;
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists() || userDoc.data().role !== "customer") {
+        alert("Access denied.");
+        await signOut(auth);
         window.location.href = "login.html";
       } else {
-        currentUserId = user.uid;
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        if (!userDoc.exists() || userDoc.data().role !== "customer") {
-          alert("Access denied. Customer access only.");
-          await signOut(auth);
-          window.location.href = "login.html";
-        } else {
-          loadMyRequests();
-          loadNotifications(); // ✅ Load notifications
-        }
+        loadMyRequests();
+        loadNotifications();
       }
     });
 
-    // ✅ Logout
     window.logout = async () => {
       await signOut(auth);
       window.location.href = "login.html";
     };
 
-    // ✅ Submit a new delivery request
     window.submitRequest = async () => {
-      const pickup = document.getElementById("pickup").value.trim();
-      const dropoff = document.getElementById("dropoff").value.trim();
-      const details = document.getElementById("details").value.trim();
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+      btn.innerText = "Submitting...";
 
-      if (!pickup || !dropoff || !details) {
-        alert("Please fill out all fields.");
-        return;
+      try {
+        const pickup = document.getElementById("pickup").value.trim();
+        const dropoff = document.getElementById("dropoff").value.trim();
+        const details = document.getElementById("details").value.trim();
+
+        if (!pickup || !dropoff || !details) {
+          alert("Please fill out all fields.");
+          return;
+        }
+
+        await addDoc(collection(db, "requests"), {
+          pickup,
+          dropoff,
+          details,
+          status: "pending",
+          userId: currentUserId,
+          timestamp: serverTimestamp(),
+          paid: false
+        });
+
+        document.getElementById("pickup").value = "";
+        document.getElementById("dropoff").value = "";
+        document.getElementById("details").value = "";
+
+        alert("Request submitted!");
+      } catch (error) {
+        alert("Error submitting request.");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Submit Request";
       }
-
-      await addDoc(collection(db, "requests"), {
-        pickup,
-        dropoff,
-        details,
-        status: "pending",
-        userId: currentUserId,
-        timestamp: serverTimestamp(),
-        paid: false
-      });
-
-      document.getElementById("pickup").value = "";
-      document.getElementById("dropoff").value = "";
-      document.getElementById("details").value = "";
-
-      alert("Request submitted!");
     };
 
-    // ✅ Load user's requests
     function loadMyRequests() {
       const q = query(collection(db, "requests"), where("userId", "==", currentUserId));
       const container = document.getElementById("myJobs");
@@ -205,13 +206,11 @@
       });
     }
 
-    // ✅ Mark request as paid
     window.markPaid = async (id) => {
       await updateDoc(doc(db, "requests", id), { paid: true });
       alert("Marked as paid.");
     };
 
-    // ✅ Load and display notifications
     function loadNotifications() {
       const q = query(
         collection(db, `users/${currentUserId}/notifications`),
@@ -229,7 +228,7 @@
         snapshot.docChanges().forEach(change => {
           if (change.type === "added") {
             const n = change.doc.data();
-            const time = new Date(n.timestamp?.seconds * 1000).toLocaleString();
+            const time = n.timestamp?.seconds ? new Date(n.timestamp.seconds * 1000).toLocaleString() : "";
             showNotification("Update from GigRunner", n.message);
             box.innerHTML += `
               <div style="border:1px solid #ccc; margin-top:10px; padding:10px; border-radius:6px; text-align:left;">
@@ -241,17 +240,12 @@
       });
     }
 
-    // ✅ Clear all notifications
     window.clearNotifications = async () => {
-      const confirmDelete = confirm("Are you sure you want to delete all notifications?");
-      if (!confirmDelete) return;
-
+      if (!confirm("Delete all notifications?")) return;
       const notifRef = collection(db, `users/${currentUserId}/notifications`);
       const snapshot = await getDocs(notifRef);
-
       const batch = writeBatch(db);
       snapshot.forEach(doc => batch.delete(doc.ref));
-
       await batch.commit();
       alert("Notifications cleared.");
     };
