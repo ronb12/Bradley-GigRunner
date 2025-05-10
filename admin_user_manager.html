@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin User Manager – Bradley GigRunner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      text-align: center;
+      color: #1a4d2e;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background: #e0f0e9;
+    }
+    button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .promote {
+      background: #1a4d2e;
+      color: white;
+    }
+    .promote:hover {
+      background: #145032;
+    }
+  </style>
+</head>
+<body>
+  <h1>User Role Manager</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="userTable">
+      <tr><td colspan="3">Loading users...</td></tr>
+    </tbody>
+  </table>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
+    import { getFirestore, collection, getDocs, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+      authDomain: "bradley-gigrunner.firebaseapp.com",
+      projectId: "bradley-gigrunner",
+      storageBucket: "bradley-gigrunner.firebasestorage.app",
+      messagingSenderId: "497753581430",
+      appId: "1:497753581430:web:db6c22866194dd3285bc57"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    const userTable = document.getElementById("userTable");
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) return location.href = "login.html";
+      const userDoc = await getDocs(collection(db, "users"));
+      renderTable(userDoc);
+    });
+
+    function renderTable(snapshot) {
+      userTable.innerHTML = "";
+      snapshot.forEach(docSnap => {
+        const d = docSnap.data();
+        const id = docSnap.id;
+        userTable.innerHTML += `
+          <tr>
+            <td>${d.email}</td>
+            <td>${d.role || 'N/A'}</td>
+            <td>
+              <button class="promote" onclick="updateRole('${id}', 'admin')">Make Admin</button>
+              <button class="promote" onclick="updateRole('${id}', 'driver')">Make Driver</button>
+              <button class="promote" onclick="updateRole('${id}', 'customer')">Make Customer</button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    window.updateRole = async (uid, role) => {
+      await updateDoc(doc(db, "users", uid), { role });
+      alert("Updated role to " + role);
+      location.reload();
+    };
+  </script>
+</body>
+</html>
