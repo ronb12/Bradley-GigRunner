@@ -15,10 +15,29 @@
       text-align: center;
       color: #1a4d2e;
     }
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    #searchBar, #roleFilter {
+      padding: 10px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    #stats {
+      text-align: center;
+      margin: 10px 0;
+      font-weight: bold;
+      color: #333;
+    }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      margin-top: 10px;
     }
     th, td {
       padding: 10px;
@@ -28,39 +47,39 @@
     th {
       background: #e0f0e9;
     }
-    button {
-      padding: 6px 12px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .promote {
-      background: #1a4d2e;
-      color: white;
-    }
-    .promote:hover {
-      background: #145032;
+    select.role-dropdown {
+      padding: 4px 8px;
+      font-size: 0.9em;
     }
   </style>
 </head>
 <body>
   <h1>User Role Manager</h1>
+  <div class="controls">
+    <input type="text" id="searchBar" placeholder="Search by email..." />
+    <select id="roleFilter">
+      <option value="all">All Roles</option>
+      <option value="admin">Admin</option>
+      <option value="driver">Driver</option>
+      <option value="customer">Customer</option>
+    </select>
+  </div>
+  <div id="stats">Loading statistics...</div>
   <table>
     <thead>
       <tr>
         <th>Email</th>
         <th>Role</th>
-        <th>Actions</th>
       </tr>
     </thead>
     <tbody id="userTable">
-      <tr><td colspan="3">Loading users...</td></tr>
+      <tr><td colspan="2">Loading users...</td></tr>
     </tbody>
   </table>
 
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
-    import { getFirestore, collection, getDocs, updateDoc, doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+    import { getFirestore, collection, getDocs, updateDoc, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
     import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
 
     const firebaseConfig = {
@@ -77,9 +96,15 @@
     const auth = getAuth(app);
 
     const userTable = document.getElementById("userTable");
+    const searchBar = document.getElementById("searchBar");
+    const roleFilter = document.getElementById("roleFilter");
+    const statsDiv = document.getElementById("stats");
+    let allUsers = [];
+    let currentAdmin = null;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
+      currentAdmin = user;
       const userSnap = await getDoc(doc(db, "users", user.uid));
       if (!userSnap.exists() || userSnap.data().role !== "admin") {
         alert("Access denied. Admins only.");
@@ -88,33 +113,78 @@
       }
 
       const userDocs = await getDocs(collection(db, "users"));
-      renderTable(userDocs);
+      allUsers = userDocs.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+      renderTable(allUsers);
+      updateStats(allUsers);
     });
 
-    function renderTable(snapshot) {
+    function filterAndRender() {
+      const searchTerm = searchBar.value.toLowerCase();
+      const selectedRole = roleFilter.value;
+      const filtered = allUsers.filter(u => {
+        const matchesSearch = u.email.toLowerCase().includes(searchTerm);
+        const matchesRole = selectedRole === "all" || (u.role || '').toLowerCase() === selectedRole;
+        return matchesSearch && matchesRole;
+      });
+      renderTable(filtered);
+      updateStats(filtered);
+    }
+
+    searchBar.addEventListener("input", filterAndRender);
+    roleFilter.addEventListener("change", filterAndRender);
+
+    function renderTable(users) {
       userTable.innerHTML = "";
-      snapshot.forEach(docSnap => {
-        const d = docSnap.data();
-        const id = docSnap.id;
-        userTable.innerHTML += `
-          <tr>
-            <td>${d.email}</td>
-            <td>${d.role || 'N/A'}</td>
-            <td>
-              <button class="promote" onclick="updateRole('${id}', 'admin')">Make Admin</button>
-              <button class="promote" onclick="updateRole('${id}', 'driver')">Make Driver</button>
-              <button class="promote" onclick="updateRole('${id}', 'customer')">Make Customer</button>
-            </td>
-          </tr>
-        `;
+      users.forEach(u => {
+        const roleDropdown = document.createElement("select");
+        roleDropdown.className = "role-dropdown";
+        ["admin", "driver", "customer"].forEach(role => {
+          const option = document.createElement("option");
+          option.value = role;
+          option.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+          if (u.role === role) option.selected = true;
+          roleDropdown.appendChild(option);
+        });
+        roleDropdown.onchange = async (e) => {
+          const confirmed = confirm(`Change role of ${u.email} to ${e.target.value}?`);
+          if (!confirmed) {
+            e.target.value = u.role;
+            return;
+          }
+          await updateDoc(doc(db, "users", u.id), { role: e.target.value });
+          u.role = e.target.value;
+          updateStats(users);
+          await logRoleChange(u.email, e.target.value);
+        };
+
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${u.email}</td>`;
+        const roleCell = document.createElement("td");
+        roleCell.appendChild(roleDropdown);
+        row.appendChild(roleCell);
+        userTable.appendChild(row);
       });
     }
 
-    window.updateRole = async (uid, role) => {
-      await updateDoc(doc(db, "users", uid), { role });
-      alert("Updated role to " + role);
-      location.reload();
-    };
+    async function logRoleChange(userEmail, newRole) {
+      const logRef = doc(collection(db, "logs"));
+      await setDoc(logRef, {
+        action: "role_change",
+        performedBy: currentAdmin.email,
+        targetEmail: userEmail,
+        newRole,
+        timestamp: serverTimestamp()
+      });
+    }
+
+    function updateStats(users) {
+      const counts = { admin: 0, driver: 0, customer: 0 };
+      users.forEach(u => {
+        const r = (u.role || '').toLowerCase();
+        if (counts[r] !== undefined) counts[r]++;
+      });
+      statsDiv.textContent = `Admins: ${counts.admin} | Drivers: ${counts.driver} | Customers: ${counts.customer}`;
+    }
   </script>
 </body>
 </html>
