@@ -80,12 +80,33 @@
 
     <h2>My Delivery Requests</h2>
     <div id="myJobs">Loading your requests...</div>
+
+    <h2>Notifications 
+      <button onclick="clearNotifications()" style="float:right; font-size:0.8em; padding:6px 12px; background:#d9534f; border:none; color:white; border-radius:4px;">🗑 Clear All</button>
+    </h2>
+    <div id="notificationsBox">Loading notifications...</div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import { getFirestore, collection, addDoc, query, where, onSnapshot, updateDoc, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import {
+      getAuth, onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import {
+      getFirestore, collection, addDoc, query, where, onSnapshot, updateDoc,
+      doc, getDoc, serverTimestamp, getDocs, writeBatch, orderBy
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+    // ✅ Browser notification setup
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+
+    function showNotification(title, body) {
+      if (Notification.permission === "granted") {
+        new Notification(title, { body });
+      }
+    }
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -114,17 +135,18 @@
           window.location.href = "login.html";
         } else {
           loadMyRequests();
+          loadNotifications(); // ✅ Load notifications
         }
       }
     });
 
-    // Logout function
+    // ✅ Logout
     window.logout = async () => {
       await signOut(auth);
       window.location.href = "login.html";
     };
 
-    // Submit request
+    // ✅ Submit a new delivery request
     window.submitRequest = async () => {
       const pickup = document.getElementById("pickup").value.trim();
       const dropoff = document.getElementById("dropoff").value.trim();
@@ -152,7 +174,7 @@
       alert("Request submitted!");
     };
 
-    // Load requests
+    // ✅ Load user's requests
     function loadMyRequests() {
       const q = query(collection(db, "requests"), where("userId", "==", currentUserId));
       const container = document.getElementById("myJobs");
@@ -183,10 +205,55 @@
       });
     }
 
-    // Mark as paid
+    // ✅ Mark request as paid
     window.markPaid = async (id) => {
       await updateDoc(doc(db, "requests", id), { paid: true });
       alert("Marked as paid.");
+    };
+
+    // ✅ Load and display notifications
+    function loadNotifications() {
+      const q = query(
+        collection(db, `users/${currentUserId}/notifications`),
+        orderBy("timestamp", "desc")
+      );
+      const box = document.getElementById("notificationsBox");
+
+      onSnapshot(q, snapshot => {
+        if (snapshot.empty) {
+          box.innerHTML = "<p>No notifications yet.</p>";
+          return;
+        }
+
+        box.innerHTML = "";
+        snapshot.docChanges().forEach(change => {
+          if (change.type === "added") {
+            const n = change.doc.data();
+            const time = new Date(n.timestamp?.seconds * 1000).toLocaleString();
+            showNotification("Update from GigRunner", n.message);
+            box.innerHTML += `
+              <div style="border:1px solid #ccc; margin-top:10px; padding:10px; border-radius:6px; text-align:left;">
+                <p>${n.message}</p>
+                <small>${time}</small>
+              </div>`;
+          }
+        });
+      });
+    }
+
+    // ✅ Clear all notifications
+    window.clearNotifications = async () => {
+      const confirmDelete = confirm("Are you sure you want to delete all notifications?");
+      if (!confirmDelete) return;
+
+      const notifRef = collection(db, `users/${currentUserId}/notifications`);
+      const snapshot = await getDocs(notifRef);
+
+      const batch = writeBatch(db);
+      snapshot.forEach(doc => batch.delete(doc.ref));
+
+      await batch.commit();
+      alert("Notifications cleared.");
     };
   </script>
 </body>
