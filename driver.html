@@ -7,6 +7,24 @@
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
   <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { color: #1a4d2e; }
+    button {
+      padding: 10px 16px;
+      background: #1a4d2e;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+    button:hover { background: #145032; }
+
     .chat-modal {
       display: none;
       position: fixed;
@@ -39,7 +57,21 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, getDoc, addDoc, orderBy } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import {
+      getFirestore, collection, query, onSnapshot, updateDoc, doc, getDoc,
+      addDoc, orderBy
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+    // Request permission for browser notifications
+    if ("Notification" in window && Notification.permission !== "granted") {
+      Notification.requestPermission();
+    }
+
+    function showNotification(title, body) {
+      if (Notification.permission === "granted") {
+        new Notification(title, { body });
+      }
+    }
 
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
@@ -64,7 +96,8 @@
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (!userDoc.exists() || userDoc.data().role !== "driver") {
           alert("Access denied: not a driver.");
-          window.location.href = "index.html";
+          await signOut(auth);
+          window.location.href = "login.html";
         } else {
           currentDriverId = user.uid;
           loadJobs();
@@ -78,52 +111,96 @@
     }
 
     function loadJobs() {
-      const q = query(collection(db, "requests"), where("status", "!=", "delivered"));
+      const showMyJobsOnly = document.getElementById("myJobsOnlyToggle")?.checked;
+      const q = query(collection(db, "requests"));
       onSnapshot(q, snapshot => {
         const list = document.getElementById("jobList");
         list.innerHTML = "";
+
         snapshot.forEach(docSnap => {
           const d = docSnap.data();
           const id = docSnap.id;
+          const isMine = d.driverId === currentDriverId;
+          const isPendingUnassigned = d.status === "pending" && !d.driverId;
+
+          if (showMyJobsOnly && !isMine) return;
+          if (!showMyJobsOnly && !(isMine || isPendingUnassigned)) return;
+
+          // Notify driver on new job
+          if (isPendingUnassigned && !document.getElementById(`job-${id}`)) {
+            showNotification("New Delivery Request", `${d.pickup} → ${d.dropoff}`);
+          }
+
           let btn = "";
           let etaInput = "";
-          let chatBtn = `<button onclick=\"openChat('${id}')\">💬 Chat</button>`;
+          let etaDisplay = d.eta ? `<p><strong>ETA:</strong> ${new Date(d.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>` : "";
+          let chatBtn = `<button onclick="openChat('${id}')">💬 Chat</button>`;
 
           if (!d.paid) {
             btn = `<span style='color:red;'>Unpaid</span>`;
           } else if (d.status === "pending") {
-            btn = `<button onclick=\"accept('${id}')\">Accept</button>`;
+            btn = `<button onclick="accept('${id}')">Accept</button>`;
           } else if (d.status === "accepted") {
-            btn = `<button onclick=\"pickup('${id}')\">Picked Up</button>`;
-            etaInput = `<input type='number' placeholder='ETA (min)' onchange=\"updateETA('${id}', this.value)\" style='margin-top:5px;' />`;
+            btn = `<button onclick="pickup('${id}')">Picked Up</button>`;
+            etaInput = `<input type='number' placeholder='ETA (min)' onchange="updateETA('${id}', this.value)" style='margin-top:5px;' />`;
           } else if (d.status === "picked_up") {
-            btn = `<button onclick=\"deliver('${id}')\">Delivered</button>`;
-            etaInput = `<input type='number' placeholder='ETA (min)' onchange=\"updateETA('${id}', this.value)\" style='margin-top:5px;' />`;
+            btn = `<button onclick="deliver('${id}')">Delivered</button>`;
+            etaInput = `<input type='number' placeholder='ETA (min)' onchange="updateETA('${id}', this.value)" style='margin-top:5px;' />`;
           }
 
           list.innerHTML += `
-            <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
+            <div id="job-${id}" style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
               <p><strong>Pickup:</strong> ${d.pickup}</p>
               <p><strong>Dropoff:</strong> ${d.dropoff}</p>
               <p><strong>Details:</strong> ${d.details}</p>
               <p><strong>Status:</strong> ${d.status}</p>
               <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
+              ${etaDisplay}
               ${btn}<br>${etaInput}<br>${chatBtn}
             </div>`;
         });
       });
     }
 
-    window.accept = async id => await updateDoc(doc(db, "requests", id), { status: "accepted", driverId: currentDriverId });
-    window.pickup = async id => await updateDoc(doc(db, "requests", id), { status: "picked_up" });
-    window.deliver = async id => await updateDoc(doc(db, "requests", id), { status: "delivered" });
+    window.accept = async id => {
+      await updateDoc(doc(db, "requests", id), {
+        status: "accepted",
+        driverId: currentDriverId
+      });
+    };
+
+    window.pickup = async id => {
+      const ref = doc(db, "requests", id);
+      const snap = await getDoc(ref);
+      const data = snap.data();
+      await updateDoc(ref, { status: "picked_up" });
+
+      await addDoc(collection(db, `users/${data.userId}/notifications`), {
+        type: "status_update",
+        message: "Your delivery has been picked up.",
+        timestamp: new Date()
+      });
+    };
+
+    window.deliver = async id => {
+      const ref = doc(db, "requests", id);
+      const snap = await getDoc(ref);
+      const data = snap.data();
+      await updateDoc(ref, { status: "delivered" });
+
+      await addDoc(collection(db, `users/${data.userId}/notifications`), {
+        type: "status_update",
+        message: "Your delivery has been delivered.",
+        timestamp: new Date()
+      });
+    };
+
     window.updateETA = async (id, mins) => {
       if (!mins || isNaN(mins)) return alert("Enter a valid ETA in minutes.");
       const eta = new Date(Date.now() + parseInt(mins) * 60000).toISOString();
       await updateDoc(doc(db, "requests", id), { eta });
       alert("ETA updated");
     };
-    window.logout = logout;
 
     window.openChat = (requestId) => {
       activeChatRequestId = requestId;
@@ -131,8 +208,20 @@
       const messagesDiv = document.getElementById("chatMessages");
       messagesDiv.innerHTML = "Loading...";
 
-      const chatQuery = query(collection(db, `requests/${requestId}/messages`), orderBy("timestamp"));
+      const chatQuery = query(
+        collection(db, `requests/${requestId}/messages`),
+        orderBy("timestamp")
+      );
       onSnapshot(chatQuery, snapshot => {
+        snapshot.docChanges().forEach(change => {
+          if (change.type === "added") {
+            const msg = change.doc.data();
+            if (msg.userId !== currentDriverId) {
+              showNotification("New Message", msg.text);
+            }
+          }
+        });
+
         messagesDiv.innerHTML = "";
         snapshot.forEach(doc => {
           const m = doc.data();
@@ -158,12 +247,20 @@
     window.closeChat = () => {
       document.getElementById("chatModal").style.display = "none";
     };
+
+    window.logout = logout;
   </script>
 </head>
 <body>
   <h1>Driver Dashboard</h1>
   <button onclick="logout()">Logout</button>
-  <h2>Available & Accepted Jobs</h2>
+
+  <label style="display: block; margin-bottom: 10px;">
+    <input type="checkbox" id="myJobsOnlyToggle" onchange="loadJobs()" />
+    Show only my accepted jobs
+  </label>
+
+  <h2>Available & Assigned Jobs</h2>
   <div id="jobList"></div>
 
   <div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
