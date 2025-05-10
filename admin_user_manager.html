@@ -108,7 +108,7 @@
     <thead>
       <tr>
         <th>Email</th>
-        <th>Role</th>
+        <th>Roles</th>
         <th>Last Login</th>
         <th>Actions</th>
       </tr>
@@ -148,7 +148,8 @@
       if (!user) return location.href = "login.html";
       currentAdmin = user;
       const userSnap = await getDoc(doc(db, "users", user.uid));
-      if (!userSnap.exists() || userSnap.data().role !== "admin") {
+      const roles = userSnap.exists() ? (userSnap.data().roles || []) : [];
+      if (!roles.includes("admin")) {
         alert("Access denied. Admins only.");
         await signOut(auth);
         return location.href = "login.html";
@@ -169,7 +170,8 @@
       const selectedRole = roleFilter.value;
       const filtered = allUsers.filter(u => {
         const matchesSearch = u.email.toLowerCase().includes(searchTerm);
-        const matchesRole = selectedRole === "all" || (u.role || '').toLowerCase() === selectedRole;
+        const roles = u.roles || [];
+        const matchesRole = selectedRole === "all" || roles.includes(selectedRole);
         return matchesSearch && matchesRole;
       });
       renderTable(filtered);
@@ -182,40 +184,37 @@
     function renderTable(users) {
       userTable.innerHTML = "";
       users.forEach(u => {
-        const roleDropdown = document.createElement("select");
-        roleDropdown.className = "role-dropdown";
-        ["admin", "driver", "customer"].forEach(role => {
-          const option = document.createElement("option");
-          option.value = role;
-          option.textContent = role.charAt(0).toUpperCase() + role.slice(1);
-          if (u.role === role) option.selected = true;
-          roleDropdown.appendChild(option);
-        });
-        roleDropdown.onchange = async (e) => {
-          const confirmed = confirm(`Change role of ${u.email} to ${e.target.value}?`);
-          if (!confirmed) {
-            e.target.value = u.role;
-            return;
-          }
-          await updateDoc(doc(db, "users", u.id), { role: e.target.value });
-          u.role = e.target.value;
-          updateStats(users);
-          await logRoleChange(u.email, e.target.value);
-        };
+        const roles = u.roles || [];
+        const roleCheckboxes = ["admin", "driver", "customer"].map(role => {
+          return `<label><input type="checkbox" ${roles.includes(role) ? "checked" : ""} onchange="toggleRole('${u.id}', '${u.email}', '${role}', this.checked)"> ${role}</label>`;
+        }).join(" ");
 
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${u.email}</td>
-          <td></td>
+          <td>${roles.map(r => `<span style="background:#1a4d2e;color:white;padding:2px 6px;border-radius:4px;margin-right:4px;">${r}</span>`).join("")}</td>
           <td>${u.lastLogin ? new Date(u.lastLogin.seconds * 1000).toLocaleString() : "—"}</td>
           <td>
+            ${roleCheckboxes}
+            <br>
             <button class="delete-btn" onclick="deleteUser('${u.id}', '${u.email}')">Delete</button>
           </td>
         `;
-        row.children[1].appendChild(roleDropdown);
         userTable.appendChild(row);
       });
     }
+
+    window.toggleRole = async (uid, email, role, isChecked) => {
+      const ref = doc(db, "users", uid);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) return;
+
+      let roles = snap.data().roles || [];
+      roles = isChecked ? [...new Set([...roles, role])] : roles.filter(r => r !== role);
+      await updateDoc(ref, { roles });
+      alert(`${role} ${isChecked ? "added to" : "removed from"} ${email}`);
+      location.reload();
+    };
 
     async function deleteUser(uid, email) {
       const confirmDelete = confirm(`Delete user ${email}? This action cannot be undone.`);
@@ -239,8 +238,10 @@
     function updateStats(users) {
       const counts = { admin: 0, driver: 0, customer: 0 };
       users.forEach(u => {
-        const r = (u.role || '').toLowerCase();
-        if (counts[r] !== undefined) counts[r]++;
+        const roles = u.roles || [];
+        roles.forEach(r => {
+          if (counts[r] !== undefined) counts[r]++;
+        });
       });
       statsDiv.textContent = `Admins: ${counts.admin} | Drivers: ${counts.driver} | Customers: ${counts.customer}`;
     }
