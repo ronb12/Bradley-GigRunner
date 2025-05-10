@@ -51,9 +51,7 @@
       margin-bottom: 20px;
       background: #d9534f;
     }
-    .logout:hover {
-      background: #c9302c;
-    }
+    .logout:hover { background: #c9302c; }
     .job-card {
       border: 1px solid #ccc;
       padding: 10px;
@@ -71,9 +69,9 @@
     <button class="logout" onclick="logout()">Logout</button>
 
     <h2>Create Delivery Request</h2>
-    <input type="text" id="pickup" placeholder="Pickup Location" autocomplete="street-address" />
-    <input type="text" id="dropoff" placeholder="Dropoff Location" autocomplete="street-address" />
-    <input type="text" id="details" placeholder="Package/Food Details" autocomplete="off" />
+    <input type="text" id="pickup" placeholder="Pickup Location" />
+    <input type="text" id="dropoff" placeholder="Dropoff Location" />
+    <input type="text" id="details" placeholder="Package/Food Details" />
     <button id="submitBtn" onclick="submitRequest()">Submit Request</button>
 
     <h2>My Delivery Requests</h2>
@@ -123,7 +121,9 @@
       if (!user) return (window.location.href = "login.html");
       currentUserId = user.uid;
       const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists() || userDoc.data().role !== "customer") {
+      const roles = userDoc.exists() ? (userDoc.data().roles || []) : [];
+
+      if (!roles.includes("customer")) {
         alert("Access denied.");
         await signOut(auth);
         window.location.href = "login.html";
