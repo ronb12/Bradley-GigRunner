@@ -34,14 +34,6 @@
       border: 1px solid #ccc;
       border-radius: 6px;
     }
-    select {
-      width: 100%;
-      padding: 12px;
-      margin-top: 8px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      display: none;
-    }
     button {
       width: 100%;
       padding: 12px;
@@ -50,7 +42,6 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      margin-top: 10px;
     }
     button:hover { background: #145032; }
     .footer { font-size: 0.9em; margin-top: 10px; }
@@ -62,7 +53,6 @@
     <h1>Bradley GigRunner</h1>
     <input type="email" id="email" placeholder="Email" autocomplete="email" />
     <input type="password" id="password" placeholder="Password" autocomplete="current-password" />
-    <select id="roleSelect"></select>
     <button id="loginBtn">Login</button>
     <div class="footer">
       Don't have an account? <a href="signup.html">Sign Up</a>
@@ -88,17 +78,11 @@
     const db = getFirestore(app);
     const auth = getAuth();
 
-    const emailInput = document.getElementById("email");
-    const passwordInput = document.getElementById("password");
-    const roleSelect = document.getElementById("roleSelect");
-    const errorDiv = document.getElementById("errorMessage");
-
     document.getElementById('loginBtn').addEventListener('click', async (e) => {
       e.preventDefault();
-      errorDiv.innerText = "";
-
-      const email = emailInput.value.trim();
-      const password = passwordInput.value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const errorDiv = document.getElementById("errorMessage");
 
       if (!email || !password) {
         errorDiv.innerText = "Please enter both email and password.";
@@ -110,22 +94,22 @@
         const uid = userCredential.user.uid;
         const userDoc = await getDoc(doc(db, "users", uid));
 
-        if (!userDoc.exists()) throw new Error("User record not found.");
-
-        const roles = userDoc.data().roles || [];
-
-        if (roles.length === 0) {
-          throw new Error("No roles assigned to your account.");
-        } else if (roles.length === 1) {
-          redirectToRole(roles[0]);
-        } else {
-          // Multiple roles — show dropdown
-          roleSelect.style.display = "block";
-          roleSelect.innerHTML = roles.map(r => `<option value="${r}">${capitalize(r)}</option>`).join("");
-          roleSelect.addEventListener("change", () => {
-            redirectToRole(roleSelect.value);
-          });
+        if (!userDoc.exists()) {
+          throw new Error("User role not found.");
         }
+
+        // 🔐 Ronell gets role selector
+        if (email === "ronellbradley@gmail.com" || uid === "S3FdZasxMRWRnPTe2NiNtgcp9c93") {
+          window.location.href = "role-selector.html";
+          return;
+        }
+
+        const role = userDoc.data().role;
+
+        if (role === "admin") window.location.href = "admin.html";
+        else if (role === "driver") window.location.href = "driver.html";
+        else window.location.href = "customer.html";
+
       } catch (error) {
         console.error("Login failed:", error.code || error.message);
         let message = "Login failed. Please try again.";
@@ -135,7 +119,7 @@
             message = "No account found with this email.";
             break;
           case "auth/wrong-password":
-            message = "Incorrect password.";
+            message = "Incorrect password. Please try again.";
             break;
           case "auth/too-many-requests":
             message = "Too many failed attempts. Try again later.";
@@ -148,16 +132,6 @@
         errorDiv.innerText = message;
       }
     });
-
-    function redirectToRole(role) {
-      if (role === "admin") window.location.href = "admin.html";
-      else if (role === "driver") window.location.href = "driver.html";
-      else window.location.href = "customer.html";
-    }
-
-    function capitalize(str) {
-      return str.charAt(0).toUpperCase() + str.slice(1);
-    }
   </script>
 </body>
 </html>
