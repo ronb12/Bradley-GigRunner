@@ -109,22 +109,11 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import {
-      getAuth,
-      onAuthStateChanged,
-      signOut
+      getAuth, onAuthStateChanged, signOut
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import {
-      getFirestore,
-      collection,
-      query,
-      where,
-      orderBy,
-      addDoc,
-      onSnapshot,
-      doc,
-      getDoc,
-      updateDoc,
-      serverTimestamp
+      getFirestore, collection, addDoc, query, where, onSnapshot, doc,
+      getDoc, orderBy, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -145,12 +134,12 @@
     let routeLayer = null;
 
     onAuthStateChanged(auth, async user => {
-      if (!user) return (window.location.href = "login.html");
+      if (!user) return location.href = "login.html";
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (!userDoc.exists() || !(userDoc.data().roles || []).includes("customer")) {
         alert("Access denied");
         await signOut(auth);
-        return (window.location.href = "login.html");
+        return location.href = "login.html";
       }
       currentUserId = user.uid;
       loadJobs();
@@ -158,13 +147,8 @@
       setupMap();
     });
 
-    window.logout = async () => {
-      await signOut(auth);
-      location.href = "login.html";
-    };
-
     function setupMap() {
-      map = L.map("map").setView([29.9511, -90.0715], 12); // New Orleans center
+      map = L.map("map").setView([29.9511, -90.0715], 12);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap"
       }).addTo(map);
@@ -189,8 +173,7 @@
       map.fitBounds(routeLayer.getBounds());
 
       const distKm = haversine(fromCoords, toCoords).toFixed(2);
-      const fuelCost = (distKm * 0.35).toFixed(2);
-      alert(`Distance: ${distKm} km | Est. Fuel Cost: $${fuelCost}`);
+      alert(`Distance: ${distKm} km`);
     }
 
     function haversine([lat1, lon1], [lat2, lon2]) {
@@ -198,7 +181,9 @@
       const toRad = deg => deg * Math.PI / 180;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+      const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLon / 2) ** 2;
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
@@ -209,7 +194,7 @@
       const tip = parseFloat(document.getElementById("tip").value);
 
       if (!pickup || !dropoff || !details || isNaN(tip) || tip < 1) {
-        return alert("Please fill out all fields and include a tip of at least $1.");
+        return alert("Please fill all fields and enter a tip of at least $1.");
       }
 
       await addDoc(collection(db, "requests"), {
@@ -224,7 +209,7 @@
       document.getElementById("dropoff").value = "";
       document.getElementById("details").value = "";
       document.getElementById("tip").value = "";
-      alert("Request submitted!");
+      alert("Delivery request submitted!");
     };
 
     function loadJobs() {
@@ -234,8 +219,8 @@
       onSnapshot(q, snapshot => {
         if (snapshot.empty) return (box.innerHTML = "<p>No deliveries yet.</p>");
         box.innerHTML = "";
-        snapshot.forEach(docSnap => {
-          const d = docSnap.data();
+        snapshot.forEach(doc => {
+          const d = doc.data();
           const time = d.timestamp?.seconds ? new Date(d.timestamp.seconds * 1000).toLocaleString() : "—";
           box.innerHTML += `
             <div class="job-card">
