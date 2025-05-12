@@ -7,6 +7,12 @@
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -22,7 +28,7 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      margin-bottom: 10px;
+      margin: 5px;
     }
     button:hover { background: #145032; }
     .job-card {
@@ -36,7 +42,7 @@
       display: none;
       position: fixed;
       z-index: 999;
-      top: 0; left: 0;
+      left: 0; top: 0;
       width: 100%; height: 100%;
       background: rgba(0,0,0,0.6);
       justify-content: center;
@@ -46,67 +52,55 @@
       background: white;
       padding: 20px;
       border-radius: 10px;
+      max-width: 600px;
       width: 90%;
-      max-width: 500px;
-    }
-    .modal-content input, .modal-content textarea {
-      width: 100%;
-      padding: 8px;
-      margin: 6px 0;
-      font-size: 1em;
     }
     #map {
       height: 300px;
-      width: 100%;
-      margin: 10px 0;
       border-radius: 8px;
+      margin-bottom: 10px;
     }
-    .earnings-summary {
-      background: #fff;
+    #earningsSummary {
       border: 1px solid #ccc;
-      border-radius: 8px;
       padding: 12px;
-      margin-bottom: 16px;
-    }
-    .right { float: right; }
-    .profile-pic {
-      max-width: 100%;
-      margin: 8px 0;
+      border-radius: 8px;
+      background: #fff;
+      margin-bottom: 20px;
     }
   </style>
 </head>
 <body>
   <h1>Driver Dashboard</h1>
   <button onclick="logout()">Logout</button>
-  <button onclick="showProfileModal()">Profile</button>
+  <button onclick="showProfile()">Profile</button>
   <button onclick="toggleAvailability()">Toggle Availability</button>
 
   <h2>Earnings Summary</h2>
-  <div class="earnings-summary" id="earningsBox">Calculating...</div>
+  <div id="earningsSummary">Loading...</div>
 
   <h2>My Jobs</h2>
-  <div id="jobList">Loading jobs...</div>
+  <div id="jobList">Loading...</div>
 
-  <!-- Profile Modal -->
-  <div id="profileModal" class="modal" onclick="if(event.target==this) closeProfileModal()">
+  <!-- Map Modal -->
+  <div id="mapModal" class="modal" onclick="if(event.target==this) closeMap()">
     <div class="modal-content">
-      <h3>Edit Profile</h3>
-      <input type="text" id="driverName" placeholder="Full Name" />
-      <input type="email" id="driverEmail" placeholder="Email" />
-      <input type="text" id="driverPhone" placeholder="Phone Number" />
-      <input type="text" id="driverVehicle" placeholder="Vehicle Info" />
-      <label>Upload Photo ID:</label>
-      <input type="file" id="photoUpload" accept="image/*" />
-      <img id="photoPreview" class="profile-pic" src="" alt="ID Preview" />
-      <button onclick="saveProfile()">Save Profile</button>
-      <button onclick="closeProfileModal()" style="margin-top:10px;">Close</button>
+      <h3>Live Route</h3>
+      <div id="map"></div>
+      <button onclick="closeMap()">Close</button>
     </div>
   </div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
+  <!-- Chat Modal -->
+  <div id="chatModal" class="modal" onclick="if(event.target==this) closeChat()">
+    <div class="modal-content">
+      <h3>Chat</h3>
+      <div id="chatMessages" style="height:200px; overflow-y:auto; border:1px solid #ccc; padding:10px;"></div>
+      <input id="chatInput" type="text" style="width:100%; margin-top:10px;" placeholder="Type message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <!-- Firebase Init -->
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -116,130 +110,168 @@
       messagingSenderId: "497753581430",
       appId: "1:497753581430:web:db6c22866194dd3285bc57"
     };
-
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
     const storage = firebase.storage();
+  </script>
+  <script>
     let currentUserId = null;
+    let activeChatJobId = null;
+    let mapInstance = null;
+    let routeLayer = null;
+    let carMarker = null;
 
     auth.onAuthStateChanged(async user => {
-      if (!user) return location.href = "login.html";
-      const docSnap = await db.collection("users").doc(user.uid).get();
-      if (!docSnap.exists || !(docSnap.data().roles || []).includes("driver")) {
-        alert("Access denied");
-        return auth.signOut();
-      }
+      if (!user) return window.location.href = "login.html";
       currentUserId = user.uid;
       loadJobs();
       loadEarnings();
-      loadProfile();
     });
 
     function logout() {
       auth.signOut().then(() => location.href = "login.html");
     }
 
+    function showProfile() {
+      alert("Profile modal coming soon!");
+    }
+
     function toggleAvailability() {
-      alert("Availability toggled (demo only)");
-    }
-
-    function showProfileModal() {
-      document.getElementById("profileModal").style.display = "flex";
-    }
-
-    function closeProfileModal() {
-      document.getElementById("profileModal").style.display = "none";
-    }
-
-    async function saveProfile() {
-      const name = document.getElementById("driverName").value;
-      const email = document.getElementById("driverEmail").value;
-      const phone = document.getElementById("driverPhone").value;
-      const vehicle = document.getElementById("driverVehicle").value;
-      await db.collection("users").doc(currentUserId).update({ name, email, phone, vehicle });
-      const file = document.getElementById("photoUpload").files[0];
-      if (file) {
-        const ref = storage.ref(`ids/${currentUserId}.jpg`);
-        await ref.put(file);
-        const url = await ref.getDownloadURL();
-        document.getElementById("photoPreview").src = url;
-      }
-      alert("Profile updated!");
-      closeProfileModal();
-    }
-
-    async function loadProfile() {
-      const docSnap = await db.collection("users").doc(currentUserId).get();
-      const data = docSnap.data();
-      document.getElementById("driverName").value = data.name || "";
-      document.getElementById("driverEmail").value = data.email || "";
-      document.getElementById("driverPhone").value = data.phone || "";
-      document.getElementById("driverVehicle").value = data.vehicle || "";
-      try {
-        const url = await storage.ref(`ids/${currentUserId}.jpg`).getDownloadURL();
-        document.getElementById("photoPreview").src = url;
-      } catch {}
+      alert("Driver availability toggled.");
     }
 
     function loadJobs() {
-      const list = document.getElementById("jobList");
-      db.collection("requests").where("driverId", "==", currentUserId).onSnapshot(snapshot => {
-        list.innerHTML = "";
-        snapshot.forEach(doc => {
-          const d = doc.data();
-          const fuel = (d.distance * 0.2).toFixed(2);
-          const maint = (d.distance * 0.08).toFixed(2);
-          const payout = (d.basePay + d.tip).toFixed(2);
-          list.innerHTML += `
-            <div class="job-card">
-              <p><strong>Pickup:</strong> ${d.pickup}</p>
-              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
-              <p><strong>Status:</strong> ${d.status}</p>
-              <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
-              <p><strong>Tip:</strong> $${d.tip.toFixed(2)}</p>
-              <p><strong>Payout:</strong> $${payout}</p>
-              <p><strong>Fuel:</strong> $${fuel} • <strong>Maint:</strong> $${maint}</p>
-              <button onclick="showMap('${d.pickup}', '${d.dropoff}')">📍 View Route</button>
-            </div>`;
+      const jobList = document.getElementById("jobList");
+      jobList.innerHTML = "Loading...";
+      db.collection("requests")
+        .where("driverId", "==", currentUserId)
+        .orderBy("timestamp", "desc")
+        .onSnapshot(snapshot => {
+          if (snapshot.empty) {
+            jobList.innerHTML = "<p>No jobs assigned yet.</p>";
+            return;
+          }
+          jobList.innerHTML = "";
+          snapshot.forEach(doc => {
+            const d = doc.data();
+            const tip = d.tip?.toFixed(2) || "0.00";
+            const payout = (d.basePay || 0).toFixed(2);
+            const fuel = (d.fuelCost || 0).toFixed(2);
+            const maint = (d.maintCost || 0).toFixed(2);
+            jobList.innerHTML += `
+              <div class="job-card">
+                <p><strong>Pickup:</strong> ${d.pickup}</p>
+                <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+                <p><strong>Status:</strong> ${d.status}</p>
+                <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
+                <p><strong>Payout:</strong> $${payout}</p>
+                <p><strong>Tip:</strong> $${tip}</p>
+                <p><strong>Fuel:</strong> $${fuel} • <strong>Maint:</strong> $${maint}</p>
+                <button onclick="startMap('${d.pickup}', '${d.dropoff}')">🧭 Navigate</button>
+                <button onclick="openChat('${doc.id}')">💬 Chat</button>
+              </div>
+            `;
+          });
         });
-      });
     }
 
-    function showMap(pickup, dropoff) {
-      const mapBox = document.createElement("div");
-      mapBox.id = "map";
-      document.body.appendChild(mapBox);
-      const map = L.map("map").setView([34.0007, -81.0348], 13);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-      // Dummy coordinates; replace with real geocode logic later
-      const pickupMarker = L.marker([34.0007, -81.0348]).addTo(map).bindPopup(pickup).openPopup();
-      const dropoffMarker = L.marker([34.0107, -81.0448]).addTo(map).bindPopup(dropoff);
-      const carIcon = L.icon({ iconUrl: "car-icon.png", iconSize: [32, 32] });
-      const car = L.marker([34.0007, -81.0348], { icon: carIcon }).addTo(map);
-      let i = 0;
+    function startMap(pickup, dropoff) {
+      document.getElementById("mapModal").style.display = "flex";
+
+      if (mapInstance) {
+        mapInstance.remove();
+        mapInstance = null;
+      }
+
+      mapInstance = L.map("map").setView([34.0007, -81.0348], 13); // Columbia, SC
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap"
+      }).addTo(mapInstance);
+
+      const pickupCoord = [34.002, -81.030];
+      const dropoffCoord = [34.009, -81.032];
+
+      routeLayer = L.polyline([pickupCoord, dropoffCoord], { color: "blue" }).addTo(mapInstance);
+      carMarker = L.marker(pickupCoord, {
+        icon: L.icon({
+          iconUrl: "https://cdn-icons-png.flaticon.com/512/744/744465.png",
+          iconSize: [32, 32]
+        })
+      }).addTo(mapInstance);
+
+      animateCar(pickupCoord, dropoffCoord);
+    }
+
+    function animateCar(start, end) {
+      let t = 0;
       const interval = setInterval(() => {
-        if (i >= 100) return clearInterval(interval);
-        car.setLatLng([34.0007 + i * 0.0001, -81.0348 + i * 0.0001]);
-        i++;
-      }, 150);
+        if (t >= 1) return clearInterval(interval);
+        const lat = start[0] + (end[0] - start[0]) * t;
+        const lng = start[1] + (end[1] - start[1]) * t;
+        carMarker.setLatLng([lat, lng]);
+        t += 0.01;
+      }, 100);
+    }
+
+    function closeMap() {
+      document.getElementById("mapModal").style.display = "none";
+    }
+
+    function openChat(jobId) {
+      activeChatJobId = jobId;
+      document.getElementById("chatModal").style.display = "flex";
+      const chatBox = document.getElementById("chatMessages");
+      chatBox.innerHTML = "Loading...";
+      db.collection(`requests/${jobId}/messages`)
+        .orderBy("timestamp")
+        .onSnapshot(snapshot => {
+          chatBox.innerHTML = "";
+          snapshot.forEach(doc => {
+            const msg = doc.data();
+            const time = msg.timestamp?.seconds ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString() : "";
+            chatBox.innerHTML += `<p><strong>${msg.sender}:</strong> ${msg.text} <small>${time}</small></p>`;
+          });
+          chatBox.scrollTop = chatBox.scrollHeight;
+        });
+    }
+
+    function sendMessage() {
+      const input = document.getElementById("chatInput");
+      const text = input.value.trim();
+      if (!text || !activeChatJobId) return;
+      db.collection(`requests/${activeChatJobId}/messages`).add({
+        text,
+        sender: "Driver",
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      input.value = "";
+    }
+
+    function closeChat() {
+      document.getElementById("chatModal").style.display = "none";
+      document.getElementById("chatMessages").innerHTML = "";
     }
 
     function loadEarnings() {
-      db.collection("requests").where("driverId", "==", currentUserId).where("paid", "==", true).onSnapshot(snapshot => {
-        let total = 0, tips = 0, fuel = 0, maint = 0;
-        snapshot.forEach(doc => {
-          const d = doc.data();
-          total += d.basePay + d.tip;
-          tips += d.tip;
-          fuel += d.distance * 0.2;
-          maint += d.distance * 0.08;
+      db.collection("requests")
+        .where("driverId", "==", currentUserId)
+        .where("paid", "==", true)
+        .onSnapshot(snapshot => {
+          let tips = 0, fuel = 0, maint = 0, payout = 0;
+          snapshot.forEach(doc => {
+            const d = doc.data();
+            tips += d.tip || 0;
+            fuel += d.fuelCost || 0;
+            maint += d.maintCost || 0;
+            payout += (d.basePay || 0);
+          });
+          const total = tips + payout + fuel + maint;
+          document.getElementById("earningsSummary").innerHTML = `
+            <strong>Total Earned:</strong> $${total.toFixed(2)}<br/>
+            Tips: $${tips.toFixed(2)} • Fuel: $${fuel.toFixed(2)} • Maint: $${maint.toFixed(2)}
+          `;
         });
-        document.getElementById("earningsBox").innerHTML = `
-          <p><strong>Total Earned:</strong> $${total.toFixed(2)}</p>
-          <p>Tips: $${tips.toFixed(2)} • Fuel: $${fuel.toFixed(2)} • Maint: $${maint.toFixed(2)}</p>
-        `;
-      });
     }
   </script>
 </body>
