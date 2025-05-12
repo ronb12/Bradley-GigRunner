@@ -1,3 +1,4 @@
+<!-- PART 1: HEAD + STRUCTURE -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -91,7 +92,7 @@
     <input type="text" id="details" placeholder="What are you sending?" />
     <input type="number" id="tip" placeholder="Tip for driver ($)" min="1" />
     <div id="map"></div>
-    <button onclick="openGoogleRoute()">📍 Preview Route</button>
+    <button onclick="previewGoogleRoute()">📍 Preview Route</button>
     <button onclick="submitRequest()">🚀 Submit Request</button>
 
     <h2>My Delivery Requests</h2>
@@ -100,7 +101,7 @@
     <h2>Notifications</h2>
     <div id="notificationsBox">Loading...</div>
   </div>
-  <!-- Modals -->
+  <!-- PAYPAL + CHAT MODALS -->
   <div id="paypalModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#0008; z-index:9999; justify-content:center; align-items:center;">
     <div style="background:white; padding:20px; border-radius:10px; max-width:400px; width:100%;">
       <h2>Pay Invoice</h2>
@@ -145,7 +146,7 @@
 
     let currentUserId = null;
     let map = null;
-    let carMarker = null;
+    let routeLayer = null;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
@@ -156,9 +157,9 @@
         return location.href = "login.html";
       }
       currentUserId = user.uid;
+      setupMap();
       loadJobs();
       loadNotifications();
-      setupMap();
     });
 
     function setupMap() {
@@ -168,12 +169,13 @@
       }).addTo(map);
     }
 
-    window.openGoogleRoute = () => {
-      const from = document.getElementById("pickup").value;
-      const to = document.getElementById("dropoff").value;
-      if (!from || !to) return alert("Enter both addresses");
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&travelmode=driving`;
-      window.open(url, "_blank");
+    // Opens Google Maps route in new tab
+    window.previewGoogleRoute = () => {
+      const pickup = document.getElementById("pickup").value.trim();
+      const dropoff = document.getElementById("dropoff").value.trim();
+      if (!pickup || !dropoff) return alert("Enter both pickup and dropoff.");
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(pickup)}&destination=${encodeURIComponent(dropoff)}&travelmode=driving`;
+      window.open(url, '_blank');
     };
 
     window.submitRequest = async () => {
@@ -219,27 +221,8 @@
               <button class="small-btn" onclick="openChat('${doc.id}')">💬 Chat</button>
               ${!d.paid ? `<button class="small-btn" onclick="showPayPalModal('${doc.id}', ${d.tip})">💳 Pay</button>` : ""}
               ${d.paid ? `<button class="small-btn" onclick='generatePDFReceipt(${JSON.stringify(d)}, "${time}")'>🧾 Receipt</button>` : ""}
-              ${d.status === "in-progress" ? `<button class="small-btn" onclick="trackDriver('${doc.id}')">🚗 Track</button>` : ""}
             </div>`;
         });
-      });
-    }
-
-    function trackDriver(docId) {
-      onSnapshot(doc(db, "requests", docId), snapshot => {
-        const data = snapshot.data();
-        if (data.driverLocation && map) {
-          const { lat, lng } = data.driverLocation;
-          const position = [lat, lng];
-          if (!carMarker) {
-            carMarker = L.marker(position, {
-              icon: L.icon({ iconUrl: "car.png", iconSize: [32, 32] })
-            }).addTo(map);
-          } else {
-            carMarker.setLatLng(position);
-          }
-          map.setView(position, 14);
-        }
       });
     }
 
@@ -261,6 +244,7 @@
       signOut(auth).then(() => window.location.href = "login.html");
     };
 
+    // PDF
     function generatePDFReceipt(data, timestamp) {
       const { pickup, dropoff, details, tip, paid } = data;
       const doc = new window.jspdf.jsPDF();
@@ -277,6 +261,7 @@
       doc.save("receipt.pdf");
     }
 
+    // PayPal
     let currentInvoiceId = null;
     window.showPayPalModal = (docId, tip) => {
       currentInvoiceId = docId;
@@ -297,6 +282,7 @@
       document.getElementById("paypalModal").style.display = "none";
     };
 
+    // Chat
     let activeChatDoc = null;
     window.openChat = (docId) => {
       activeChatDoc = docId;
