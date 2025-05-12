@@ -10,87 +10,22 @@
   <script src="https://www.paypal.com/sdk/js?client-id=sb&currency=USD"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9fafb;
-      margin: 0;
-      padding: 20px;
-    }
-    .container {
-      max-width: 650px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    }
-    h1, h2 {
-      color: #1a4d2e;
-      text-align: center;
-    }
-    input, textarea {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      font-size: 1em;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-    .autocomplete {
-      position: relative;
-    }
-    .autocomplete-items {
-      position: absolute;
-      background: #fff;
-      border: 1px solid #ddd;
-      z-index: 1000;
-      top: 100%;
-      left: 0;
-      right: 0;
-    }
-    .autocomplete-items div {
-      padding: 10px;
-      cursor: pointer;
-    }
-    .autocomplete-items div:hover {
-      background-color: #e9e9e9;
-    }
-    button {
-      padding: 12px;
-      width: 100%;
-      background: #1a4d2e;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 1em;
-      cursor: pointer;
-      margin-top: 10px;
-    }
-    button:hover {
-      background: #145032;
-    }
+    body { font-family: Arial, sans-serif; background: #f9fafb; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    h1, h2 { color: #1a4d2e; text-align: center; }
+    input, textarea { width: 100%; padding: 10px; margin: 10px 0; font-size: 1em; border: 1px solid #ccc; border-radius: 6px; }
+    button { padding: 12px; width: 100%; background: #1a4d2e; color: white; border: none; border-radius: 6px; font-size: 1em; cursor: pointer; margin-top: 10px; }
+    button:hover { background: #145032; }
     .logout { background: #d9534f; }
     .logout:hover { background: #c9302c; }
-    .job-card {
-      background: #fefefe;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      padding: 12px;
-      margin: 10px 0;
-    }
+    .job-card { background: #fefefe; border: 1px solid #ccc; border-radius: 6px; padding: 12px; margin: 10px 0; }
     .job-card p { margin: 6px 0; }
-    .small-btn {
-      font-size: 0.9em;
-      padding: 6px 10px;
-      margin-top: 6px;
-      margin-right: 6px;
-    }
-    #map {
-      height: 250px;
-      margin: 10px 0;
-      border-radius: 10px;
-      border: 1px solid #ccc;
-    }
+    .small-btn { font-size: 0.9em; padding: 6px 10px; margin-top: 6px; margin-right: 6px; }
+    #map { height: 250px; margin: 10px 0; border-radius: 10px; border: 1px solid #ccc; }
+    #autocomplete { position: relative; }
+    .suggestions { position: absolute; background: white; border: 1px solid #ccc; z-index: 999; width: 100%; max-height: 150px; overflow-y: auto; }
+    .suggestions div { padding: 8px; cursor: pointer; }
+    .suggestions div:hover { background: #f0f0f0; }
   </style>
 </head>
 <body>
@@ -99,13 +34,13 @@
     <button class="logout" onclick="logout()">Logout</button>
 
     <h2>Create Delivery Request</h2>
-    <div class="autocomplete">
+    <div id="autocomplete">
       <input type="text" id="pickup" placeholder="Pickup Location" oninput="suggestAddress(this, 'pickup')" />
-      <div id="pickup-suggestions" class="autocomplete-items"></div>
+      <div id="pickup-suggestions" class="suggestions"></div>
     </div>
-    <div class="autocomplete">
+    <div id="autocomplete">
       <input type="text" id="dropoff" placeholder="Dropoff Location" oninput="suggestAddress(this, 'dropoff')" />
-      <div id="dropoff-suggestions" class="autocomplete-items"></div>
+      <div id="dropoff-suggestions" class="suggestions"></div>
     </div>
     <input type="text" id="details" placeholder="What are you sending?" />
     <input type="number" id="tip" placeholder="Tip for driver ($)" min="1" />
@@ -119,7 +54,7 @@
     <h2>Notifications</h2>
     <div id="notificationsBox">Loading...</div>
   </div>
-  <!-- Modals -->
+  <!-- PayPal Modal -->
   <div id="paypalModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#0008; z-index:9999; justify-content:center; align-items:center;">
     <div style="background:white; padding:20px; border-radius:10px; max-width:400px; width:100%;">
       <h2>Pay Invoice</h2>
@@ -128,6 +63,7 @@
     </div>
   </div>
 
+  <!-- Chat Modal -->
   <div id="chatModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#0009; z-index:9999; justify-content:center; align-items:center;">
     <div style="background:white; padding:20px; border-radius:10px; max-width:500px; width:90%; height:80%; display:flex; flex-direction:column;">
       <h2>Chat</h2>
@@ -142,7 +78,10 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import { getFirestore, collection, addDoc, doc, updateDoc, getDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import {
+      getFirestore, collection, addDoc, query, where, onSnapshot,
+      updateDoc, doc, getDoc, orderBy, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -156,9 +95,8 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth();
-
     let currentUserId = null;
-    let map = null, routeLayer = null;
+    let map, marker;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
@@ -179,60 +117,42 @@
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap"
       }).addTo(map);
-
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(pos => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
-          map.setView([lat, lon], 14);
-          L.marker([lat, lon]).addTo(map).bindPopup("You are here").openPopup();
+          const coords = [pos.coords.latitude, pos.coords.longitude];
+          map.setView(coords, 14);
+          L.marker(coords).addTo(map).bindPopup("Your Location").openPopup();
         });
       }
     }
 
+    window.suggestAddress = async (input, field) => {
+      const query = input.value.trim();
+      const box = document.getElementById(`${field}-suggestions`);
+      if (!query) return box.innerHTML = "";
+      try {
+        const res = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(query)}&key=51f6b5c23f334f10a9d3698bcb542369&countrycode=us&limit=5`);
+        const data = await res.json();
+        box.innerHTML = data.results.map(r => `<div onclick="selectSuggestion('${field}', '${r.formatted.replace(/'/g, "\\'")}')">${r.formatted}</div>`).join("");
+      } catch (err) {
+        box.innerHTML = "<div>Error fetching suggestions</div>";
+      }
+    };
+
+    window.selectSuggestion = (field, text) => {
+      document.getElementById(field).value = text;
+      document.getElementById(`${field}-suggestions`).innerHTML = "";
+    };
+
     window.previewRoute = async () => {
       const from = document.getElementById("pickup").value;
-      const to = document.getElementById("dropoff").value;
-      if (!from || !to) return alert("Enter both pickup and dropoff.");
-
-      const [fromData, toData] = await Promise.all([
-        fetch(`https://photon.komoot.io/api/?q=${from}&limit=1`).then(res => res.json()),
-        fetch(`https://photon.komoot.io/api/?q=${to}&limit=1`).then(res => res.json())
-      ]);
-
-      if (!fromData.features[0] || !toData.features[0]) return alert("Location not found.");
-      const fromCoords = fromData.features[0].geometry.coordinates.reverse();
-      const toCoords = toData.features[0].geometry.coordinates.reverse();
-
-      if (routeLayer) map.removeLayer(routeLayer);
-      routeLayer = L.polyline([fromCoords, toCoords], { color: "blue" }).addTo(map);
-      map.fitBounds(routeLayer.getBounds());
-
-      const dist = haversine(fromCoords, toCoords).toFixed(2);
-      alert(`Distance: ${dist} km`);
-    };
-
-    function haversine([lat1, lon1], [lat2, lon2]) {
-      const R = 6371;
-      const toRad = deg => deg * Math.PI / 180;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
-
-    window.suggestAddress = async (input, type) => {
-      const val = input.value;
-      const box = document.getElementById(`${type}-suggestions`);
-      if (!val) return box.innerHTML = "";
-      const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(val)}&limit=5`);
+      const res = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(from)}&key=51f6b5c23f334f10a9d3698bcb542369`);
       const data = await res.json();
-      box.innerHTML = data.features.map(f => `<div onclick="selectAddress('${type}', '${f.properties.name}, ${f.properties.city || ''}, ${f.properties.state || ''}')">${f.properties.name}, ${f.properties.city || ''}, ${f.properties.state || ''}</div>`).join("");
-    };
-
-    window.selectAddress = (type, address) => {
-      document.getElementById(type).value = address;
-      document.getElementById(`${type}-suggestions`).innerHTML = "";
+      if (!data.results.length) return alert("Location not found.");
+      const coords = [data.results[0].geometry.lat, data.results[0].geometry.lng];
+      if (marker) map.removeLayer(marker);
+      marker = L.marker(coords).addTo(map).bindPopup("Pickup Location").openPopup();
+      map.setView(coords, 14);
     };
 
     window.submitRequest = async () => {
@@ -240,29 +160,30 @@
       const dropoff = document.getElementById("dropoff").value.trim();
       const details = document.getElementById("details").value.trim();
       const tip = parseFloat(document.getElementById("tip").value);
-      if (!pickup || !dropoff || !details || isNaN(tip) || tip < 1) return alert("Fill all fields and enter valid tip.");
-
+      if (!pickup || !dropoff || !details || isNaN(tip) || tip < 1) {
+        return alert("Please fill all fields and enter a valid tip.");
+      }
       await addDoc(collection(db, "requests"), {
         pickup, dropoff, details, tip,
-        status: "pending",
         userId: currentUserId,
-        timestamp: serverTimestamp(),
-        paid: false
+        paid: false,
+        status: "pending",
+        timestamp: serverTimestamp()
       });
-
-      ["pickup", "dropoff", "details", "tip"].forEach(id => document.getElementById(id).value = "");
-      alert("Request submitted!");
+      document.getElementById("pickup").value = "";
+      document.getElementById("dropoff").value = "";
+      document.getElementById("details").value = "";
+      document.getElementById("tip").value = "";
+      alert("Request submitted.");
     };
 
     function loadJobs() {
       const q = query(collection(db, "requests"), where("userId", "==", currentUserId), orderBy("timestamp", "desc"));
       const box = document.getElementById("jobList");
       onSnapshot(q, snapshot => {
-        if (snapshot.empty) return box.innerHTML = "<p>No deliveries yet.</p>";
-        box.innerHTML = "";
+        box.innerHTML = snapshot.empty ? "<p>No jobs yet.</p>" : "";
         snapshot.forEach(doc => {
-          const d = doc.data();
-          const time = d.timestamp?.seconds ? new Date(d.timestamp.seconds * 1000).toLocaleString() : "—";
+          const d = doc.data(), t = d.timestamp?.seconds ? new Date(d.timestamp.seconds * 1000).toLocaleString() : "—";
           box.innerHTML += `
             <div class="job-card">
               <p><strong>Pickup:</strong> ${d.pickup}</p>
@@ -271,10 +192,10 @@
               <p><strong>Tip:</strong> $${d.tip?.toFixed(2)}</p>
               <p><strong>Status:</strong> ${d.status}</p>
               <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
-              <p><small>${time}</small></p>
+              <p><small>${t}</small></p>
               <button class="small-btn" onclick="openChat('${doc.id}')">💬 Chat</button>
               ${!d.paid ? `<button class="small-btn" onclick="showPayPalModal('${doc.id}', ${d.tip})">💳 Pay</button>` : ""}
-              ${d.paid ? `<button class="small-btn" onclick='generatePDFReceipt(${JSON.stringify(d)}, "${time}")'>🧾 Receipt</button>` : ""}
+              ${d.paid ? `<button class="small-btn" onclick='generatePDFReceipt(${JSON.stringify(d)}, "${t}")'>🧾 Receipt</button>` : ""}
             </div>`;
         });
       });
@@ -284,12 +205,10 @@
       const q = query(collection(db, `users/${currentUserId}/notifications`), orderBy("timestamp", "desc"));
       const box = document.getElementById("notificationsBox");
       onSnapshot(q, snapshot => {
-        if (snapshot.empty) return box.innerHTML = "<p>No notifications yet.</p>";
-        box.innerHTML = "";
+        box.innerHTML = snapshot.empty ? "<p>No notifications.</p>" : "";
         snapshot.forEach(doc => {
-          const n = doc.data();
-          const time = n.timestamp?.seconds ? new Date(n.timestamp.seconds * 1000).toLocaleString() : "";
-          box.innerHTML += `<div class="job-card"><p>${n.message}</p><p><small>${time}</small></p></div>`;
+          const n = doc.data(), t = n.timestamp?.seconds ? new Date(n.timestamp.seconds * 1000).toLocaleString() : "";
+          box.innerHTML += `<div class="job-card"><p>${n.message}</p><p><small>${t}</small></p></div>`;
         });
       });
     }
@@ -312,14 +231,12 @@
     }
 
     let currentInvoiceId = null;
-    window.showPayPalModal = (docId, tip) => {
-      currentInvoiceId = docId;
+    window.showPayPalModal = (id, tip) => {
+      currentInvoiceId = id;
       document.getElementById("paypalModal").style.display = "flex";
       document.getElementById("paypal-button-container").innerHTML = "";
       paypal.Buttons({
-        createOrder: (data, actions) => actions.order.create({
-          purchase_units: [{ amount: { value: tip.toFixed(2) } }]
-        }),
+        createOrder: (data, actions) => actions.order.create({ purchase_units: [{ amount: { value: tip.toFixed(2) } }] }),
         onApprove: (data, actions) => actions.order.capture().then(() => {
           updateDoc(doc(db, "requests", currentInvoiceId), { paid: true });
           closePayPalModal();
@@ -327,25 +244,22 @@
         })
       }).render("#paypal-button-container");
     };
-    window.closePayPalModal = () => {
-      document.getElementById("paypalModal").style.display = "none";
-    };
+    window.closePayPalModal = () => document.getElementById("paypalModal").style.display = "none";
 
     let activeChatDoc = null;
     window.openChat = (docId) => {
       activeChatDoc = docId;
       document.getElementById("chatModal").style.display = "flex";
-      const chatBox = document.getElementById("chatMessages");
-      chatBox.innerHTML = "";
+      const box = document.getElementById("chatMessages");
       const q = query(collection(db, `requests/${docId}/messages`), orderBy("timestamp"));
       onSnapshot(q, snapshot => {
-        chatBox.innerHTML = "";
+        box.innerHTML = "";
         snapshot.forEach(doc => {
-          const msg = doc.data();
-          const time = msg.timestamp?.seconds ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString() : "";
-          chatBox.innerHTML += `<p><strong>${msg.sender}:</strong> ${msg.text} <small>${time}</small></p>`;
+          const m = doc.data();
+          const t = m.timestamp?.seconds ? new Date(m.timestamp.seconds * 1000).toLocaleTimeString() : "";
+          box.innerHTML += `<p><strong>${m.sender}:</strong> ${m.text} <small>${t}</small></p>`;
         });
-        chatBox.scrollTop = chatBox.scrollHeight;
+        box.scrollTop = box.scrollHeight;
       });
     };
     window.sendChatMessage = async () => {
