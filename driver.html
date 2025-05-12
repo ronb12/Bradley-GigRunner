@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <title>Bradley GigRunner - Driver</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -23,7 +22,7 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      margin: 5px;
+      margin-bottom: 10px;
     }
     button:hover { background: #145032; }
     .job-card {
@@ -33,161 +32,215 @@
       margin-bottom: 16px;
       border-radius: 8px;
     }
-    .chat-modal, .map-modal {
+    .modal {
       display: none;
       position: fixed;
       z-index: 999;
-      left: 0; top: 0;
+      top: 0; left: 0;
       width: 100%; height: 100%;
       background: rgba(0,0,0,0.6);
       justify-content: center;
       align-items: center;
     }
-    .chat-box, .map-box {
+    .modal-content {
       background: white;
-      max-width: 500px;
       padding: 20px;
       border-radius: 10px;
       width: 90%;
-      height: 80%;
-      overflow: hidden;
+      max-width: 500px;
     }
-    .chat-messages {
-      height: 60%;
-      overflow-y: auto;
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin-bottom: 10px;
-    }
-    .chat-input {
+    .modal-content input, .modal-content textarea {
       width: 100%;
-      padding: 10px;
+      padding: 8px;
+      margin: 6px 0;
       font-size: 1em;
-      margin-bottom: 10px;
     }
     #map {
-      height: 400px;
+      height: 300px;
       width: 100%;
+      margin: 10px 0;
       border-radius: 8px;
-      margin-bottom: 10px;
+    }
+    .earnings-summary {
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+    .right { float: right; }
+    .profile-pic {
+      max-width: 100%;
+      margin: 8px 0;
     }
   </style>
 </head>
 <body>
   <h1>Driver Dashboard</h1>
   <button onclick="logout()">Logout</button>
-  <label>
-    <input type="checkbox" id="myJobsOnlyToggle" onchange="loadJobs()" />
-    Show only my accepted jobs
-  </label>
+  <button onclick="showProfileModal()">Profile</button>
+  <button onclick="toggleAvailability()">Toggle Availability</button>
 
-  <h2>Available & Assigned Jobs</h2>
-  <div id="jobList">Loading...</div>
+  <h2>Earnings Summary</h2>
+  <div class="earnings-summary" id="earningsBox">Calculating...</div>
 
-  <!-- Chat Modal -->
-  <div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
-    <div class="chat-box">
-      <h3>Chat</h3>
-      <div id="chatMessages" class="chat-messages">Loading...</div>
-      <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
-      <button onclick="sendMessage()">Send</button>
+  <h2>My Jobs</h2>
+  <div id="jobList">Loading jobs...</div>
+
+  <!-- Profile Modal -->
+  <div id="profileModal" class="modal" onclick="if(event.target==this) closeProfileModal()">
+    <div class="modal-content">
+      <h3>Edit Profile</h3>
+      <input type="text" id="driverName" placeholder="Full Name" />
+      <input type="email" id="driverEmail" placeholder="Email" />
+      <input type="text" id="driverPhone" placeholder="Phone Number" />
+      <input type="text" id="driverVehicle" placeholder="Vehicle Info" />
+      <label>Upload Photo ID:</label>
+      <input type="file" id="photoUpload" accept="image/*" />
+      <img id="photoPreview" class="profile-pic" src="" alt="ID Preview" />
+      <button onclick="saveProfile()">Save Profile</button>
+      <button onclick="closeProfileModal()" style="margin-top:10px;">Close</button>
     </div>
   </div>
-
-  <!-- Map Modal -->
-  <div id="mapModal" class="map-modal" onclick="if(event.target==this) closeMap()">
-    <div class="map-box">
-      <h3>Live Route</h3>
-      <div id="map"></div>
-      <button onclick="closeMap()">Close</button>
-    </div>
-  </div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
   <script>
-    const pickupCoords = [34.0007, -81.0348]; // Columbia, SC pickup
-    const dropoffCoords = [34.0157, -81.0305]; // Columbia, SC dropoff
-    let carMarker, routeLine, routeCoords = [], currentIndex = 0, interval;
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+      authDomain: "bradley-gigrunner.firebaseapp.com",
+      projectId: "bradley-gigrunner",
+      storageBucket: "bradley-gigrunner.appspot.com",
+      messagingSenderId: "497753581430",
+      appId: "1:497753581430:web:db6c22866194dd3285bc57"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+    let currentUserId = null;
+
+    auth.onAuthStateChanged(async user => {
+      if (!user) return location.href = "login.html";
+      const docSnap = await db.collection("users").doc(user.uid).get();
+      if (!docSnap.exists || !(docSnap.data().roles || []).includes("driver")) {
+        alert("Access denied");
+        return auth.signOut();
+      }
+      currentUserId = user.uid;
+      loadJobs();
+      loadEarnings();
+      loadProfile();
+    });
 
     function logout() {
-      alert("Simulated logout.");
+      auth.signOut().then(() => location.href = "login.html");
+    }
+
+    function toggleAvailability() {
+      alert("Availability toggled (demo only)");
+    }
+
+    function showProfileModal() {
+      document.getElementById("profileModal").style.display = "flex";
+    }
+
+    function closeProfileModal() {
+      document.getElementById("profileModal").style.display = "none";
+    }
+
+    async function saveProfile() {
+      const name = document.getElementById("driverName").value;
+      const email = document.getElementById("driverEmail").value;
+      const phone = document.getElementById("driverPhone").value;
+      const vehicle = document.getElementById("driverVehicle").value;
+      await db.collection("users").doc(currentUserId).update({ name, email, phone, vehicle });
+      const file = document.getElementById("photoUpload").files[0];
+      if (file) {
+        const ref = storage.ref(`ids/${currentUserId}.jpg`);
+        await ref.put(file);
+        const url = await ref.getDownloadURL();
+        document.getElementById("photoPreview").src = url;
+      }
+      alert("Profile updated!");
+      closeProfileModal();
+    }
+
+    async function loadProfile() {
+      const docSnap = await db.collection("users").doc(currentUserId).get();
+      const data = docSnap.data();
+      document.getElementById("driverName").value = data.name || "";
+      document.getElementById("driverEmail").value = data.email || "";
+      document.getElementById("driverPhone").value = data.phone || "";
+      document.getElementById("driverVehicle").value = data.vehicle || "";
+      try {
+        const url = await storage.ref(`ids/${currentUserId}.jpg`).getDownloadURL();
+        document.getElementById("photoPreview").src = url;
+      } catch {}
     }
 
     function loadJobs() {
       const list = document.getElementById("jobList");
-      list.innerHTML = `
-        <div class='job-card'>
-          <p><strong>Pickup:</strong> 123 Main St</p>
-          <p><strong>Dropoff:</strong> 456 Oak Ave</p>
-          <p><strong>Status:</strong> Accepted</p>
-          <p><strong>Paid:</strong> ✅</p>
-          <p><strong>Payout:</strong> $12.00</p>
-          <p><strong>Tip:</strong> $3.00</p>
-          <p><strong>Fuel Est:</strong> $1.20 • <strong>Maint:</strong> $0.45</p>
-          <button onclick="startNavigation()">🧭 Navigate</button>
-          <button onclick="openChat()">💬 Chat</button>
-        </div>
-      `;
-    }
-
-    function openChat() {
-      document.getElementById("chatModal").style.display = "flex";
-    }
-
-    function closeChat() {
-      document.getElementById("chatModal").style.display = "none";
-    }
-
-    function sendMessage() {
-      const input = document.getElementById("chatInput");
-      if (!input.value.trim()) return;
-      const msgBox = document.getElementById("chatMessages");
-      const msg = document.createElement("p");
-      msg.innerHTML = `<strong>Driver:</strong> ${input.value}`;
-      msgBox.appendChild(msg);
-      input.value = "";
-      msgBox.scrollTop = msgBox.scrollHeight;
-    }
-
-    function closeMap() {
-      document.getElementById("mapModal").style.display = "none";
-      if (interval) clearInterval(interval);
-    }
-
-    function startNavigation() {
-      document.getElementById("mapModal").style.display = "flex";
-      setTimeout(() => {
-        const map = L.map('map').setView(pickupCoords, 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19
-        }).addTo(map);
-
-        routeLine = L.polyline([pickupCoords, dropoffCoords], { color: 'blue' }).addTo(map);
-        map.fitBounds(routeLine.getBounds());
-
-        const steps = 100;
-        routeCoords = [];
-        for (let i = 0; i <= steps; i++) {
-          const lat = pickupCoords[0] + (dropoffCoords[0] - pickupCoords[0]) * (i / steps);
-          const lon = pickupCoords[1] + (dropoffCoords[1] - pickupCoords[1]) * (i / steps);
-          routeCoords.push([lat, lon]);
-        }
-
-        const carIcon = L.icon({
-          iconUrl: "https://cdn-icons-png.flaticon.com/512/743/743007.png",
-          iconSize: [32, 32],
-          iconAnchor: [16, 16]
+      db.collection("requests").where("driverId", "==", currentUserId).onSnapshot(snapshot => {
+        list.innerHTML = "";
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const fuel = (d.distance * 0.2).toFixed(2);
+          const maint = (d.distance * 0.08).toFixed(2);
+          const payout = (d.basePay + d.tip).toFixed(2);
+          list.innerHTML += `
+            <div class="job-card">
+              <p><strong>Pickup:</strong> ${d.pickup}</p>
+              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+              <p><strong>Status:</strong> ${d.status}</p>
+              <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
+              <p><strong>Tip:</strong> $${d.tip.toFixed(2)}</p>
+              <p><strong>Payout:</strong> $${payout}</p>
+              <p><strong>Fuel:</strong> $${fuel} • <strong>Maint:</strong> $${maint}</p>
+              <button onclick="showMap('${d.pickup}', '${d.dropoff}')">📍 View Route</button>
+            </div>`;
         });
-
-        carMarker = L.marker(routeCoords[0], { icon: carIcon }).addTo(map);
-        currentIndex = 0;
-        interval = setInterval(() => {
-          if (currentIndex >= routeCoords.length) return clearInterval(interval);
-          carMarker.setLatLng(routeCoords[currentIndex++]);
-        }, 150);
-      }, 300);
+      });
     }
 
-    // Initialize
-    loadJobs();
+    function showMap(pickup, dropoff) {
+      const mapBox = document.createElement("div");
+      mapBox.id = "map";
+      document.body.appendChild(mapBox);
+      const map = L.map("map").setView([34.0007, -81.0348], 13);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+      // Dummy coordinates; replace with real geocode logic later
+      const pickupMarker = L.marker([34.0007, -81.0348]).addTo(map).bindPopup(pickup).openPopup();
+      const dropoffMarker = L.marker([34.0107, -81.0448]).addTo(map).bindPopup(dropoff);
+      const carIcon = L.icon({ iconUrl: "car-icon.png", iconSize: [32, 32] });
+      const car = L.marker([34.0007, -81.0348], { icon: carIcon }).addTo(map);
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i >= 100) return clearInterval(interval);
+        car.setLatLng([34.0007 + i * 0.0001, -81.0348 + i * 0.0001]);
+        i++;
+      }, 150);
+    }
+
+    function loadEarnings() {
+      db.collection("requests").where("driverId", "==", currentUserId).where("paid", "==", true).onSnapshot(snapshot => {
+        let total = 0, tips = 0, fuel = 0, maint = 0;
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          total += d.basePay + d.tip;
+          tips += d.tip;
+          fuel += d.distance * 0.2;
+          maint += d.distance * 0.08;
+        });
+        document.getElementById("earningsBox").innerHTML = `
+          <p><strong>Total Earned:</strong> $${total.toFixed(2)}</p>
+          <p>Tips: $${tips.toFixed(2)} • Fuel: $${fuel.toFixed(2)} • Maint: $${maint.toFixed(2)}</p>
+        `;
+      });
+    }
   </script>
 </body>
 </html>
