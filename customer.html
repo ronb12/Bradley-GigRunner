@@ -78,25 +78,6 @@
       border-radius: 10px;
       border: 1px solid #ccc;
     }
-    ul.autocomplete {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      background: white;
-      border: 1px solid #ccc;
-      max-height: 150px;
-      overflow-y: auto;
-      position: absolute;
-      z-index: 999;
-      width: 100%;
-    }
-    ul.autocomplete li {
-      padding: 8px;
-      cursor: pointer;
-    }
-    ul.autocomplete li:hover {
-      background: #f0f0f0;
-    }
   </style>
 </head>
 <body>
@@ -105,18 +86,12 @@
     <button class="logout" onclick="logout()">Logout</button>
 
     <h2>Create Delivery Request</h2>
-    <div style="position:relative;">
-      <input type="text" id="pickup" placeholder="Pickup Location" oninput="suggestAddress('pickup')" />
-      <ul id="pickup-suggestions" class="autocomplete" style="display:none;"></ul>
-    </div>
-    <div style="position:relative;">
-      <input type="text" id="dropoff" placeholder="Dropoff Location" oninput="suggestAddress('dropoff')" />
-      <ul id="dropoff-suggestions" class="autocomplete" style="display:none;"></ul>
-    </div>
+    <input type="text" id="pickup" placeholder="Pickup Location" />
+    <input type="text" id="dropoff" placeholder="Dropoff Location" />
     <input type="text" id="details" placeholder="What are you sending?" />
     <input type="number" id="tip" placeholder="Tip for driver ($)" min="1" />
     <div id="map"></div>
-    <button onclick="previewRoute()">📍 Preview Route</button>
+    <button onclick="openGoogleRoute()">📍 Preview Route</button>
     <button onclick="submitRequest()">🚀 Submit Request</button>
 
     <h2>My Delivery Requests</h2>
@@ -125,8 +100,7 @@
     <h2>Notifications</h2>
     <div id="notificationsBox">Loading...</div>
   </div>
-
-  <!-- PayPal Modal -->
+  <!-- Modals -->
   <div id="paypalModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#0008; z-index:9999; justify-content:center; align-items:center;">
     <div style="background:white; padding:20px; border-radius:10px; max-width:400px; width:100%;">
       <h2>Pay Invoice</h2>
@@ -135,7 +109,6 @@
     </div>
   </div>
 
-  <!-- Chat Modal -->
   <div id="chatModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#0009; z-index:9999; justify-content:center; align-items:center;">
     <div style="background:white; padding:20px; border-radius:10px; max-width:500px; width:90%; height:80%; display:flex; flex-direction:column;">
       <h2>Chat</h2>
@@ -169,7 +142,10 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth();
-    let currentUserId = null, map = null, routeLayer = null;
+
+    let currentUserId = null;
+    let map = null;
+    let carMarker = null;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
@@ -180,75 +156,24 @@
         return location.href = "login.html";
       }
       currentUserId = user.uid;
-      loadJobs(); loadNotifications(); setupMap();
+      loadJobs();
+      loadNotifications();
+      setupMap();
     });
 
     function setupMap() {
-      map = L.map("map").setView([37.0902, -95.7129], 4); // center USA
+      map = L.map("map").setView([29.9511, -90.0715], 12);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap"
       }).addTo(map);
     }
 
-    async function previewRoute() {
-      const pickup = document.getElementById("pickup").value;
-      const dropoff = document.getElementById("dropoff").value;
-      if (!pickup || !dropoff) return alert("Enter both pickup and dropoff.");
-
-      const getCoords = async (addr) => {
-        const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(addr)}&limit=1`;
-        const res = await fetch(url);
-        const json = await res.json();
-        const coords = json?.features?.[0]?.geometry?.coordinates;
-        return coords ? [coords[1], coords[0]] : null;
-      };
-
-      const fromCoords = await getCoords(pickup);
-      const toCoords = await getCoords(dropoff);
-      if (!fromCoords || !toCoords) return alert("Address lookup failed.");
-
-      if (routeLayer) map.removeLayer(routeLayer);
-      routeLayer = L.polyline([fromCoords, toCoords], { color: "blue" }).addTo(map);
-      map.fitBounds(routeLayer.getBounds());
-      const distKm = haversine(fromCoords, toCoords).toFixed(2);
-      alert(`Distance: ${distKm} km`);
-    }
-
-    function haversine([lat1, lon1], [lat2, lon2]) {
-      const R = 6371;
-      const toRad = deg => deg * Math.PI / 180;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat / 2) ** 2 +
-                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-                Math.sin(dLon / 2) ** 2;
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    }
-
-    window.suggestAddress = async (fieldId) => {
-      const query = document.getElementById(fieldId).value;
-      const list = document.getElementById(`${fieldId}-suggestions`);
-      if (!query) return list.style.display = "none";
-
-      try {
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`);
-        const data = await res.json();
-        list.innerHTML = "";
-        data.features.forEach(place => {
-          const desc = place.properties.name + ", " + (place.properties.city || place.properties.state || "");
-          const li = document.createElement("li");
-          li.textContent = desc;
-          li.onclick = () => {
-            document.getElementById(fieldId).value = desc;
-            list.style.display = "none";
-          };
-          list.appendChild(li);
-        });
-        list.style.display = "block";
-      } catch (e) {
-        console.error("Autocomplete failed", e);
-        list.style.display = "none";
-      }
+    window.openGoogleRoute = () => {
+      const from = document.getElementById("pickup").value;
+      const to = document.getElementById("dropoff").value;
+      if (!from || !to) return alert("Enter both addresses");
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&travelmode=driving`;
+      window.open(url, "_blank");
     };
 
     window.submitRequest = async () => {
@@ -261,7 +186,10 @@
       }
       await addDoc(collection(db, "requests"), {
         pickup, dropoff, details, tip,
-        status: "pending", userId: currentUserId, timestamp: serverTimestamp(), paid: false
+        status: "pending",
+        userId: currentUserId,
+        timestamp: serverTimestamp(),
+        paid: false
       });
       document.getElementById("pickup").value = "";
       document.getElementById("dropoff").value = "";
@@ -291,8 +219,27 @@
               <button class="small-btn" onclick="openChat('${doc.id}')">💬 Chat</button>
               ${!d.paid ? `<button class="small-btn" onclick="showPayPalModal('${doc.id}', ${d.tip})">💳 Pay</button>` : ""}
               ${d.paid ? `<button class="small-btn" onclick='generatePDFReceipt(${JSON.stringify(d)}, "${time}")'>🧾 Receipt</button>` : ""}
+              ${d.status === "in-progress" ? `<button class="small-btn" onclick="trackDriver('${doc.id}')">🚗 Track</button>` : ""}
             </div>`;
         });
+      });
+    }
+
+    function trackDriver(docId) {
+      onSnapshot(doc(db, "requests", docId), snapshot => {
+        const data = snapshot.data();
+        if (data.driverLocation && map) {
+          const { lat, lng } = data.driverLocation;
+          const position = [lat, lng];
+          if (!carMarker) {
+            carMarker = L.marker(position, {
+              icon: L.icon({ iconUrl: "car.png", iconSize: [32, 32] })
+            }).addTo(map);
+          } else {
+            carMarker.setLatLng(position);
+          }
+          map.setView(position, 14);
+        }
       });
     }
 
@@ -310,7 +257,9 @@
       });
     }
 
-    window.logout = () => signOut(auth).then(() => location.href = "login.html");
+    window.logout = () => {
+      signOut(auth).then(() => window.location.href = "login.html");
+    };
 
     function generatePDFReceipt(data, timestamp) {
       const { pickup, dropoff, details, tip, paid } = data;
