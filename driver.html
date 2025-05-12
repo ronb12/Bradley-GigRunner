@@ -8,7 +8,6 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -24,7 +23,7 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
-      margin-bottom: 20px;
+      margin: 5px;
     }
     button:hover { background: #145032; }
     .job-card {
@@ -41,16 +40,20 @@
       left: 0; top: 0;
       width: 100%; height: 100%;
       background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
     }
     .chat-box, .map-box {
       background: white;
       max-width: 500px;
-      margin: 10% auto;
       padding: 20px;
       border-radius: 10px;
+      width: 90%;
+      height: 80%;
+      overflow: hidden;
     }
     .chat-messages {
-      height: 200px;
+      height: 60%;
       overflow-y: auto;
       border: 1px solid #ccc;
       padding: 10px;
@@ -60,6 +63,7 @@
       width: 100%;
       padding: 10px;
       font-size: 1em;
+      margin-bottom: 10px;
     }
     #map {
       height: 400px;
@@ -76,6 +80,7 @@
     <input type="checkbox" id="myJobsOnlyToggle" onchange="loadJobs()" />
     Show only my accepted jobs
   </label>
+
   <h2>Available & Assigned Jobs</h2>
   <div id="jobList">Loading...</div>
 
@@ -92,13 +97,16 @@
   <!-- Map Modal -->
   <div id="mapModal" class="map-modal" onclick="if(event.target==this) closeMap()">
     <div class="map-box">
-      <h3>Directions</h3>
+      <h3>Live Route</h3>
       <div id="map"></div>
       <button onclick="closeMap()">Close</button>
     </div>
   </div>
-
   <script>
+    const pickupCoords = [34.0007, -81.0348]; // Columbia, SC pickup
+    const dropoffCoords = [34.0157, -81.0305]; // Columbia, SC dropoff
+    let carMarker, routeLine, routeCoords = [], currentIndex = 0, interval;
+
     function logout() {
       alert("Simulated logout.");
     }
@@ -121,7 +129,7 @@
     }
 
     function openChat() {
-      document.getElementById("chatModal").style.display = "block";
+      document.getElementById("chatModal").style.display = "flex";
     }
 
     function closeChat() {
@@ -131,25 +139,55 @@
     function sendMessage() {
       const input = document.getElementById("chatInput");
       if (!input.value.trim()) return;
-      alert("Message sent: " + input.value);
+      const msgBox = document.getElementById("chatMessages");
+      const msg = document.createElement("p");
+      msg.innerHTML = `<strong>Driver:</strong> ${input.value}`;
+      msgBox.appendChild(msg);
       input.value = "";
-    }
-
-    function startNavigation() {
-      document.getElementById("mapModal").style.display = "block";
-      setTimeout(() => {
-        const map = L.map('map').setView([29.9511, -90.0715], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-        }).addTo(map);
-        L.marker([29.9511, -90.0715]).addTo(map).bindPopup('Pickup: 123 Main St').openPopup();
-        L.marker([29.9611, -90.0815]).addTo(map).bindPopup('Dropoff: 456 Oak Ave');
-      }, 300);
+      msgBox.scrollTop = msgBox.scrollHeight;
     }
 
     function closeMap() {
       document.getElementById("mapModal").style.display = "none";
+      if (interval) clearInterval(interval);
     }
+
+    function startNavigation() {
+      document.getElementById("mapModal").style.display = "flex";
+      setTimeout(() => {
+        const map = L.map('map').setView(pickupCoords, 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19
+        }).addTo(map);
+
+        routeLine = L.polyline([pickupCoords, dropoffCoords], { color: 'blue' }).addTo(map);
+        map.fitBounds(routeLine.getBounds());
+
+        const steps = 100;
+        routeCoords = [];
+        for (let i = 0; i <= steps; i++) {
+          const lat = pickupCoords[0] + (dropoffCoords[0] - pickupCoords[0]) * (i / steps);
+          const lon = pickupCoords[1] + (dropoffCoords[1] - pickupCoords[1]) * (i / steps);
+          routeCoords.push([lat, lon]);
+        }
+
+        const carIcon = L.icon({
+          iconUrl: "https://cdn-icons-png.flaticon.com/512/743/743007.png",
+          iconSize: [32, 32],
+          iconAnchor: [16, 16]
+        });
+
+        carMarker = L.marker(routeCoords[0], { icon: carIcon }).addTo(map);
+        currentIndex = 0;
+        interval = setInterval(() => {
+          if (currentIndex >= routeCoords.length) return clearInterval(interval);
+          carMarker.setLatLng(routeCoords[currentIndex++]);
+        }, 150);
+      }, 300);
+    }
+
+    // Initialize
+    loadJobs();
   </script>
 </body>
 </html>
