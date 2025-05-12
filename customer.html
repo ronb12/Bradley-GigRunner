@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -48,9 +47,15 @@
       cursor: pointer;
       margin-top: 10px;
     }
-    button:hover { background: #145032; }
-    .logout { background: #d9534f; }
-    .logout:hover { background: #c9302c; }
+    button:hover {
+      background: #145032;
+    }
+    .logout {
+      background: #d9534f;
+    }
+    .logout:hover {
+      background: #c9302c;
+    }
     .job-card {
       background: #fefefe;
       border: 1px solid #ccc;
@@ -58,7 +63,9 @@
       padding: 12px;
       margin: 10px 0;
     }
-    .job-card p { margin: 6px 0; }
+    .job-card p {
+      margin: 6px 0;
+    }
     .small-btn {
       font-size: 0.9em;
       padding: 6px 10px;
@@ -76,42 +83,256 @@
 <body>
   <div class="container">
     <h1>Customer Dashboard</h1>
-    <button class="logout" onclick="window.logout()">Logout</button>
+    <button class="logout" onclick="logout()">Logout</button>
+
     <h2>Create Delivery Request</h2>
     <input type="text" id="pickup" placeholder="Pickup Location" />
     <input type="text" id="dropoff" placeholder="Dropoff Location" />
     <input type="text" id="details" placeholder="What are you sending?" />
     <input type="number" id="tip" placeholder="Tip for driver ($)" min="1" />
     <div id="map"></div>
-    <button onclick="window.previewRoute()">📍 Preview Route</button>
-    <button onclick="window.submitRequest()">🚀 Submit Request</button>
+    <button onclick="previewRoute()">📍 Preview Route</button>
+    <button onclick="submitRequest()">🚀 Submit Request</button>
+
     <h2>My Delivery Requests</h2>
     <div id="jobList">Loading your deliveries...</div>
+
     <h2>Notifications</h2>
     <div id="notificationsBox">Loading...</div>
   </div>
 
-  <!-- PayPal Modal -->
   <div id="paypalModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#0008; z-index:9999; justify-content:center; align-items:center;">
     <div style="background:white; padding:20px; border-radius:10px; max-width:400px; width:100%;">
       <h2>Pay Invoice</h2>
       <div id="paypal-button-container"></div>
-      <button onclick="window.closePayPalModal()" style="margin-top:10px;">Cancel</button>
+      <button onclick="closePayPalModal()" style="margin-top:10px;">Cancel</button>
     </div>
   </div>
 
-  <!-- Chat Modal -->
   <div id="chatModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#0009; z-index:9999; justify-content:center; align-items:center;">
     <div style="background:white; padding:20px; border-radius:10px; max-width:500px; width:90%; height:80%; display:flex; flex-direction:column;">
       <h2>Chat</h2>
       <div id="chatMessages" style="flex:1; overflow-y:auto; border:1px solid #ccc; padding:10px; margin-bottom:10px;"></div>
       <textarea id="chatInput" placeholder="Type a message..." style="resize:none;"></textarea>
-      <button onclick="window.sendChatMessage()">Send</button>
-      <button onclick="window.closeChatModal()" style="margin-top:10px;">Close</button>
+      <button onclick="sendChatMessage()">Send</button>
+      <button onclick="closeChatModal()" style="margin-top:10px;">Close</button>
     </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="./customer-app.js"></script>
+  <script type="module" src="customer-app.js"></script>
 </body>
 </html>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+import {
+  getFirestore, collection, addDoc, query, where, onSnapshot, doc,
+  updateDoc, getDoc, orderBy, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+  authDomain: "bradley-gigrunner.firebaseapp.com",
+  projectId: "bradley-gigrunner",
+  storageBucket: "bradley-gigrunner.appspot.com",
+  messagingSenderId: "497753581430",
+  appId: "1:497753581430:web:db6c22866194dd3285bc57"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth();
+
+let currentUserId = null;
+let map = null;
+let routeLayer = null;
+
+onAuthStateChanged(auth, async user => {
+  if (!user) return location.href = "login.html";
+  const userDoc = await getDoc(doc(db, "users", user.uid));
+  if (!userDoc.exists() || !(userDoc.data().roles || []).includes("customer")) {
+    alert("Access denied");
+    await signOut(auth);
+    return location.href = "login.html";
+  }
+  currentUserId = user.uid;
+  loadJobs();
+  loadNotifications();
+  setupMap();
+});
+
+function setupMap() {
+  map = L.map("map").setView([29.9511, -90.0715], 12);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap contributors"
+  }).addTo(map);
+}
+
+window.previewRoute = async function () {
+  const from = document.getElementById("pickup").value;
+  const to = document.getElementById("dropoff").value;
+  if (!from || !to) return alert("Enter both pickup and dropoff.");
+
+  const [fromData, toData] = await Promise.all([
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${from}`).then(res => res.json()),
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${to}`).then(res => res.json())
+  ]);
+
+  if (!fromData[0] || !toData[0]) return alert("Location not found.");
+  const fromCoords = [parseFloat(fromData[0].lat), parseFloat(fromData[0].lon)];
+  const toCoords = [parseFloat(toData[0].lat), parseFloat(toData[0].lon)];
+
+  if (routeLayer) map.removeLayer(routeLayer);
+  routeLayer = L.polyline([fromCoords, toCoords], { color: "blue" }).addTo(map);
+  map.fitBounds(routeLayer.getBounds());
+
+  const distKm = haversine(fromCoords, toCoords).toFixed(2);
+  alert(`Distance: ${distKm} km`);
+};
+
+function haversine([lat1, lon1], [lat2, lon2]) {
+  const R = 6371;
+  const toRad = deg => deg * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+window.submitRequest = async function () {
+  const pickup = document.getElementById("pickup").value.trim();
+  const dropoff = document.getElementById("dropoff").value.trim();
+  const details = document.getElementById("details").value.trim();
+  const tip = parseFloat(document.getElementById("tip").value);
+  if (!pickup || !dropoff || !details || isNaN(tip) || tip < 1) {
+    return alert("Please fill all fields and enter a tip of at least $1.");
+  }
+  await addDoc(collection(db, "requests"), {
+    pickup, dropoff, details, tip,
+    status: "pending",
+    userId: currentUserId,
+    timestamp: serverTimestamp(),
+    paid: false
+  });
+  document.getElementById("pickup").value = "";
+  document.getElementById("dropoff").value = "";
+  document.getElementById("details").value = "";
+  document.getElementById("tip").value = "";
+  alert("Delivery request submitted!");
+};
+
+function loadJobs() {
+  const q = query(collection(db, "requests"), where("userId", "==", currentUserId), orderBy("timestamp", "desc"));
+  const box = document.getElementById("jobList");
+  onSnapshot(q, snapshot => {
+    if (snapshot.empty) return (box.innerHTML = "<p>No deliveries yet.</p>");
+    box.innerHTML = "";
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      const time = d.timestamp?.seconds ? new Date(d.timestamp.seconds * 1000).toLocaleString() : "—";
+      box.innerHTML += `
+        <div class="job-card">
+          <p><strong>Pickup:</strong> ${d.pickup}</p>
+          <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+          <p><strong>Details:</strong> ${d.details}</p>
+          <p><strong>Tip:</strong> $${d.tip?.toFixed(2)}</p>
+          <p><strong>Status:</strong> ${d.status}</p>
+          <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
+          <p><small>${time}</small></p>
+          <button class="small-btn" onclick="openChat('${doc.id}')">💬 Chat</button>
+          ${!d.paid ? `<button class="small-btn" onclick="showPayPalModal('${doc.id}', ${d.tip})">💳 Pay</button>` : ""}
+          ${d.paid ? `<button class="small-btn" onclick='generatePDFReceipt(${JSON.stringify(d)}, "${time}")'>🧾 Receipt</button>` : ""}
+        </div>`;
+    });
+  });
+}
+
+function loadNotifications() {
+  const q = query(collection(db, `users/${currentUserId}/notifications`), orderBy("timestamp", "desc"));
+  const box = document.getElementById("notificationsBox");
+  onSnapshot(q, snapshot => {
+    if (snapshot.empty) return (box.innerHTML = "<p>No notifications yet.</p>");
+    box.innerHTML = "";
+    snapshot.forEach(doc => {
+      const n = doc.data();
+      const time = n.timestamp?.seconds ? new Date(n.timestamp.seconds * 1000).toLocaleString() : "";
+      box.innerHTML += `<div class="job-card"><p>${n.message}</p><p><small>${time}</small></p></div>`;
+    });
+  });
+}
+
+window.logout = function () {
+  signOut(auth).then(() => location.href = "login.html");
+};
+
+// PDF Export
+window.generatePDFReceipt = function (data, timestamp) {
+  const { pickup, dropoff, details, tip, paid } = data;
+  const doc = new window.jspdf.jsPDF();
+  doc.setFontSize(16);
+  doc.text("Bradley GigRunner - Receipt", 20, 20);
+  doc.setFontSize(12);
+  doc.text(`Pickup: ${pickup}`, 20, 40);
+  doc.text(`Dropoff: ${dropoff}`, 20, 50);
+  doc.text(`Details: ${details}`, 20, 60);
+  doc.text(`Tip: $${tip.toFixed(2)}`, 20, 70);
+  doc.text(`Total: $${tip.toFixed(2)}`, 20, 80);
+  doc.text(`Paid: ${paid ? "Yes" : "No"}`, 20, 90);
+  doc.text(`Date: ${timestamp}`, 20, 100);
+  doc.save("receipt.pdf");
+};
+
+// PayPal Payment
+let currentInvoiceId = null;
+window.showPayPalModal = function (docId, tip) {
+  currentInvoiceId = docId;
+  document.getElementById("paypalModal").style.display = "flex";
+  document.getElementById("paypal-button-container").innerHTML = "";
+  paypal.Buttons({
+    createOrder: (data, actions) => actions.order.create({
+      purchase_units: [{ amount: { value: tip.toFixed(2) } }]
+    }),
+    onApprove: (data, actions) => actions.order.capture().then(() => {
+      updateDoc(doc(db, "requests", currentInvoiceId), { paid: true });
+      closePayPalModal();
+      alert("Payment successful!");
+    })
+  }).render("#paypal-button-container");
+};
+window.closePayPalModal = function () {
+  document.getElementById("paypalModal").style.display = "none";
+};
+
+// Chat
+let activeChatDoc = null;
+window.openChat = function (docId) {
+  activeChatDoc = docId;
+  document.getElementById("chatModal").style.display = "flex";
+  const chatBox = document.getElementById("chatMessages");
+  chatBox.innerHTML = "";
+  const q = query(collection(db, `requests/${docId}/messages`), orderBy("timestamp"));
+  onSnapshot(q, snapshot => {
+    chatBox.innerHTML = "";
+    snapshot.forEach(doc => {
+      const msg = doc.data();
+      const time = msg.timestamp?.seconds ? new Date(msg.timestamp.seconds * 1000).toLocaleTimeString() : "";
+      chatBox.innerHTML += `<p><strong>${msg.sender}:</strong> ${msg.text} <small>${time}</small></p>`;
+    });
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
+};
+window.sendChatMessage = async function () {
+  const input = document.getElementById("chatInput");
+  const text = input.value.trim();
+  if (!text || !activeChatDoc) return;
+  await addDoc(collection(db, `requests/${activeChatDoc}/messages`), {
+    text, sender: "Customer", timestamp: serverTimestamp()
+  });
+  input.value = "";
+};
+window.closeChatModal = function () {
+  document.getElementById("chatModal").style.display = "none";
+  document.getElementById("chatMessages").innerHTML = "";
+};
+</script>
