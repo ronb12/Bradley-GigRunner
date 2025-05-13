@@ -1,91 +1,26 @@
+<!-- PART 1: HEAD + METRICS + MAP + JOBS -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>Bradley GigRunner - Driver</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="favicon.ico" />
-  <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9fafb;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background: #1a4d2e;
-      color: white;
-      padding: 10px;
-      text-align: center;
-    }
-    button {
-      padding: 10px 14px;
-      background: #1a4d2e;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      margin: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #145032;
-    }
-    .job-card {
-      background: white;
-      margin: 15px;
-      padding: 15px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    .metrics {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-around;
-      padding: 15px;
-    }
-    .metric {
-      background: white;
-      padding: 10px;
-      margin: 10px;
-      flex: 1 0 30%;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      text-align: center;
-    }
-    #map {
-      height: 300px;
-      margin: 10px;
-      border-radius: 10px;
-    }
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 999;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6);
-      justify-content: center;
-      align-items: center;
-    }
-    .modal-content {
-      background: white;
-      padding: 20px;
-      width: 90%;
-      max-width: 500px;
-      border-radius: 10px;
-    }
-    #chatMessages {
-      max-height: 200px;
-      overflow-y: auto;
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin-bottom: 10px;
-    }
+    body { font-family: Arial, sans-serif; background: #f9fafb; margin: 0; }
+    header { background: #1a4d2e; color: white; padding: 10px; text-align: center; }
+    button { background: #1a4d2e; color: white; padding: 10px; margin: 5px; border: none; border-radius: 5px; }
+    button:hover { background: #145032; }
+    .metrics, .offline-bar, .tax-summary, .tabs { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 10px; }
+    .metric, .tax-block { background: white; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin: 5px; flex: 1 0 28%; text-align: center; }
+    #map { height: 300px; margin: 10px; border-radius: 10px; }
+    .job-card { background: white; margin: 10px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
+    .tabs button { background: #ccc; color: black; }
+    .tabs button.active { background: #1a4d2e; color: white; }
   </style>
 </head>
 <body>
@@ -93,25 +28,40 @@
     <h1>Driver Dashboard</h1>
     <button onclick="logout()">Logout</button>
     <button onclick="toggleAvailability()">Go Online</button>
+    <button onclick="toggleOffline()">Offline Mode</button>
     <button onclick="showProfile()">Profile</button>
     <button onclick="toggleSOS()">🚨 SOS</button>
   </header>
 
+  <div class="offline-bar" id="offlineStatus" style="display:none;">
+    <div style="color:red;">You are offline. Job updates paused.</div>
+  </div>
+
   <section class="metrics">
     <div class="metric"><strong>Base Pay:</strong><br>$<span id="basePay">0.00</span></div>
     <div class="metric"><strong>Tips:</strong><br>$<span id="tipTotal">0.00</span></div>
-    <div class="metric"><strong>Total:</strong><br>$<span id="totalEarnings">0.00</span></div>
+    <div class="metric"><strong>Total Earned:</strong><br>$<span id="totalEarnings">0.00</span></div>
   </section>
+
+  <section class="tax-summary">
+    <div class="tax-block"><strong>YTD Earnings:</strong><br>$<span id="ytdTotal">0.00</span></div>
+    <div class="tax-block"><strong>Estimated Tax (15%):</strong><br>$<span id="taxEstimate">0.00</span></div>
+  </section>
+
+  <div class="tabs">
+    <button class="active" onclick="showTab('current')">Current Jobs</button>
+    <button onclick="showTab('history')">Job History</button>
+  </div>
 
   <div id="map"></div>
   <div id="jobList">Loading jobs...</div>
-
+  <div id="historyList" style="display:none;">Loading job history...</div>
   <!-- Chat Modal -->
   <div id="chatModal" class="modal" onclick="if(event.target==this) closeChat()">
     <div class="modal-content">
       <h3>Chat</h3>
-      <div id="chatMessages"></div>
-      <input type="text" id="chatInput" placeholder="Type a message..." style="width:100%" />
+      <div id="chatMessages" style="max-height:200px; overflow-y:auto;"></div>
+      <input type="text" id="chatInput" placeholder="Type a message..." style="width:100%;" />
       <button onclick="sendMessage()">Send</button>
     </div>
   </div>
@@ -137,8 +87,8 @@
       <button onclick="closeSOS()">Cancel</button>
     </div>
   </div>
+
   <script>
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
       authDomain: "bradley-gigrunner.firebaseapp.com",
@@ -148,24 +98,15 @@
       appId: "1:497753581430:web:db6c22866194dd3285bc57"
     };
     firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
     const db = firebase.firestore();
+    const auth = firebase.auth();
 
-    let currentUserId = null;
-    let currentJobId = null;
-    let available = false;
+    let map, carIcon, carMarker, offline = false;
+    let ytd = 0;
 
-    auth.onAuthStateChanged(async user => {
+    auth.onAuthStateChanged(user => {
       if (!user) return location.href = "login.html";
-      const profileRef = db.collection("users").doc(user.uid);
-      const profile = await profileRef.get();
-      const role = profile.data()?.roles?.includes("driver");
-      if (!role) {
-        alert("Access denied");
-        return auth.signOut().then(() => location.href = "login.html");
-      }
-      currentUserId = user.uid;
-      loadJobs();
+      loadJobs(user.uid);
       setupMap();
     });
 
@@ -174,40 +115,87 @@
     }
 
     function toggleAvailability() {
-      available = !available;
-      alert(available ? "You are now ONLINE" : "You are now OFFLINE");
+      alert("Availability toggled.");
     }
 
-    function showProfile() {
-      document.getElementById("profileModal").style.display = "flex";
+    function toggleOffline() {
+      offline = !offline;
+      document.getElementById("offlineStatus").style.display = offline ? "block" : "none";
     }
 
-    function closeProfile() {
-      document.getElementById("profileModal").style.display = "none";
+    function showTab(tab) {
+      document.getElementById("jobList").style.display = tab === 'current' ? 'block' : 'none';
+      document.getElementById("historyList").style.display = tab === 'history' ? 'block' : 'none';
+      document.querySelectorAll('.tabs button').forEach(btn => btn.classList.remove("active"));
+      document.querySelectorAll('.tabs button')[tab === 'current' ? 0 : 1].classList.add("active");
     }
 
-    function saveProfile() {
-      alert("Profile saved!");
-      closeProfile();
+    function updateEarnings(base, tip) {
+      const total = base + tip;
+      ytd += total;
+      document.getElementById("basePay").textContent = base.toFixed(2);
+      document.getElementById("tipTotal").textContent = tip.toFixed(2);
+      document.getElementById("totalEarnings").textContent = total.toFixed(2);
+      document.getElementById("ytdTotal").textContent = ytd.toFixed(2);
+      document.getElementById("taxEstimate").textContent = (ytd * 0.15).toFixed(2);
     }
 
-    function toggleSOS() {
-      document.getElementById("sosModal").style.display = "flex";
+    function loadJobs(driverId) {
+      const jobList = document.getElementById("jobList");
+      const historyList = document.getElementById("historyList");
+      db.collection("requests").where("driverId", "==", driverId).onSnapshot(snapshot => {
+        jobList.innerHTML = "";
+        historyList.innerHTML = "";
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const isPast = d.status === "Completed";
+          const target = isPast ? historyList : jobList;
+          const base = d.payout || 0;
+          const tip = d.tip || 0;
+          if (!isPast) updateEarnings(base, tip);
+          const jobHTML = `
+            <div class="job-card">
+              <p><strong>Pickup:</strong> ${d.pickup}</p>
+              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+              <p><strong>Status:</strong> ${d.status}</p>
+              <p><strong>Payout:</strong> $${base.toFixed(2)}</p>
+              <p><strong>Tip:</strong> $${tip.toFixed(2)}</p>
+              <p><strong>Total:</strong> $${(base + tip).toFixed(2)}</p>
+              <button onclick="openChat()">💬 Chat</button>
+              <a href="https://www.google.com/maps/dir/${encodeURIComponent(d.pickup)}/${encodeURIComponent(d.dropoff)}" target="_blank">
+                <button>🧭 Navigate</button>
+              </a>
+            </div>`;
+          target.innerHTML += jobHTML;
+        });
+      });
     }
 
-    function closeSOS() {
-      document.getElementById("sosModal").style.display = "none";
+    function setupMap() {
+      map = L.map('map').setView([34.0007, -81.0348], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+      carIcon = L.icon({
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
+      carMarker = L.marker([34.0007, -81.0348], { icon: carIcon }).addTo(map);
+      animateCar();
     }
 
-    function confirmSOS() {
-      alert("Emergency alert sent to dispatch!");
-      closeSOS();
+    function animateCar() {
+      const path = [[34.0007, -81.0348], [34.006, -81.039], [34.009, -81.043]];
+      let i = 0;
+      setInterval(() => {
+        if (offline) return;
+        carMarker.setLatLng(path[i]);
+        map.panTo(path[i]);
+        i = (i + 1) % path.length;
+      }, 3000);
     }
 
     function openChat() {
       document.getElementById("chatModal").style.display = "flex";
-      const box = document.getElementById("chatMessages");
-      box.innerHTML += "<p><strong>Dispatch:</strong> Are you on the way?</p>";
     }
 
     function closeChat() {
@@ -223,50 +211,30 @@
       box.scrollTop = box.scrollHeight;
     }
 
-    function updateEarnings(base = 0, tip = 0) {
-      document.getElementById("basePay").textContent = base.toFixed(2);
-      document.getElementById("tipTotal").textContent = tip.toFixed(2);
-      document.getElementById("totalEarnings").textContent = (base + tip).toFixed(2);
+    function showProfile() {
+      document.getElementById("profileModal").style.display = "flex";
     }
 
-    function loadJobs() {
-      const q = db.collection("requests").where("driverId", "==", currentUserId).orderBy("timestamp", "desc");
-      q.onSnapshot(snapshot => {
-        const list = document.getElementById("jobList");
-        list.innerHTML = "";
-        if (snapshot.empty) {
-          list.innerHTML = "<p style='text-align:center;'>No assigned jobs.</p>";
-          updateEarnings(0, 0);
-          return;
-        }
-        snapshot.forEach(doc => {
-          const d = doc.data();
-          currentJobId = doc.id;
-          const payout = d.payout || 0;
-          const tip = d.tip || 0;
-          updateEarnings(payout, tip);
-          list.innerHTML += `
-            <div class="job-card">
-              <p><strong>Pickup:</strong> ${d.pickup}</p>
-              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
-              <p><strong>Status:</strong> ${d.status}</p>
-              <p><strong>Payout:</strong> $${payout.toFixed(2)}</p>
-              <p><strong>Tip:</strong> $${tip.toFixed(2)}</p>
-              <p><strong>Total:</strong> $${(payout + tip).toFixed(2)}</p>
-              <button onclick="openChat()">💬 Chat</button>
-              <a href="https://www.google.com/maps/dir/${encodeURIComponent(d.pickup)}/${encodeURIComponent(d.dropoff)}" target="_blank">
-                <button>🧭 Navigate</button>
-              </a>
-            </div>`;
-        });
-      });
+    function closeProfile() {
+      document.getElementById("profileModal").style.display = "none";
     }
 
-    function setupMap() {
-      const map = L.map('map').setView([34.0007, -81.0348], 13); // Columbia SC
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-      }).addTo(map);
+    function saveProfile() {
+      alert("Profile saved.");
+      closeProfile();
+    }
+
+    function toggleSOS() {
+      document.getElementById("sosModal").style.display = "flex";
+    }
+
+    function closeSOS() {
+      document.getElementById("sosModal").style.display = "none";
+    }
+
+    function confirmSOS() {
+      alert("🚨 SOS alert sent to dispatch.");
+      closeSOS();
     }
   </script>
 </body>
