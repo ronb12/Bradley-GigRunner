@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -34,6 +35,7 @@
       padding: 10px;
       border: 1px solid #ccc;
       text-align: left;
+      font-size: 0.95em;
     }
     th {
       background: #e0f0e9;
@@ -47,8 +49,14 @@
       margin: 2px;
       cursor: pointer;
     }
+    .action-btn:hover {
+      background: #145032;
+    }
     .delete-btn {
       background: #d9534f;
+    }
+    .delete-btn:hover {
+      background: #c9302c;
     }
     .logout {
       background: #d9534f;
@@ -57,6 +65,12 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
+    }
+    .logout:hover {
+      background: #c9302c;
+    }
+    .filters {
+      margin-bottom: 10px;
     }
     .modal, .chat-modal {
       display: none;
@@ -84,19 +98,25 @@
     .chat-input {
       width: 100%;
       padding: 10px;
+      font-size: 1em;
     }
   </style>
 </head>
 <body>
   <h1>Admin Dashboard</h1>
   <div class="box">
-    <div style="display: flex; justify-content: space-between;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="filters">
+        <label>Status: <select id="statusFilter"></select></label>
+        <label>Sort by: <select id="sortOrder"></select></label>
+      </div>
       <div>
         <button class="action-btn" onclick="location.href='admin_user_manager.html'">👥 Manage Users</button>
         <button class="action-btn" onclick="location.href='logs.html'">📜 View Logs</button>
         <button class="logout" id="logoutButton">Logout</button>
       </div>
     </div>
+
     <table>
       <thead>
         <tr>
@@ -113,158 +133,3 @@
       <tbody id="requestsTable"></tbody>
     </table>
   </div>
-
-  <div id="editModal" class="modal">
-    <div class="modal-content">
-      <h3>Edit Request</h3>
-      <input type="text" id="modalDriver" placeholder="Driver ID" />
-      <input type="number" id="modalETAMins" placeholder="ETA in minutes" min="1" />
-      <button onclick="saveRequestChanges()">💾 Save</button>
-    </div>
-  </div>
-
-  <div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
-    <div class="chat-box">
-      <h3>Chat</h3>
-      <div id="chatMessages" class="chat-messages">Loading...</div>
-      <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
-      <button onclick="sendMessage()">Send</button>
-    </div>
-  </div>
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
-    import { getFirestore, collection, doc, getDoc, updateDoc, deleteDoc, query, onSnapshot, orderBy, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
-      authDomain: "bradley-gigrunner.firebaseapp.com",
-      projectId: "bradley-gigrunner",
-      storageBucket: "bradley-gigrunner.appspot.com",
-      messagingSenderId: "497753581430",
-      appId: "1:497753581430:web:db6c22866194dd3285bc57"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth();
-
-    let currentAdminId = null;
-    let allRequests = [];
-    let editRequestId = null;
-    let activeChatRequestId = null;
-
-    onAuthStateChanged(auth, async user => {
-      if (!user) return location.href = "login.html";
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const isAdmin = userDoc.exists() && userDoc.data().roles?.includes("admin");
-      if (!isAdmin) {
-        alert("Access denied");
-        await signOut(auth);
-        return location.href = "login.html";
-      }
-      currentAdminId = user.uid;
-      loadRequests();
-    });
-
-    function loadRequests() {
-      const q = query(collection(db, "requests"));
-      onSnapshot(q, async snapshot => {
-        allRequests = [];
-        for (const docSnap of snapshot.docs) {
-          const data = docSnap.data();
-          allRequests.push({ id: docSnap.id, ...data });
-        }
-        renderRequests();
-      });
-    }
-
-    function renderRequests() {
-      const tbody = document.getElementById("requestsTable");
-      tbody.innerHTML = "";
-      allRequests.forEach(req => {
-        const eta = req.eta ? new Date(req.eta) : null;
-        const etaText = eta ? ((min => min < 0 ? `<span style='color:red;'>⏰ overdue</span>` : `<span style='color:${min<=15 ? 'green' : min<=30 ? 'orange' : '#777'};'>in ${min} min</span>`)(Math.round((eta - Date.now()) / 60000))) : "—";
-        const created = req.timestamp?.seconds ? new Date(req.timestamp.seconds * 1000).toLocaleString() : "";
-        tbody.innerHTML += `
-          <tr>
-            <td>${req.pickup || ''}</td>
-            <td>${req.dropoff || ''}</td>
-            <td>${req.status || '—'}</td>
-            <td>${req.paid ? "✅" : "❌"}</td>
-            <td>${created}</td>
-            <td>${req.userId || 'undefined'}</td>
-            <td>${etaText}</td>
-            <td>
-              <button class="action-btn" onclick="openEditModal('${req.id}', '${req.driver || ''}', '${req.eta || ''}')">✏️ Edit</button>
-              <button class="action-btn" onclick="openChat('${req.id}')">💬 Chat</button>
-              <button class="action-btn delete-btn" onclick="deleteRequest('${req.id}')">🗑 Delete</button>
-            </td>
-          </tr>`;
-      });
-    }
-
-    window.openEditModal = (id, driver, eta) => {
-      editRequestId = id;
-      document.getElementById("modalDriver").value = driver;
-      document.getElementById("modalETAMins").value = eta ? Math.round((new Date(eta) - Date.now()) / 60000) : "";
-      document.getElementById("editModal").style.display = "block";
-    };
-
-    window.saveRequestChanges = async () => {
-      const driver = document.getElementById("modalDriver").value;
-      const etaMins = parseInt(document.getElementById("modalETAMins").value);
-      if (!editRequestId || isNaN(etaMins)) return;
-      const eta = new Date(Date.now() + etaMins * 60000).toISOString();
-      await updateDoc(doc(db, "requests", editRequestId), { driver, eta });
-      document.getElementById("editModal").style.display = "none";
-    };
-
-    window.deleteRequest = async (id) => {
-      if (confirm("Delete this request?")) await deleteDoc(doc(db, "requests", id));
-    };
-
-    window.openChat = (requestId) => {
-      activeChatRequestId = requestId;
-      document.getElementById("chatModal").style.display = "block";
-      const chatBox = document.getElementById("chatMessages");
-      chatBox.innerHTML = "Loading...";
-      const q = query(collection(db, `requests/${requestId}/messages`), orderBy("timestamp"));
-      onSnapshot(q, snapshot => {
-        chatBox.innerHTML = "";
-        snapshot.forEach(doc => {
-          const m = doc.data();
-          const sender = m.userId === currentAdminId ? "🧑‍💼 You" : "👤";
-          chatBox.innerHTML += `<p><strong>${sender}:</strong> ${m.text}</p>`;
-        });
-        chatBox.scrollTop = chatBox.scrollHeight;
-      });
-
-      // 🔧 Correct reference to meta subcollection
-      updateDoc(doc(db, `requests/${requestId}/meta/status`), { newForAdmin: false }).catch(() => {});
-    };
-
-    window.sendMessage = async () => {
-      const input = document.getElementById("chatInput");
-      const text = input.value.trim();
-      if (!text || !activeChatRequestId) return;
-      await addDoc(collection(db, `requests/${activeChatRequestId}/messages`), {
-        text,
-        userId: currentAdminId,
-        timestamp: new Date()
-      });
-      updateDoc(doc(db, `requests/${activeChatRequestId}/meta/status`), { newForDriver: true }).catch(() => {});
-      input.value = "";
-    };
-
-    window.closeChat = () => {
-      document.getElementById("chatModal").style.display = "none";
-    };
-
-    document.getElementById("logoutButton").addEventListener("click", async () => {
-      await signOut(auth);
-      location.href = "login.html";
-    });
-  </script>
-</body>
-</html>
