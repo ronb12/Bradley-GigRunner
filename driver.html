@@ -8,200 +8,241 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f9fafb;
       margin: 0;
-      padding: 20px;
+      padding: 0;
     }
-    h1 { color: #1a4d2e; }
+    header {
+      background: #1a4d2e;
+      color: white;
+      padding: 10px;
+      text-align: center;
+    }
     button {
-      padding: 10px 16px;
+      padding: 10px 14px;
       background: #1a4d2e;
       color: white;
       border: none;
-      border-radius: 6px;
-      cursor: pointer;
+      border-radius: 5px;
       margin: 5px;
+      cursor: pointer;
     }
-    button:hover { background: #145032; }
+    button:hover {
+      background: #145032;
+    }
     .job-card {
       background: white;
+      margin: 15px;
+      padding: 15px;
       border: 1px solid #ccc;
-      padding: 12px;
-      margin-bottom: 16px;
       border-radius: 8px;
     }
-    #map {
-      height: 400px;
-      width: 100%;
+    .metrics {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      padding: 15px;
+    }
+    .metric {
+      background: white;
+      padding: 10px;
+      margin: 10px;
+      flex: 1 0 30%;
+      border: 1px solid #ccc;
       border-radius: 8px;
-      margin-bottom: 10px;
+      text-align: center;
+    }
+    #map {
+      height: 300px;
+      margin: 10px;
+      border-radius: 10px;
     }
     .modal {
       display: none;
       position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.6);
+      z-index: 999;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
       justify-content: center;
       align-items: center;
     }
     .modal-content {
       background: white;
       padding: 20px;
-      border-radius: 10px;
       width: 90%;
-      max-width: 600px;
-      max-height: 90%;
+      max-width: 500px;
+      border-radius: 10px;
+    }
+    #chatMessages {
+      max-height: 200px;
       overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
-  <h1>Driver Dashboard</h1>
-  <button onclick="logout()">Logout</button>
-  <button onclick="showProfile()">Profile</button>
-  <button onclick="toggleAvailability()">Toggle Availability</button>
+  <header>
+    <h1>Driver Dashboard</h1>
+    <button onclick="logout()">Logout</button>
+    <button onclick="toggleAvailability()">Go Online</button>
+    <button onclick="showProfile()">Profile</button>
+    <button onclick="toggleSOS()">🚨 SOS</button>
+  </header>
 
-  <h2>Earnings Summary</h2>
-  <div id="earningsSummary">
-    Total Earned: $0.00<br />
-    Tips: $0.00 • Fuel: $0.00 • Maint: $0.00
-  </div>
+  <section class="metrics">
+    <div class="metric"><strong>Base Pay:</strong><br>$<span id="basePay">0.00</span></div>
+    <div class="metric"><strong>Tips:</strong><br>$<span id="tipTotal">0.00</span></div>
+    <div class="metric"><strong>Payout Total:</strong><br>$<span id="totalEarnings">0.00</span></div>
+  </section>
 
-  <h2>My Jobs</h2>
+  <div id="map"></div>
   <div id="jobList">Loading jobs...</div>
 
-  <!-- Modals -->
-  <div id="mapModal" class="modal" onclick="if(event.target==this) closeMap()">
-    <div class="modal-content">
-      <h3>Live Route</h3>
-      <div id="map"></div>
-      <button onclick="closeMap()">Close</button>
-    </div>
-  </div>
-
+  <!-- Continue in Part 2... -->
+  <!-- Chat Modal -->
   <div id="chatModal" class="modal" onclick="if(event.target==this) closeChat()">
     <div class="modal-content">
       <h3>Chat</h3>
-      <div id="chatBox" style="height:200px; overflow-y:auto; border:1px solid #ccc; padding:10px;"></div>
-      <input type="text" id="chatInput" placeholder="Type message..." style="width:100%; margin-top:10px;" />
+      <div id="chatMessages"></div>
+      <input type="text" id="chatInput" placeholder="Type a message..." style="width:100%" />
       <button onclick="sendMessage()">Send</button>
     </div>
   </div>
-<script>
-let driverId = "example-driver-id"; // replace with real auth
-let map, carMarker;
 
-function logout() {
-  alert("Logging out...");
-}
+  <!-- Profile Modal -->
+  <div id="profileModal" class="modal" onclick="if(event.target==this) closeProfile()">
+    <div class="modal-content">
+      <h3>Driver Profile</h3>
+      <input id="driverName" placeholder="Name" />
+      <input id="driverPhone" placeholder="Phone" />
+      <input id="driverVehicle" placeholder="Vehicle Info" />
+      <input type="file" id="photoUpload" />
+      <button onclick="saveProfile()">Save</button>
+      <button onclick="closeProfile()">Close</button>
+    </div>
+  </div>
 
-function showProfile() {
-  alert("Profile info here...");
-}
+  <!-- SOS Modal -->
+  <div id="sosModal" class="modal" onclick="if(event.target==this) closeSOS()">
+    <div class="modal-content">
+      <h3>Emergency Contact Alert</h3>
+      <p>This will notify dispatch that you need help.</p>
+      <button onclick="confirmSOS()">Send Alert</button>
+      <button onclick="closeSOS()">Cancel</button>
+    </div>
+  </div>
 
-function toggleAvailability() {
-  alert("Toggled availability!");
-}
+  <script>
+    let available = false;
+    let earnings = {
+      base: 12.00,
+      tip: 5.00,
+      total: 17.00
+    };
 
-function loadJobs() {
-  const jobs = [{
-    pickup: "123 Main St",
-    dropoff: "456 Oak Ave",
-    tip: 3.00,
-    base: 12.00,
-    fuel: 1.20,
-    maint: 0.45,
-    paid: true,
-    status: "Accepted"
-  }];
-
-  let jobList = document.getElementById("jobList");
-  jobList.innerHTML = "";
-  let total = 0, tips = 0, fuel = 0, maint = 0;
-
-  jobs.forEach(job => {
-    total += job.base + job.tip;
-    tips += job.tip;
-    fuel += job.fuel;
-    maint += job.maint;
-    jobList.innerHTML += `
-      <div class='job-card'>
-        <p><strong>Pickup:</strong> ${job.pickup}</p>
-        <p><strong>Dropoff:</strong> ${job.dropoff}</p>
-        <p><strong>Status:</strong> ${job.status}</p>
-        <p><strong>Paid:</strong> ${job.paid ? "✅" : "❌"}</p>
-        <p><strong>Payout:</strong> $${job.base.toFixed(2)}</p>
-        <p><strong>Tip:</strong> $${job.tip.toFixed(2)}</p>
-        <p><strong>Fuel Est:</strong> $${job.fuel.toFixed(2)} • <strong>Maint:</strong> $${job.maint.toFixed(2)}</p>
-        <button onclick="startMapRoute()">🧭 Navigate</button>
-        <button onclick="openChat()">💬 Chat</button>
-      </div>`;
-  });
-
-  document.getElementById("earningsSummary").innerHTML = `
-    Total Earned: $${total.toFixed(2)}<br />
-    Tips: $${tips.toFixed(2)} • Fuel: $${fuel.toFixed(2)} • Maint: $${maint.toFixed(2)}
-  `;
-}
-
-function openChat() {
-  document.getElementById("chatModal").style.display = "flex";
-  document.getElementById("chatBox").innerHTML += `<p>System: Connected.</p>`;
-}
-
-function closeChat() {
-  document.getElementById("chatModal").style.display = "none";
-}
-
-function sendMessage() {
-  const input = document.getElementById("chatInput");
-  const msg = input.value.trim();
-  if (!msg) return;
-  document.getElementById("chatBox").innerHTML += `<p><strong>You:</strong> ${msg}</p>`;
-  input.value = "";
-}
-
-function startMapRoute() {
-  document.getElementById("mapModal").style.display = "flex";
-  if (map) map.remove(); // fix container already initialized
-  setTimeout(() => {
-    map = L.map("map").setView([34.0007, -81.0348], 13);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-    }).addTo(map);
-    const from = [34.0007, -81.0348];
-    const to = [34.005, -81.03];
-    L.polyline([from, to], { color: "blue" }).addTo(map);
-    carMarker = L.marker(from, { icon: L.divIcon({ className: "car-icon", html: "🚗", iconSize: [24, 24] }) }).addTo(map);
-    animateCar(from, to);
-  }, 300);
-}
-
-function animateCar(from, to) {
-  let t = 0;
-  const steps = 200;
-  const latDiff = (to[0] - from[0]) / steps;
-  const lngDiff = (to[1] - from[1]) / steps;
-
-  function move() {
-    if (t < steps) {
-      t++;
-      carMarker.setLatLng([from[0] + latDiff * t, from[1] + lngDiff * t]);
-      requestAnimationFrame(move);
+    function logout() {
+      alert("Logged out");
     }
-  }
-  move();
-}
 
-function closeMap() {
-  document.getElementById("mapModal").style.display = "none";
-}
+    function toggleAvailability() {
+      available = !available;
+      alert(available ? "You are now ONLINE" : "You are now OFFLINE");
+    }
 
-window.onload = loadJobs;
-</script>
+    function showProfile() {
+      document.getElementById("profileModal").style.display = "flex";
+    }
+
+    function closeProfile() {
+      document.getElementById("profileModal").style.display = "none";
+    }
+
+    function saveProfile() {
+      alert("Profile saved!");
+      closeProfile();
+    }
+
+    function toggleSOS() {
+      document.getElementById("sosModal").style.display = "flex";
+    }
+
+    function closeSOS() {
+      document.getElementById("sosModal").style.display = "none";
+    }
+
+    function confirmSOS() {
+      alert("Emergency alert sent to dispatch!");
+      closeSOS();
+    }
+
+    function openChat() {
+      document.getElementById("chatModal").style.display = "flex";
+      document.getElementById("chatMessages").innerHTML += "<p><strong>Dispatch:</strong> Are you on the way?</p>";
+    }
+
+    function closeChat() {
+      document.getElementById("chatModal").style.display = "none";
+    }
+
+    function sendMessage() {
+      const input = document.getElementById("chatInput");
+      if (!input.value.trim()) return;
+      const chat = document.getElementById("chatMessages");
+      chat.innerHTML += `<p><strong>You:</strong> ${input.value}</p>`;
+      input.value = "";
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function updateEarnings() {
+      document.getElementById("basePay").textContent = earnings.base.toFixed(2);
+      document.getElementById("tipTotal").textContent = earnings.tip.toFixed(2);
+      document.getElementById("totalEarnings").textContent = (earnings.base + earnings.tip).toFixed(2);
+    }
+
+    function loadJobs() {
+      document.getElementById("jobList").innerHTML = `
+        <div class="job-card">
+          <p><strong>Pickup:</strong> 123 Main St</p>
+          <p><strong>Dropoff:</strong> 456 Oak Ave</p>
+          <p><strong>Status:</strong> Accepted</p>
+          <p><strong>Payout:</strong> $${earnings.base.toFixed(2)}</p>
+          <p><strong>Tip:</strong> $${earnings.tip.toFixed(2)}</p>
+          <p><strong>Total:</strong> $${(earnings.base + earnings.tip).toFixed(2)}</p>
+          <button onclick="openChat()">💬 Chat</button>
+          <a href="https://www.google.com/maps/dir/123+Main+St/456+Oak+Ave" target="_blank">
+            <button>🧭 Navigate</button>
+          </a>
+        </div>
+      `;
+    }
+
+    function setupMap() {
+      const map = L.map('map').setView([34.0007, -81.0348], 13); // Columbia SC
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+      }).addTo(map);
+
+      const pickup = L.marker([34.0007, -81.0348]).addTo(map).bindPopup('Pickup: 123 Main St').openPopup();
+      const dropoff = L.marker([34.0107, -81.0448]).addTo(map).bindPopup('Dropoff: 456 Oak Ave');
+
+      const route = L.polyline([
+        [34.0007, -81.0348],
+        [34.0107, -81.0448]
+      ], { color: 'blue' }).addTo(map);
+      map.fitBounds(route.getBounds());
+    }
+
+    window.onload = () => {
+      updateEarnings();
+      loadJobs();
+      setupMap();
+    };
+  </script>
 </body>
 </html>
