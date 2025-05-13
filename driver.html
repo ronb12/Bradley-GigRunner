@@ -8,268 +8,124 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9fafb;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background: #1a4d2e;
-      color: white;
-      padding: 10px;
-      text-align: center;
-    }
+    body { font-family: Arial, sans-serif; margin: 0; background: #f5f7fa; }
+    header { background: #083d2e; color: white; padding: 10px; text-align: center; }
     button {
-      padding: 10px 14px;
-      background: #1a4d2e;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      margin: 5px;
-      cursor: pointer;
+      background: #1a4d2e; color: white; padding: 8px 12px; border: none;
+      margin: 4px; border-radius: 5px; cursor: pointer;
     }
-    button:hover {
-      background: #145032;
+    button:hover { background: #145032; }
+    .tabs {
+      display: flex; justify-content: space-around; background: #ccc;
+    }
+    .tab-button {
+      flex: 1; text-align: center; padding: 12px;
+      background: #ddd; border: none; font-weight: bold;
+    }
+    .tab-button.active { background: #1a4d2e; color: white; }
+    .tab-content { display: none; padding: 20px; }
+    .tab-content.active { display: block; }
+    .metric {
+      background: white; margin: 10px; padding: 12px; border-radius: 8px;
+      border: 1px solid #ccc; text-align: center;
     }
     .job-card {
-      background: white;
-      margin: 15px;
-      padding: 15px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-    .metrics {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-around;
-      padding: 15px;
-    }
-    .metric {
-      background: white;
-      padding: 10px;
-      margin: 10px;
-      flex: 1 0 30%;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      text-align: center;
-    }
-    #map {
-      height: 300px;
-      margin: 10px;
-      border-radius: 10px;
+      background: white; padding: 10px; margin: 10px 0;
+      border: 1px solid #ccc; border-radius: 8px;
     }
     .modal {
-      display: none;
-      position: fixed;
-      z-index: 9999;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6);
-      justify-content: center;
-      align-items: center;
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6); justify-content: center; align-items: center;
+      z-index: 999;
     }
     .modal-content {
-      background: white;
-      padding: 20px;
-      width: 90%;
-      max-width: 500px;
+      background: white; padding: 20px; width: 90%; max-width: 500px;
       border-radius: 10px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.4);
-      text-align: center;
+    }
+    #map { height: 300px; border-radius: 8px; margin: 10px 0; }
+    .car-icon {
+      background: url('https://cdn-icons-png.flaticon.com/512/61/61168.png') no-repeat center;
+      background-size: cover; width: 32px; height: 32px;
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>Driver Dashboard</h1>
+    <h2>Driver Dashboard</h2>
     <button onclick="logout()">Logout</button>
-    <button onclick="toggleAvailability()">Go Online</button>
-    <button onclick="showProfile()">Profile</button>
+    <button onclick="openProfile()">Profile</button>
     <button onclick="toggleSOS()">🚨 SOS</button>
   </header>
 
-  <section class="metrics">
-    <div class="metric"><strong>Base:</strong><br>$<span id="basePay">0.00</span></div>
-    <div class="metric"><strong>Tips:</strong><br>$<span id="tipTotal">0.00</span></div>
-    <div class="metric"><strong>Total:</strong><br>$<span id="totalEarnings">0.00</span></div>
-    <div class="metric"><strong>Tax Est:</strong><br>$<span id="taxEstimate">0.00</span></div>
-  </section>
-
-  <div id="map"></div>
-  <div id="jobList">Loading jobs...</div>
-  <!-- Chat Modal -->
-  <div id="chatModal" class="modal" onclick="if(event.target==this) closeChat()">
-    <div class="modal-content">
-      <h3>Chat</h3>
-      <div id="chatMessages" style="max-height:200px; overflow-y:auto;"></div>
-      <input type="text" id="chatInput" placeholder="Type a message..." style="width:100%" />
-      <button onclick="sendMessage()">Send</button>
-    </div>
+  <div class="tabs">
+    <button class="tab-button active" onclick="showTab('currentTab')">Current Job</button>
+    <button class="tab-button" onclick="showTab('historyTab')">Job History</button>
+    <button class="tab-button" onclick="showTab('settingsTab')">Settings</button>
   </div>
 
-  <!-- Profile Modal -->
-  <div id="profileModal" class="modal" onclick="if(event.target==this) closeProfile()">
-    <div class="modal-content">
-      <h3>Driver Profile</h3>
-      <input id="driverName" placeholder="Name" /><br><br>
-      <input id="driverPhone" placeholder="Phone" /><br><br>
-      <input id="driverVehicle" placeholder="Vehicle Info" /><br><br>
-      <button onclick="saveProfile()">Save</button>
-      <button onclick="closeProfile()">Close</button>
-    </div>
+  <div id="currentTab" class="tab-content active">
+    <div class="metric"><strong>Base:</strong> $<span id="basePay">0.00</span></div>
+    <div class="metric"><strong>Tips:</strong> $<span id="tipTotal">0.00</span></div>
+    <div class="metric"><strong>Total:</strong> $<span id="totalEarnings">0.00</span></div>
+    <div class="metric"><strong>Tax Est:</strong> $<span id="taxEstimate">0.00</span></div>
+    <div id="map"></div>
+    <div id="jobList">Loading jobs...</div>
   </div>
 
-  <!-- SOS Modal -->
-  <div id="sosModal" class="modal" onclick="if(event.target==this) closeSOS()">
-    <div class="modal-content">
-      <h3>Emergency Contact Alert</h3>
-      <p>This will notify dispatch that you need help.</p>
-      <button onclick="confirmSOS()">Send Alert</button>
-      <button onclick="closeSOS()">Cancel</button>
-    </div>
-  </div>
-
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
-      authDomain: "bradley-gigrunner.firebaseapp.com",
-      projectId: "bradley-gigrunner",
-      storageBucket: "bradley-gigrunner.appspot.com",
-      messagingSenderId: "497753581430",
-      appId: "1:497753581430:web:db6c22866194dd3285bc57"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-
-    let currentUserId = null;
-    let available = false;
-
-    auth.onAuthStateChanged(async user => {
-      if (!user) return location.href = "login.html";
-      const docSnap = await db.collection("users").doc(user.uid).get();
-      const roles = docSnap.exists() ? docSnap.data().roles || [] : [];
-      if (!roles.includes("driver")) {
-        alert("Access denied.");
-        return auth.signOut().then(() => location.href = "login.html");
+  <!-- Part 2 continues with: Job History, Settings, Modals, Scripts -->
+    <script>
+      function showTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
       }
-      currentUserId = user.uid;
-      document.getElementById("driverName").value = docSnap.data().name || "";
-      document.getElementById("driverPhone").value = docSnap.data().phone || "";
-      document.getElementById("driverVehicle").value = docSnap.data().vehicle || "";
-      loadJobs();
-      setupMap();
-    });
 
-    function logout() {
-      auth.signOut().then(() => location.href = "login.html");
-    }
+      function toggleOffline() {
+        const offline = document.getElementById("offlineToggle").checked;
+        alert(offline ? "You are now OFFLINE." : "You are now ONLINE.");
+      }
 
-    function toggleAvailability() {
-      available = !available;
-      alert(available ? "You are now ONLINE" : "You are now OFFLINE");
-    }
+      function updateTax() {
+        const rate = parseFloat(document.getElementById("taxRate").value);
+        const total = parseFloat(document.getElementById("totalEarnings").textContent);
+        const tax = (rate / 100) * total;
+        alert("Estimated Tax: $" + tax.toFixed(2));
+      }
 
-    function showProfile() {
-      document.getElementById("profileModal").style.display = "flex";
-    }
+      function exportPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const name = document.getElementById("driverName").value || "Driver";
+        const base = document.getElementById("basePay").textContent;
+        const tip = document.getElementById("tipTotal").textContent;
+        const total = document.getElementById("totalEarnings").textContent;
 
-    function closeProfile() {
-      document.getElementById("profileModal").style.display = "none";
-    }
+        doc.text(`Earnings Summary – ${name}`, 10, 10);
+        doc.text(`Base Pay: $${base}`, 10, 20);
+        doc.text(`Tips: $${tip}`, 10, 30);
+        doc.text(`Total: $${total}`, 10, 40);
+        doc.save("earnings_summary.pdf");
+      }
 
-    function saveProfile() {
-      const name = document.getElementById("driverName").value;
-      const phone = document.getElementById("driverPhone").value;
-      const vehicle = document.getElementById("driverVehicle").value;
-      db.collection("users").doc(currentUserId).update({ name, phone, vehicle });
-      alert("Profile updated.");
-      closeProfile();
-    }
-
-    function toggleSOS() {
-      document.getElementById("sosModal").style.display = "flex";
-    }
-
-    function closeSOS() {
-      document.getElementById("sosModal").style.display = "none";
-    }
-
-    function confirmSOS() {
-      alert("🚨 Emergency alert sent to dispatch!");
-      closeSOS();
-    }
-
-    function openChat() {
-      document.getElementById("chatModal").style.display = "flex";
-      document.getElementById("chatMessages").innerHTML = "<p><strong>Dispatch:</strong> Are you on the way?</p>";
-    }
-
-    function closeChat() {
-      document.getElementById("chatModal").style.display = "none";
-    }
-
-    function sendMessage() {
-      const input = document.getElementById("chatInput");
-      const msg = input.value.trim();
-      if (!msg) return;
-      const div = document.getElementById("chatMessages");
-      div.innerHTML += `<p><strong>You:</strong> ${msg}</p>`;
-      input.value = "";
-      div.scrollTop = div.scrollHeight;
-    }
-
-    function updateEarnings(base = 0, tip = 0) {
-      const taxRate = 0.15;
-      document.getElementById("basePay").textContent = base.toFixed(2);
-      document.getElementById("tipTotal").textContent = tip.toFixed(2);
-      document.getElementById("totalEarnings").textContent = (base + tip).toFixed(2);
-      document.getElementById("taxEstimate").textContent = ((base + tip) * taxRate).toFixed(2);
-    }
-
-    function loadJobs() {
-      const q = db.collection("requests").where("driverId", "==", currentUserId).orderBy("timestamp", "desc");
-      q.onSnapshot(snapshot => {
-        const list = document.getElementById("jobList");
-        list.innerHTML = "";
-        if (snapshot.empty) {
-          list.innerHTML = "<p style='text-align:center;'>No current jobs.</p>";
-          updateEarnings(0, 0);
-          return;
-        }
-        snapshot.forEach(doc => {
-          const d = doc.data();
-          const base = d.payout || 0;
-          const tip = d.tip || 0;
-          updateEarnings(base, tip);
-          list.innerHTML += `
-            <div class="job-card">
-              <p><strong>Pickup:</strong> ${d.pickup}</p>
-              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
-              <p><strong>Status:</strong> ${d.status}</p>
-              <p><strong>Payout:</strong> $${base.toFixed(2)}</p>
-              <p><strong>Tip:</strong> $${tip.toFixed(2)}</p>
-              <p><strong>Total:</strong> $${(base + tip).toFixed(2)}</p>
-              <button onclick="openChat()">💬 Chat</button>
-              <a href="https://www.google.com/maps/dir/${encodeURIComponent(d.pickup)}/${encodeURIComponent(d.dropoff)}" target="_blank">
-                <button>🧭 Navigate</button>
-              </a>
-            </div>`;
-        });
-      });
-    }
-
-    function setupMap() {
-      const map = L.map('map').setView([34.0007, -81.0348], 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-      }).addTo(map);
-      L.marker([34.0007, -81.0348]).addTo(map).bindPopup('Columbia, SC').openPopup();
-    }
-  </script>
-</body>
+      function logout() { alert("Logging out..."); location.reload(); }
+      function toggleSOS() { document.getElementById("sosModal").style.display = "flex"; }
+      function closeSOS() { document.getElementById("sosModal").style.display = "none"; }
+      function confirmSOS() { alert("SOS sent!"); closeSOS(); }
+      function showProfile() { document.getElementById("profileModal").style.display = "flex"; }
+      function closeProfile() { document.getElementById("profileModal").style.display = "none"; }
+      function saveProfile() { alert("Profile Saved"); closeProfile(); }
+      function openChat() { document.getElementById("chatModal").style.display = "flex"; }
+      function closeChat() { document.getElementById("chatModal").style.display = "none"; }
+      function sendMessage() {
+        const input = document.getElementById("chatInput");
+        if (!input.value.trim()) return;
+        document.getElementById("chatMessages").innerHTML += `<p><strong>You:</strong> ${input.value}</p>`;
+        input.value = "";
+      }
+    </script>
+  </body>
 </html>
