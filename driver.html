@@ -4,47 +4,82 @@
   <meta charset="UTF-8" />
   <title>Bradley GigRunner - Driver</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="favicon.ico" />
+  <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #f9fafb; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      margin: 0;
+      padding: 0;
+    }
     header {
-      background: #1a4d2e; color: white; padding: 10px; text-align: center;
+      background: #1a4d2e;
+      color: white;
+      padding: 10px;
+      text-align: center;
     }
     button {
-      padding: 8px 14px; background: #1a4d2e; color: white; border: none;
-      border-radius: 5px; margin: 5px; cursor: pointer;
+      padding: 10px 14px;
+      background: #1a4d2e;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      margin: 5px;
+      cursor: pointer;
     }
-    button:hover { background: #145032; }
-    #map { height: 250px; }
-    .metrics, .job-card, .history-card {
-      background: white; padding: 10px; margin: 10px; border-radius: 8px;
+    button:hover {
+      background: #145032;
+    }
+    .job-card {
+      background: white;
+      margin: 15px;
+      padding: 15px;
       border: 1px solid #ccc;
+      border-radius: 8px;
     }
-    .tab-bar {
-      display: flex; justify-content: space-around; background: #eee;
-      position: sticky; top: 0; z-index: 100;
+    .metrics {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      padding: 15px;
     }
-    .tab-bar button {
-      flex: 1; background: #ddd; border-radius: 0; border-right: 1px solid #ccc;
+    .metric {
+      background: white;
+      padding: 10px;
+      margin: 10px;
+      flex: 1 0 30%;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      text-align: center;
     }
-    .active-tab { background: #1a4d2e !important; color: white; }
+    #map {
+      height: 300px;
+      margin: 10px;
+      border-radius: 10px;
+    }
     .modal {
-      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6); justify-content: center; align-items: center;
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
     }
     .modal-content {
-      background: white; padding: 20px; border-radius: 10px;
-      max-width: 500px; width: 90%;
-    }
-    #chatMessages {
-      max-height: 200px; overflow-y: auto; border: 1px solid #ccc;
-      padding: 10px; margin-bottom: 10px;
+      background: white;
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+      text-align: center;
     }
   </style>
 </head>
@@ -52,40 +87,25 @@
   <header>
     <h1>Driver Dashboard</h1>
     <button onclick="logout()">Logout</button>
+    <button onclick="toggleAvailability()">Go Online</button>
     <button onclick="showProfile()">Profile</button>
     <button onclick="toggleSOS()">🚨 SOS</button>
   </header>
 
-  <div class="tab-bar">
-    <button onclick="showTab('jobs')" id="jobsTab" class="active-tab">Current Job</button>
-    <button onclick="showTab('history')" id="historyTab">Job History</button>
-    <button onclick="showTab('settings')" id="settingsTab">Settings</button>
-  </div>
+  <section class="metrics">
+    <div class="metric"><strong>Base:</strong><br>$<span id="basePay">0.00</span></div>
+    <div class="metric"><strong>Tips:</strong><br>$<span id="tipTotal">0.00</span></div>
+    <div class="metric"><strong>Total:</strong><br>$<span id="totalEarnings">0.00</span></div>
+    <div class="metric"><strong>Tax Est:</strong><br>$<span id="taxEstimate">0.00</span></div>
+  </section>
 
-  <div id="jobsTabContent">
-    <section class="metrics">
-      <div><strong>Base:</strong> $<span id="basePay">0.00</span></div>
-      <div><strong>Tips:</strong> $<span id="tipTotal">0.00</span></div>
-      <div><strong>Total:</strong> $<span id="totalEarnings">0.00</span></div>
-      <div><strong>Tax Est:</strong> $<span id="taxEstimate">0.00</span></div>
-    </section>
-    <div id="map"></div>
-    <div id="jobList">Loading jobs...</div>
-  </div>
-
-  <div id="historyTabContent" style="display:none;">
-    <div id="historyList">Loading history...</div>
-  </div>
-
-  <div id="settingsTabContent" style="display:none;">
-    <label><input type="checkbox" id="offlineToggle" /> Offline Mode</label>
-  </div>
-
+  <div id="map"></div>
+  <div id="jobList">Loading jobs...</div>
   <!-- Chat Modal -->
   <div id="chatModal" class="modal" onclick="if(event.target==this) closeChat()">
     <div class="modal-content">
       <h3>Chat</h3>
-      <div id="chatMessages"></div>
+      <div id="chatMessages" style="max-height:200px; overflow-y:auto;"></div>
       <input type="text" id="chatInput" placeholder="Type a message..." style="width:100%" />
       <button onclick="sendMessage()">Send</button>
     </div>
@@ -94,10 +114,10 @@
   <!-- Profile Modal -->
   <div id="profileModal" class="modal" onclick="if(event.target==this) closeProfile()">
     <div class="modal-content">
-      <h3>Profile</h3>
-      <input id="driverName" placeholder="Name" />
-      <input id="driverPhone" placeholder="Phone" />
-      <input id="driverVehicle" placeholder="Vehicle Info" />
+      <h3>Driver Profile</h3>
+      <input id="driverName" placeholder="Name" /><br><br>
+      <input id="driverPhone" placeholder="Phone" /><br><br>
+      <input id="driverVehicle" placeholder="Vehicle Info" /><br><br>
       <button onclick="saveProfile()">Save</button>
       <button onclick="closeProfile()">Close</button>
     </div>
@@ -106,14 +126,14 @@
   <!-- SOS Modal -->
   <div id="sosModal" class="modal" onclick="if(event.target==this) closeSOS()">
     <div class="modal-content">
-      <h3>Emergency Alert</h3>
+      <h3>Emergency Contact Alert</h3>
       <p>This will notify dispatch that you need help.</p>
       <button onclick="confirmSOS()">Send Alert</button>
       <button onclick="closeSOS()">Cancel</button>
     </div>
   </div>
+
   <script>
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
       authDomain: "bradley-gigrunner.firebaseapp.com",
@@ -127,21 +147,21 @@
     const db = firebase.firestore();
 
     let currentUserId = null;
-    let currentJobId = null;
     let available = false;
-    const taxRate = 0.15;
 
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href = "login.html";
-      const userRef = db.collection("users").doc(user.uid);
-      const snap = await userRef.get();
-      if (!snap.exists || !snap.data().roles?.includes("driver")) {
-        alert("Access denied");
+      const docSnap = await db.collection("users").doc(user.uid).get();
+      const roles = docSnap.exists() ? docSnap.data().roles || [] : [];
+      if (!roles.includes("driver")) {
+        alert("Access denied.");
         return auth.signOut().then(() => location.href = "login.html");
       }
       currentUserId = user.uid;
+      document.getElementById("driverName").value = docSnap.data().name || "";
+      document.getElementById("driverPhone").value = docSnap.data().phone || "";
+      document.getElementById("driverVehicle").value = docSnap.data().vehicle || "";
       loadJobs();
-      loadHistory();
       setupMap();
     });
 
@@ -149,13 +169,9 @@
       auth.signOut().then(() => location.href = "login.html");
     }
 
-    function showTab(tab) {
-      ['jobs', 'history', 'settings'].forEach(t => {
-        document.getElementById(`${t}Tab`).classList.remove('active-tab');
-        document.getElementById(`${t}TabContent`).style.display = 'none';
-      });
-      document.getElementById(`${tab}Tab`).classList.add('active-tab');
-      document.getElementById(`${tab}TabContent`).style.display = 'block';
+    function toggleAvailability() {
+      available = !available;
+      alert(available ? "You are now ONLINE" : "You are now OFFLINE");
     }
 
     function showProfile() {
@@ -167,7 +183,11 @@
     }
 
     function saveProfile() {
-      alert("Profile saved!");
+      const name = document.getElementById("driverName").value;
+      const phone = document.getElementById("driverPhone").value;
+      const vehicle = document.getElementById("driverVehicle").value;
+      db.collection("users").doc(currentUserId).update({ name, phone, vehicle });
+      alert("Profile updated.");
       closeProfile();
     }
 
@@ -180,14 +200,13 @@
     }
 
     function confirmSOS() {
-      alert("Emergency alert sent to dispatch!");
+      alert("🚨 Emergency alert sent to dispatch!");
       closeSOS();
     }
 
     function openChat() {
       document.getElementById("chatModal").style.display = "flex";
-      const box = document.getElementById("chatMessages");
-      box.innerHTML += "<p><strong>Dispatch:</strong> Are you on the way?</p>";
+      document.getElementById("chatMessages").innerHTML = "<p><strong>Dispatch:</strong> Are you on the way?</p>";
     }
 
     function closeChat() {
@@ -196,25 +215,24 @@
 
     function sendMessage() {
       const input = document.getElementById("chatInput");
-      if (!input.value.trim()) return;
-      const box = document.getElementById("chatMessages");
-      box.innerHTML += `<p><strong>You:</strong> ${input.value}</p>`;
+      const msg = input.value.trim();
+      if (!msg) return;
+      const div = document.getElementById("chatMessages");
+      div.innerHTML += `<p><strong>You:</strong> ${msg}</p>`;
       input.value = "";
-      box.scrollTop = box.scrollHeight;
+      div.scrollTop = div.scrollHeight;
     }
 
     function updateEarnings(base = 0, tip = 0) {
-      const total = base + tip;
+      const taxRate = 0.15;
       document.getElementById("basePay").textContent = base.toFixed(2);
       document.getElementById("tipTotal").textContent = tip.toFixed(2);
-      document.getElementById("totalEarnings").textContent = total.toFixed(2);
-      document.getElementById("taxEstimate").textContent = (total * taxRate).toFixed(2);
+      document.getElementById("totalEarnings").textContent = (base + tip).toFixed(2);
+      document.getElementById("taxEstimate").textContent = ((base + tip) * taxRate).toFixed(2);
     }
 
     function loadJobs() {
-      const q = db.collection("requests")
-        .where("driverId", "==", currentUserId)
-        .where("status", "in", ["Accepted", "En Route"]);
+      const q = db.collection("requests").where("driverId", "==", currentUserId).orderBy("timestamp", "desc");
       q.onSnapshot(snapshot => {
         const list = document.getElementById("jobList");
         list.innerHTML = "";
@@ -225,49 +243,21 @@
         }
         snapshot.forEach(doc => {
           const d = doc.data();
-          currentJobId = doc.id;
-          const payout = d.payout || 0;
+          const base = d.payout || 0;
           const tip = d.tip || 0;
-          updateEarnings(payout, tip);
+          updateEarnings(base, tip);
           list.innerHTML += `
             <div class="job-card">
               <p><strong>Pickup:</strong> ${d.pickup}</p>
               <p><strong>Dropoff:</strong> ${d.dropoff}</p>
               <p><strong>Status:</strong> ${d.status}</p>
-              <p><strong>Payout:</strong> $${payout.toFixed(2)}</p>
+              <p><strong>Payout:</strong> $${base.toFixed(2)}</p>
               <p><strong>Tip:</strong> $${tip.toFixed(2)}</p>
-              <p><strong>Total:</strong> $${(payout + tip).toFixed(2)}</p>
+              <p><strong>Total:</strong> $${(base + tip).toFixed(2)}</p>
               <button onclick="openChat()">💬 Chat</button>
               <a href="https://www.google.com/maps/dir/${encodeURIComponent(d.pickup)}/${encodeURIComponent(d.dropoff)}" target="_blank">
                 <button>🧭 Navigate</button>
               </a>
-            </div>`;
-        });
-      });
-    }
-
-    function loadHistory() {
-      const q = db.collection("requests")
-        .where("driverId", "==", currentUserId)
-        .where("status", "in", ["Completed", "Delivered"])
-        .orderBy("timestamp", "desc");
-      q.onSnapshot(snapshot => {
-        const list = document.getElementById("historyList");
-        list.innerHTML = "";
-        if (snapshot.empty) {
-          list.innerHTML = "<p style='text-align:center;'>No completed jobs yet.</p>";
-          return;
-        }
-        snapshot.forEach(doc => {
-          const d = doc.data();
-          list.innerHTML += `
-            <div class="history-card">
-              <p><strong>Pickup:</strong> ${d.pickup}</p>
-              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
-              <p><strong>Payout:</strong> $${(d.payout || 0).toFixed(2)}</p>
-              <p><strong>Tip:</strong> $${(d.tip || 0).toFixed(2)}</p>
-              <p><strong>Status:</strong> ${d.status}</p>
-              <p><strong>Date:</strong> ${d.timestamp?.toDate().toLocaleString() || ""}</p>
             </div>`;
         });
       });
@@ -278,20 +268,7 @@
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
       }).addTo(map);
-
-      let lat = 34.0007;
-      let lng = -81.0348;
-      const icon = L.icon({
-        iconUrl: 'https://cdn-icons-png.flaticon.com/512/854/854878.png',
-        iconSize: [32, 32]
-      });
-      const carMarker = L.marker([lat, lng], { icon }).addTo(map).bindPopup("Your Location");
-
-      setInterval(() => {
-        lat += 0.0001;
-        lng += 0.0001;
-        carMarker.setLatLng([lat, lng]);
-      }, 2000);
+      L.marker([34.0007, -81.0348]).addTo(map).bindPopup('Columbia, SC').openPopup();
     }
   </script>
 </body>
