@@ -2,134 +2,297 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Dashboard – Bradley GigRunner</title>
+  <title>Bradley GigRunner - Driver</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f7fa;
-      margin: 0;
-      padding: 20px;
+    body { font-family: Arial, sans-serif; background: #f9fafb; margin: 0; padding: 0; }
+    header {
+      background: #1a4d2e; color: white; padding: 10px; text-align: center;
     }
-    h1 {
-      color: #1a4d2e;
-      text-align: center;
+    button {
+      padding: 8px 14px; background: #1a4d2e; color: white; border: none;
+      border-radius: 5px; margin: 5px; cursor: pointer;
     }
-    .box {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      max-width: 1000px;
-      margin: 20px auto;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    th, td {
-      padding: 10px;
+    button:hover { background: #145032; }
+    #map { height: 250px; }
+    .metrics, .job-card, .history-card {
+      background: white; padding: 10px; margin: 10px; border-radius: 8px;
       border: 1px solid #ccc;
-      text-align: left;
-      font-size: 0.95em;
     }
-    th {
-      background: #e0f0e9;
+    .tab-bar {
+      display: flex; justify-content: space-around; background: #eee;
+      position: sticky; top: 0; z-index: 100;
     }
-    .action-btn {
-      background: #1a4d2e;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 4px;
-      margin: 2px;
-      cursor: pointer;
+    .tab-bar button {
+      flex: 1; background: #ddd; border-radius: 0; border-right: 1px solid #ccc;
     }
-    .action-btn:hover {
-      background: #145032;
+    .active-tab { background: #1a4d2e !important; color: white; }
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6); justify-content: center; align-items: center;
     }
-    .delete-btn {
-      background: #d9534f;
+    .modal-content {
+      background: white; padding: 20px; border-radius: 10px;
+      max-width: 500px; width: 90%;
     }
-    .delete-btn:hover {
-      background: #c9302c;
-    }
-    .logout {
-      background: #d9534f;
-      color: white;
-      padding: 8px 12px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .logout:hover {
-      background: #c9302c;
-    }
-    .filters {
-      margin-bottom: 10px;
-    }
-    .modal, .chat-modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0; top: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6);
-    }
-    .modal-content, .chat-box {
-      background: white;
-      margin: 10% auto;
-      padding: 20px;
-      width: 90%;
-      max-width: 500px;
-      border-radius: 10px;
-    }
-    .chat-messages {
-      height: 200px;
-      overflow-y: auto;
-      border: 1px solid #ccc;
-      padding: 10px;
-      margin-bottom: 10px;
-    }
-    .chat-input {
-      width: 100%;
-      padding: 10px;
-      font-size: 1em;
+    #chatMessages {
+      max-height: 200px; overflow-y: auto; border: 1px solid #ccc;
+      padding: 10px; margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
-  <h1>Admin Dashboard</h1>
-  <div class="box">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="filters">
-        <label>Status: <select id="statusFilter"></select></label>
-        <label>Sort by: <select id="sortOrder"></select></label>
-      </div>
-      <div>
-        <button class="action-btn" onclick="location.href='admin_user_manager.html'">👥 Manage Users</button>
-        <button class="action-btn" onclick="location.href='logs.html'">📜 View Logs</button>
-        <button class="logout" id="logoutButton">Logout</button>
-      </div>
-    </div>
+  <header>
+    <h1>Driver Dashboard</h1>
+    <button onclick="logout()">Logout</button>
+    <button onclick="showProfile()">Profile</button>
+    <button onclick="toggleSOS()">🚨 SOS</button>
+  </header>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Pickup</th>
-          <th>Dropoff</th>
-          <th>Status</th>
-          <th>Paid</th>
-          <th>Created</th>
-          <th>Customer</th>
-          <th>ETA</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="requestsTable"></tbody>
-    </table>
+  <div class="tab-bar">
+    <button onclick="showTab('jobs')" id="jobsTab" class="active-tab">Current Job</button>
+    <button onclick="showTab('history')" id="historyTab">Job History</button>
+    <button onclick="showTab('settings')" id="settingsTab">Settings</button>
   </div>
+
+  <div id="jobsTabContent">
+    <section class="metrics">
+      <div><strong>Base:</strong> $<span id="basePay">0.00</span></div>
+      <div><strong>Tips:</strong> $<span id="tipTotal">0.00</span></div>
+      <div><strong>Total:</strong> $<span id="totalEarnings">0.00</span></div>
+      <div><strong>Tax Est:</strong> $<span id="taxEstimate">0.00</span></div>
+    </section>
+    <div id="map"></div>
+    <div id="jobList">Loading jobs...</div>
+  </div>
+
+  <div id="historyTabContent" style="display:none;">
+    <div id="historyList">Loading history...</div>
+  </div>
+
+  <div id="settingsTabContent" style="display:none;">
+    <label><input type="checkbox" id="offlineToggle" /> Offline Mode</label>
+  </div>
+
+  <!-- Chat Modal -->
+  <div id="chatModal" class="modal" onclick="if(event.target==this) closeChat()">
+    <div class="modal-content">
+      <h3>Chat</h3>
+      <div id="chatMessages"></div>
+      <input type="text" id="chatInput" placeholder="Type a message..." style="width:100%" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div id="profileModal" class="modal" onclick="if(event.target==this) closeProfile()">
+    <div class="modal-content">
+      <h3>Profile</h3>
+      <input id="driverName" placeholder="Name" />
+      <input id="driverPhone" placeholder="Phone" />
+      <input id="driverVehicle" placeholder="Vehicle Info" />
+      <button onclick="saveProfile()">Save</button>
+      <button onclick="closeProfile()">Close</button>
+    </div>
+  </div>
+
+  <!-- SOS Modal -->
+  <div id="sosModal" class="modal" onclick="if(event.target==this) closeSOS()">
+    <div class="modal-content">
+      <h3>Emergency Alert</h3>
+      <p>This will notify dispatch that you need help.</p>
+      <button onclick="confirmSOS()">Send Alert</button>
+      <button onclick="closeSOS()">Cancel</button>
+    </div>
+  </div>
+  <script>
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+      authDomain: "bradley-gigrunner.firebaseapp.com",
+      projectId: "bradley-gigrunner",
+      storageBucket: "bradley-gigrunner.appspot.com",
+      messagingSenderId: "497753581430",
+      appId: "1:497753581430:web:db6c22866194dd3285bc57"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUserId = null;
+    let currentJobId = null;
+    let available = false;
+    const taxRate = 0.15;
+
+    auth.onAuthStateChanged(async user => {
+      if (!user) return location.href = "login.html";
+      const userRef = db.collection("users").doc(user.uid);
+      const snap = await userRef.get();
+      if (!snap.exists || !snap.data().roles?.includes("driver")) {
+        alert("Access denied");
+        return auth.signOut().then(() => location.href = "login.html");
+      }
+      currentUserId = user.uid;
+      loadJobs();
+      loadHistory();
+      setupMap();
+    });
+
+    function logout() {
+      auth.signOut().then(() => location.href = "login.html");
+    }
+
+    function showTab(tab) {
+      ['jobs', 'history', 'settings'].forEach(t => {
+        document.getElementById(`${t}Tab`).classList.remove('active-tab');
+        document.getElementById(`${t}TabContent`).style.display = 'none';
+      });
+      document.getElementById(`${tab}Tab`).classList.add('active-tab');
+      document.getElementById(`${tab}TabContent`).style.display = 'block';
+    }
+
+    function showProfile() {
+      document.getElementById("profileModal").style.display = "flex";
+    }
+
+    function closeProfile() {
+      document.getElementById("profileModal").style.display = "none";
+    }
+
+    function saveProfile() {
+      alert("Profile saved!");
+      closeProfile();
+    }
+
+    function toggleSOS() {
+      document.getElementById("sosModal").style.display = "flex";
+    }
+
+    function closeSOS() {
+      document.getElementById("sosModal").style.display = "none";
+    }
+
+    function confirmSOS() {
+      alert("Emergency alert sent to dispatch!");
+      closeSOS();
+    }
+
+    function openChat() {
+      document.getElementById("chatModal").style.display = "flex";
+      const box = document.getElementById("chatMessages");
+      box.innerHTML += "<p><strong>Dispatch:</strong> Are you on the way?</p>";
+    }
+
+    function closeChat() {
+      document.getElementById("chatModal").style.display = "none";
+    }
+
+    function sendMessage() {
+      const input = document.getElementById("chatInput");
+      if (!input.value.trim()) return;
+      const box = document.getElementById("chatMessages");
+      box.innerHTML += `<p><strong>You:</strong> ${input.value}</p>`;
+      input.value = "";
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function updateEarnings(base = 0, tip = 0) {
+      const total = base + tip;
+      document.getElementById("basePay").textContent = base.toFixed(2);
+      document.getElementById("tipTotal").textContent = tip.toFixed(2);
+      document.getElementById("totalEarnings").textContent = total.toFixed(2);
+      document.getElementById("taxEstimate").textContent = (total * taxRate).toFixed(2);
+    }
+
+    function loadJobs() {
+      const q = db.collection("requests")
+        .where("driverId", "==", currentUserId)
+        .where("status", "in", ["Accepted", "En Route"]);
+      q.onSnapshot(snapshot => {
+        const list = document.getElementById("jobList");
+        list.innerHTML = "";
+        if (snapshot.empty) {
+          list.innerHTML = "<p style='text-align:center;'>No current jobs.</p>";
+          updateEarnings(0, 0);
+          return;
+        }
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          currentJobId = doc.id;
+          const payout = d.payout || 0;
+          const tip = d.tip || 0;
+          updateEarnings(payout, tip);
+          list.innerHTML += `
+            <div class="job-card">
+              <p><strong>Pickup:</strong> ${d.pickup}</p>
+              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+              <p><strong>Status:</strong> ${d.status}</p>
+              <p><strong>Payout:</strong> $${payout.toFixed(2)}</p>
+              <p><strong>Tip:</strong> $${tip.toFixed(2)}</p>
+              <p><strong>Total:</strong> $${(payout + tip).toFixed(2)}</p>
+              <button onclick="openChat()">💬 Chat</button>
+              <a href="https://www.google.com/maps/dir/${encodeURIComponent(d.pickup)}/${encodeURIComponent(d.dropoff)}" target="_blank">
+                <button>🧭 Navigate</button>
+              </a>
+            </div>`;
+        });
+      });
+    }
+
+    function loadHistory() {
+      const q = db.collection("requests")
+        .where("driverId", "==", currentUserId)
+        .where("status", "in", ["Completed", "Delivered"])
+        .orderBy("timestamp", "desc");
+      q.onSnapshot(snapshot => {
+        const list = document.getElementById("historyList");
+        list.innerHTML = "";
+        if (snapshot.empty) {
+          list.innerHTML = "<p style='text-align:center;'>No completed jobs yet.</p>";
+          return;
+        }
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          list.innerHTML += `
+            <div class="history-card">
+              <p><strong>Pickup:</strong> ${d.pickup}</p>
+              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+              <p><strong>Payout:</strong> $${(d.payout || 0).toFixed(2)}</p>
+              <p><strong>Tip:</strong> $${(d.tip || 0).toFixed(2)}</p>
+              <p><strong>Status:</strong> ${d.status}</p>
+              <p><strong>Date:</strong> ${d.timestamp?.toDate().toLocaleString() || ""}</p>
+            </div>`;
+        });
+      });
+    }
+
+    function setupMap() {
+      const map = L.map('map').setView([34.0007, -81.0348], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+      }).addTo(map);
+
+      let lat = 34.0007;
+      let lng = -81.0348;
+      const icon = L.icon({
+        iconUrl: 'https://cdn-icons-png.flaticon.com/512/854/854878.png',
+        iconSize: [32, 32]
+      });
+      const carMarker = L.marker([lat, lng], { icon }).addTo(map).bindPopup("Your Location");
+
+      setInterval(() => {
+        lat += 0.0001;
+        lng += 0.0001;
+        carMarker.setLatLng([lat, lng]);
+      }, 2000);
+    }
+  </script>
+</body>
+</html>
