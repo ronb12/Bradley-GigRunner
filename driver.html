@@ -1,94 +1,141 @@
-<!-- PART 1: HEAD + METRICS + MAP + JOBS -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Bradley GigRunner - Driver</title>
+  <title>Admin Dashboard – Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <link rel="icon" href="favicon.ico" />
+  <link rel="manifest" href="manifest.json" />
   <style>
-    body { font-family: Arial, sans-serif; background: #f9fafb; margin: 0; }
-    header { background: #1a4d2e; color: white; padding: 10px; text-align: center; }
-    button { background: #1a4d2e; color: white; padding: 10px; margin: 5px; border: none; border-radius: 5px; }
-    button:hover { background: #145032; }
-    .metrics, .offline-bar, .tax-summary, .tabs { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 10px; }
-    .metric, .tax-block { background: white; padding: 10px; border: 1px solid #ccc; border-radius: 8px; margin: 5px; flex: 1 0 28%; text-align: center; }
-    #map { height: 300px; margin: 10px; border-radius: 10px; }
-    .job-card { background: white; margin: 10px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
-    .tabs button { background: #ccc; color: black; }
-    .tabs button.active { background: #1a4d2e; color: white; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      color: #1a4d2e;
+      text-align: center;
+    }
+    .box {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      max-width: 1000px;
+      margin: 20px auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background: #e0f0e9;
+    }
+    .action-btn {
+      background: #1a4d2e;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      margin: 2px;
+      cursor: pointer;
+    }
+    .delete-btn {
+      background: #d9534f;
+    }
+    .logout {
+      background: #d9534f;
+      color: white;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .modal, .chat-modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+    }
+    .modal-content, .chat-box {
+      background: white;
+      margin: 10% auto;
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+      border-radius: 10px;
+    }
+    .chat-messages {
+      height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .chat-input {
+      width: 100%;
+      padding: 10px;
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Driver Dashboard</h1>
-    <button onclick="logout()">Logout</button>
-    <button onclick="toggleAvailability()">Go Online</button>
-    <button onclick="toggleOffline()">Offline Mode</button>
-    <button onclick="showProfile()">Profile</button>
-    <button onclick="toggleSOS()">🚨 SOS</button>
-  </header>
-
-  <div class="offline-bar" id="offlineStatus" style="display:none;">
-    <div style="color:red;">You are offline. Job updates paused.</div>
+  <h1>Admin Dashboard</h1>
+  <div class="box">
+    <div style="display: flex; justify-content: space-between;">
+      <div>
+        <button class="action-btn" onclick="location.href='admin_user_manager.html'">👥 Manage Users</button>
+        <button class="action-btn" onclick="location.href='logs.html'">📜 View Logs</button>
+        <button class="logout" id="logoutButton">Logout</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Pickup</th>
+          <th>Dropoff</th>
+          <th>Status</th>
+          <th>Paid</th>
+          <th>Created</th>
+          <th>Customer</th>
+          <th>ETA</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="requestsTable"></tbody>
+    </table>
   </div>
 
-  <section class="metrics">
-    <div class="metric"><strong>Base Pay:</strong><br>$<span id="basePay">0.00</span></div>
-    <div class="metric"><strong>Tips:</strong><br>$<span id="tipTotal">0.00</span></div>
-    <div class="metric"><strong>Total Earned:</strong><br>$<span id="totalEarnings">0.00</span></div>
-  </section>
-
-  <section class="tax-summary">
-    <div class="tax-block"><strong>YTD Earnings:</strong><br>$<span id="ytdTotal">0.00</span></div>
-    <div class="tax-block"><strong>Estimated Tax (15%):</strong><br>$<span id="taxEstimate">0.00</span></div>
-  </section>
-
-  <div class="tabs">
-    <button class="active" onclick="showTab('current')">Current Jobs</button>
-    <button onclick="showTab('history')">Job History</button>
-  </div>
-
-  <div id="map"></div>
-  <div id="jobList">Loading jobs...</div>
-  <div id="historyList" style="display:none;">Loading job history...</div>
-  <!-- Chat Modal -->
-  <div id="chatModal" class="modal" onclick="if(event.target==this) closeChat()">
+  <div id="editModal" class="modal">
     <div class="modal-content">
+      <h3>Edit Request</h3>
+      <input type="text" id="modalDriver" placeholder="Driver ID" />
+      <input type="number" id="modalETAMins" placeholder="ETA in minutes" min="1" />
+      <button onclick="saveRequestChanges()">💾 Save</button>
+    </div>
+  </div>
+
+  <div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
+    <div class="chat-box">
       <h3>Chat</h3>
-      <div id="chatMessages" style="max-height:200px; overflow-y:auto;"></div>
-      <input type="text" id="chatInput" placeholder="Type a message..." style="width:100%;" />
+      <div id="chatMessages" class="chat-messages">Loading...</div>
+      <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
       <button onclick="sendMessage()">Send</button>
     </div>
   </div>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
+    import { getFirestore, collection, doc, getDoc, updateDoc, deleteDoc, query, onSnapshot, orderBy, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
 
-  <!-- Profile Modal -->
-  <div id="profileModal" class="modal" onclick="if(event.target==this) closeProfile()">
-    <div class="modal-content">
-      <h3>Driver Profile</h3>
-      <input id="driverName" placeholder="Name" />
-      <input id="driverPhone" placeholder="Phone" />
-      <input id="driverVehicle" placeholder="Vehicle Info" />
-      <button onclick="saveProfile()">Save</button>
-      <button onclick="closeProfile()">Close</button>
-    </div>
-  </div>
-
-  <!-- SOS Modal -->
-  <div id="sosModal" class="modal" onclick="if(event.target==this) closeSOS()">
-    <div class="modal-content">
-      <h3>Emergency Contact Alert</h3>
-      <p>This will notify dispatch that you need help.</p>
-      <button onclick="confirmSOS()">Send Alert</button>
-      <button onclick="closeSOS()">Cancel</button>
-    </div>
-  </div>
-
-  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
       authDomain: "bradley-gigrunner.firebaseapp.com",
@@ -97,145 +144,127 @@
       messagingSenderId: "497753581430",
       appId: "1:497753581430:web:db6c22866194dd3285bc57"
     };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
 
-    let map, carIcon, carMarker, offline = false;
-    let ytd = 0;
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth();
 
-    auth.onAuthStateChanged(user => {
+    let currentAdminId = null;
+    let allRequests = [];
+    let editRequestId = null;
+    let activeChatRequestId = null;
+
+    onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
-      loadJobs(user.uid);
-      setupMap();
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const isAdmin = userDoc.exists() && userDoc.data().roles?.includes("admin");
+      if (!isAdmin) {
+        alert("Access denied");
+        await signOut(auth);
+        return location.href = "login.html";
+      }
+      currentAdminId = user.uid;
+      loadRequests();
     });
 
-    function logout() {
-      auth.signOut().then(() => location.href = "login.html");
+    function loadRequests() {
+      const q = query(collection(db, "requests"));
+      onSnapshot(q, async snapshot => {
+        allRequests = [];
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data();
+          allRequests.push({ id: docSnap.id, ...data });
+        }
+        renderRequests();
+      });
     }
 
-    function toggleAvailability() {
-      alert("Availability toggled.");
+    function renderRequests() {
+      const tbody = document.getElementById("requestsTable");
+      tbody.innerHTML = "";
+      allRequests.forEach(req => {
+        const eta = req.eta ? new Date(req.eta) : null;
+        const etaText = eta ? ((min => min < 0 ? `<span style='color:red;'>⏰ overdue</span>` : `<span style='color:${min<=15 ? 'green' : min<=30 ? 'orange' : '#777'};'>in ${min} min</span>`)(Math.round((eta - Date.now()) / 60000))) : "—";
+        const created = req.timestamp?.seconds ? new Date(req.timestamp.seconds * 1000).toLocaleString() : "";
+        tbody.innerHTML += `
+          <tr>
+            <td>${req.pickup || ''}</td>
+            <td>${req.dropoff || ''}</td>
+            <td>${req.status || '—'}</td>
+            <td>${req.paid ? "✅" : "❌"}</td>
+            <td>${created}</td>
+            <td>${req.userId || 'undefined'}</td>
+            <td>${etaText}</td>
+            <td>
+              <button class="action-btn" onclick="openEditModal('${req.id}', '${req.driver || ''}', '${req.eta || ''}')">✏️ Edit</button>
+              <button class="action-btn" onclick="openChat('${req.id}')">💬 Chat</button>
+              <button class="action-btn delete-btn" onclick="deleteRequest('${req.id}')">🗑 Delete</button>
+            </td>
+          </tr>`;
+      });
     }
 
-    function toggleOffline() {
-      offline = !offline;
-      document.getElementById("offlineStatus").style.display = offline ? "block" : "none";
-    }
+    window.openEditModal = (id, driver, eta) => {
+      editRequestId = id;
+      document.getElementById("modalDriver").value = driver;
+      document.getElementById("modalETAMins").value = eta ? Math.round((new Date(eta) - Date.now()) / 60000) : "";
+      document.getElementById("editModal").style.display = "block";
+    };
 
-    function showTab(tab) {
-      document.getElementById("jobList").style.display = tab === 'current' ? 'block' : 'none';
-      document.getElementById("historyList").style.display = tab === 'history' ? 'block' : 'none';
-      document.querySelectorAll('.tabs button').forEach(btn => btn.classList.remove("active"));
-      document.querySelectorAll('.tabs button')[tab === 'current' ? 0 : 1].classList.add("active");
-    }
+    window.saveRequestChanges = async () => {
+      const driver = document.getElementById("modalDriver").value;
+      const etaMins = parseInt(document.getElementById("modalETAMins").value);
+      if (!editRequestId || isNaN(etaMins)) return;
+      const eta = new Date(Date.now() + etaMins * 60000).toISOString();
+      await updateDoc(doc(db, "requests", editRequestId), { driver, eta });
+      document.getElementById("editModal").style.display = "none";
+    };
 
-    function updateEarnings(base, tip) {
-      const total = base + tip;
-      ytd += total;
-      document.getElementById("basePay").textContent = base.toFixed(2);
-      document.getElementById("tipTotal").textContent = tip.toFixed(2);
-      document.getElementById("totalEarnings").textContent = total.toFixed(2);
-      document.getElementById("ytdTotal").textContent = ytd.toFixed(2);
-      document.getElementById("taxEstimate").textContent = (ytd * 0.15).toFixed(2);
-    }
+    window.deleteRequest = async (id) => {
+      if (confirm("Delete this request?")) await deleteDoc(doc(db, "requests", id));
+    };
 
-    function loadJobs(driverId) {
-      const jobList = document.getElementById("jobList");
-      const historyList = document.getElementById("historyList");
-      db.collection("requests").where("driverId", "==", driverId).onSnapshot(snapshot => {
-        jobList.innerHTML = "";
-        historyList.innerHTML = "";
+    window.openChat = (requestId) => {
+      activeChatRequestId = requestId;
+      document.getElementById("chatModal").style.display = "block";
+      const chatBox = document.getElementById("chatMessages");
+      chatBox.innerHTML = "Loading...";
+      const q = query(collection(db, `requests/${requestId}/messages`), orderBy("timestamp"));
+      onSnapshot(q, snapshot => {
+        chatBox.innerHTML = "";
         snapshot.forEach(doc => {
-          const d = doc.data();
-          const isPast = d.status === "Completed";
-          const target = isPast ? historyList : jobList;
-          const base = d.payout || 0;
-          const tip = d.tip || 0;
-          if (!isPast) updateEarnings(base, tip);
-          const jobHTML = `
-            <div class="job-card">
-              <p><strong>Pickup:</strong> ${d.pickup}</p>
-              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
-              <p><strong>Status:</strong> ${d.status}</p>
-              <p><strong>Payout:</strong> $${base.toFixed(2)}</p>
-              <p><strong>Tip:</strong> $${tip.toFixed(2)}</p>
-              <p><strong>Total:</strong> $${(base + tip).toFixed(2)}</p>
-              <button onclick="openChat()">💬 Chat</button>
-              <a href="https://www.google.com/maps/dir/${encodeURIComponent(d.pickup)}/${encodeURIComponent(d.dropoff)}" target="_blank">
-                <button>🧭 Navigate</button>
-              </a>
-            </div>`;
-          target.innerHTML += jobHTML;
+          const m = doc.data();
+          const sender = m.userId === currentAdminId ? "🧑‍💼 You" : "👤";
+          chatBox.innerHTML += `<p><strong>${sender}:</strong> ${m.text}</p>`;
         });
+        chatBox.scrollTop = chatBox.scrollHeight;
       });
-    }
 
-    function setupMap() {
-      map = L.map('map').setView([34.0007, -81.0348], 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-      carIcon = L.icon({
-        iconUrl: 'https://cdn-icons-png.flaticon.com/512/744/744465.png',
-        iconSize: [40, 40],
-        iconAnchor: [20, 20]
-      });
-      carMarker = L.marker([34.0007, -81.0348], { icon: carIcon }).addTo(map);
-      animateCar();
-    }
+      // 🔧 Correct reference to meta subcollection
+      updateDoc(doc(db, `requests/${requestId}/meta/status`), { newForAdmin: false }).catch(() => {});
+    };
 
-    function animateCar() {
-      const path = [[34.0007, -81.0348], [34.006, -81.039], [34.009, -81.043]];
-      let i = 0;
-      setInterval(() => {
-        if (offline) return;
-        carMarker.setLatLng(path[i]);
-        map.panTo(path[i]);
-        i = (i + 1) % path.length;
-      }, 3000);
-    }
-
-    function openChat() {
-      document.getElementById("chatModal").style.display = "flex";
-    }
-
-    function closeChat() {
-      document.getElementById("chatModal").style.display = "none";
-    }
-
-    function sendMessage() {
+    window.sendMessage = async () => {
       const input = document.getElementById("chatInput");
-      if (!input.value.trim()) return;
-      const box = document.getElementById("chatMessages");
-      box.innerHTML += `<p><strong>You:</strong> ${input.value}</p>`;
+      const text = input.value.trim();
+      if (!text || !activeChatRequestId) return;
+      await addDoc(collection(db, `requests/${activeChatRequestId}/messages`), {
+        text,
+        userId: currentAdminId,
+        timestamp: new Date()
+      });
+      updateDoc(doc(db, `requests/${activeChatRequestId}/meta/status`), { newForDriver: true }).catch(() => {});
       input.value = "";
-      box.scrollTop = box.scrollHeight;
-    }
+    };
 
-    function showProfile() {
-      document.getElementById("profileModal").style.display = "flex";
-    }
+    window.closeChat = () => {
+      document.getElementById("chatModal").style.display = "none";
+    };
 
-    function closeProfile() {
-      document.getElementById("profileModal").style.display = "none";
-    }
-
-    function saveProfile() {
-      alert("Profile saved.");
-      closeProfile();
-    }
-
-    function toggleSOS() {
-      document.getElementById("sosModal").style.display = "flex";
-    }
-
-    function closeSOS() {
-      document.getElementById("sosModal").style.display = "none";
-    }
-
-    function confirmSOS() {
-      alert("🚨 SOS alert sent to dispatch.");
-      closeSOS();
-    }
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+      await signOut(auth);
+      location.href = "login.html";
+    });
   </script>
 </body>
 </html>
