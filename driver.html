@@ -1,3 +1,4 @@
+<!-- PART 1: DRIVER DASHBOARD HEADER + CURRENT JOB TAB -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -20,7 +21,9 @@
       margin: 4px; border-radius: 5px; cursor: pointer;
     }
     button:hover { background: #145032; }
-    .tabs { display: flex; justify-content: space-around; background: #ccc; }
+    .tabs {
+      display: flex; justify-content: space-around; background: #ccc;
+    }
     .tab-button {
       flex: 1; text-align: center; padding: 12px;
       background: #ddd; border: none; font-weight: bold;
@@ -56,7 +59,7 @@
   <header>
     <h2>Driver Dashboard</h2>
     <button onclick="logout()">Logout</button>
-    <button onclick="openProfile()">Profile</button>
+    <button onclick="showProfile()">Profile</button>
     <button onclick="toggleSOS()">🚨 SOS</button>
   </header>
 
@@ -74,27 +77,35 @@
     <div id="map"></div>
     <div id="jobList">Loading jobs...</div>
   </div>
-
-<!-- Part 2 continues below... -->
   <div id="historyTab" class="tab-content">
-    <h3>Job History</h3>
-    <div id="jobHistory"></div>
+    <h3>Completed Jobs</h3>
+    <div id="jobHistoryList">Loading history...</div>
   </div>
 
   <div id="settingsTab" class="tab-content">
     <h3>Settings</h3>
-    <label><input type="checkbox" id="offlineToggle" onchange="toggleOffline()" /> Offline Mode</label><br/><br/>
-    <label>Tax Rate (%): <input type="number" id="taxRate" value="12.5" step="0.1" onchange="updateTax()" /></label><br/><br/>
-    <button onclick="exportPDF()">📄 Export PDF Summary</button>
+    <label><input type="checkbox" id="offlineToggle" onchange="toggleOffline()" /> Offline Mode</label><br><br>
+    <label>Tax Rate (%): <input type="number" id="taxRate" value="15" oninput="calculateTax()" /></label><br><br>
+    <button onclick="exportPDF()">📄 Export PDF</button>
+  </div>
+
+  <!-- Chat Modal -->
+  <div id="chatModal" class="modal" onclick="if(event.target==this) closeChat()">
+    <div class="modal-content">
+      <h3>Chat</h3>
+      <div id="chatMessages" style="max-height:200px; overflow-y:auto;"></div>
+      <input type="text" id="chatInput" placeholder="Type a message..." style="width:100%" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
   </div>
 
   <!-- Profile Modal -->
   <div id="profileModal" class="modal" onclick="if(event.target==this) closeProfile()">
     <div class="modal-content">
       <h3>Driver Profile</h3>
-      <input id="driverName" placeholder="Name" /><br/>
-      <input id="driverPhone" placeholder="Phone" /><br/>
-      <input id="driverVehicle" placeholder="Vehicle Info" /><br/>
+      <input id="driverName" placeholder="Name" /><br><br>
+      <input id="driverPhone" placeholder="Phone" /><br><br>
+      <input id="driverVehicle" placeholder="Vehicle Info" /><br><br>
       <button onclick="saveProfile()">Save</button>
       <button onclick="closeProfile()">Close</button>
     </div>
@@ -110,17 +121,8 @@
     </div>
   </div>
 
-  <!-- Chat Modal -->
-  <div id="chatModal" class="modal" onclick="if(event.target==this) closeChat()">
-    <div class="modal-content">
-      <h3>Chat</h3>
-      <div id="chatMessages" style="max-height:200px; overflow-y:auto;"></div>
-      <input type="text" id="chatInput" placeholder="Type a message..." style="width:100%" />
-      <button onclick="sendMessage()">Send</button>
-    </div>
-  </div>
-
   <script>
+    // Firebase Init
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
       authDomain: "bradley-gigrunner.firebaseapp.com",
@@ -129,96 +131,24 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
-
-    let currentUserId = null;
-    let map, carMarker;
+    let currentUserId = null, carMarker = null, routePolyline = null;
 
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href = "login.html";
-      const userDoc = await db.collection("users").doc(user.uid).get();
-      if (!userDoc.exists || !userDoc.data().roles?.includes("driver")) {
-        alert("Access denied");
-        return auth.signOut().then(() => location.href = "login.html");
+      const doc = await db.collection("users").doc(user.uid).get();
+      if (!doc.exists || !doc.data().roles?.includes("driver")) {
+        alert("Access denied."); auth.signOut(); return;
       }
       currentUserId = user.uid;
-      setupMap();
-      loadCurrentJobs();
-      loadJobHistory();
+      loadCurrentJobs(); loadJobHistory(); setupMap();
     });
 
-    function showTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      document.querySelector(`.tab-button[onclick*="${tabId}"]`).classList.add('active');
-    }
-
-    function toggleOffline() {
-      const offline = document.getElementById("offlineToggle").checked;
-      alert(offline ? "You are now OFFLINE." : "You are now ONLINE.");
-    }
-
-    function updateTax() {
-      const rate = parseFloat(document.getElementById("taxRate").value);
-      const total = parseFloat(document.getElementById("totalEarnings").textContent);
-      const tax = (rate / 100) * total;
-      document.getElementById("taxEstimate").textContent = tax.toFixed(2);
-    }
-
-    function exportPDF() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      const name = document.getElementById("driverName").value || "Driver";
-      const base = document.getElementById("basePay").textContent;
-      const tip = document.getElementById("tipTotal").textContent;
-      const total = document.getElementById("totalEarnings").textContent;
-      const tax = document.getElementById("taxEstimate").textContent;
-      doc.text(`Earnings Summary – ${name}`, 10, 10);
-      doc.text(`Base Pay: $${base}`, 10, 20);
-      doc.text(`Tips: $${tip}`, 10, 30);
-      doc.text(`Total: $${total}`, 10, 40);
-      doc.text(`Tax Estimate: $${tax}`, 10, 50);
-      doc.save("earnings_summary.pdf");
-    }
-
-    function logout() {
-      auth.signOut().then(() => location.href = "login.html");
-    }
-
-    function openProfile() { document.getElementById("profileModal").style.display = "flex"; }
-    function closeProfile() { document.getElementById("profileModal").style.display = "none"; }
-    function saveProfile() { alert("Profile Saved"); closeProfile(); }
-
-    function toggleSOS() { document.getElementById("sosModal").style.display = "flex"; }
-    function closeSOS() { document.getElementById("sosModal").style.display = "none"; }
-    function confirmSOS() { alert("SOS sent!"); closeSOS(); }
-
-    function openChat() { document.getElementById("chatModal").style.display = "flex"; }
-    function closeChat() { document.getElementById("chatModal").style.display = "none"; }
-    function sendMessage() {
-      const input = document.getElementById("chatInput");
-      if (!input.value.trim()) return;
-      document.getElementById("chatMessages").innerHTML += `<p><strong>You:</strong> ${input.value}</p>`;
-      input.value = "";
-    }
-
-    function updateEarnings(base = 0, tip = 0) {
-      document.getElementById("basePay").textContent = base.toFixed(2);
-      document.getElementById("tipTotal").textContent = tip.toFixed(2);
-      const total = base + tip;
-      document.getElementById("totalEarnings").textContent = total.toFixed(2);
-      const rate = parseFloat(document.getElementById("taxRate").value);
-      document.getElementById("taxEstimate").textContent = ((rate / 100) * total).toFixed(2);
-    }
-
-    function setupMap() {
-      map = L.map('map').setView([34.0007, -81.0348], 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-      }).addTo(map);
-      carMarker = L.marker([34.0007, -81.0348], {
-        icon: L.divIcon({ className: 'car-icon' })
-      }).addTo(map);
+    // Tab Switching
+    function showTab(id) {
+      document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelector(`[onclick="showTab('${id}')"]`).classList.add('active');
+      document.getElementById(id).classList.add('active');
     }
 
     function loadCurrentJobs() {
@@ -226,32 +156,34 @@
         .where("driverId", "==", currentUserId)
         .where("status", "in", ["Accepted", "In Progress"])
         .onSnapshot(snapshot => {
-          const list = document.getElementById("jobList");
-          list.innerHTML = "";
-          if (snapshot.empty) {
-            list.innerHTML = "<p>No current jobs.</p>";
-            updateEarnings(0, 0);
-            return;
-          }
+          const jobList = document.getElementById("jobList");
+          jobList.innerHTML = "";
+          let total = 0, base = 0, tip = 0;
+
           snapshot.forEach(doc => {
             const d = doc.data();
-            const payout = d.payout || 0;
-            const tip = d.tip || 0;
-            updateEarnings(payout, tip);
-            carMarker.setLatLng([34.0007 + Math.random()/100, -81.0348 + Math.random()/100]);
-            list.innerHTML += `
+            total += (d.payout || 0) + (d.tip || 0);
+            base += d.payout || 0;
+            tip += d.tip || 0;
+
+            jobList.innerHTML += `
               <div class="job-card">
                 <p><strong>Pickup:</strong> ${d.pickup}</p>
                 <p><strong>Dropoff:</strong> ${d.dropoff}</p>
                 <p><strong>Status:</strong> ${d.status}</p>
-                <p><strong>Payout:</strong> $${payout.toFixed(2)}</p>
-                <p><strong>Tip:</strong> $${tip.toFixed(2)}</p>
-                <button onclick="openChat()">💬 Chat</button>
+                <p><strong>Payout:</strong> $${(d.payout || 0).toFixed(2)}</p>
+                <p><strong>Tip:</strong> $${(d.tip || 0).toFixed(2)}</p>
+                <p><strong>Total:</strong> $${((d.payout || 0)+(d.tip || 0)).toFixed(2)}</p>
                 <a href="https://www.google.com/maps/dir/${encodeURIComponent(d.pickup)}/${encodeURIComponent(d.dropoff)}" target="_blank">
                   <button>🧭 Navigate</button>
                 </a>
               </div>`;
+            updateMapRoute(d.pickup, d.dropoff);
           });
+          document.getElementById("basePay").textContent = base.toFixed(2);
+          document.getElementById("tipTotal").textContent = tip.toFixed(2);
+          document.getElementById("totalEarnings").textContent = total.toFixed(2);
+          calculateTax();
         });
     }
 
@@ -260,19 +192,85 @@
         .where("driverId", "==", currentUserId)
         .where("status", "==", "Completed")
         .onSnapshot(snapshot => {
-          const container = document.getElementById("jobHistory");
-          container.innerHTML = "";
+          const list = document.getElementById("jobHistoryList");
+          list.innerHTML = "";
           snapshot.forEach(doc => {
             const d = doc.data();
-            container.innerHTML += `
+            list.innerHTML += `
               <div class="job-card">
+                <p><strong>Date:</strong> ${new Date(d.timestamp?.seconds * 1000).toLocaleString()}</p>
                 <p><strong>Pickup:</strong> ${d.pickup}</p>
                 <p><strong>Dropoff:</strong> ${d.dropoff}</p>
-                <p><strong>Payout:</strong> $${(d.payout || 0).toFixed(2)}</p>
-                <p><strong>Tip:</strong> $${(d.tip || 0).toFixed(2)}</p>
-                <p><strong>Status:</strong> ${d.status}</p>
+                <p><strong>Total:</strong> $${((d.payout || 0)+(d.tip || 0)).toFixed(2)}</p>
               </div>`;
           });
+        });
+    }
+
+    function calculateTax() {
+      const rate = parseFloat(document.getElementById("taxRate").value || 0);
+      const total = parseFloat(document.getElementById("totalEarnings").textContent || 0);
+      const est = (rate / 100) * total;
+      document.getElementById("taxEstimate").textContent = est.toFixed(2);
+    }
+
+    function exportPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const name = document.getElementById("driverName").value || "Driver";
+      doc.text(`Earnings Summary – ${name}`, 10, 10);
+      doc.text(`Base Pay: $${document.getElementById("basePay").textContent}`, 10, 20);
+      doc.text(`Tips: $${document.getElementById("tipTotal").textContent}`, 10, 30);
+      doc.text(`Total: $${document.getElementById("totalEarnings").textContent}`, 10, 40);
+      doc.text(`Tax Est: $${document.getElementById("taxEstimate").textContent}`, 10, 50);
+      doc.save("earnings_summary.pdf");
+    }
+
+    // Modal functions
+    function logout() { auth.signOut().then(() => location.href = "login.html"); }
+    function showProfile() { document.getElementById("profileModal").style.display = "flex"; }
+    function closeProfile() { document.getElementById("profileModal").style.display = "none"; }
+    function saveProfile() { alert("Saved"); closeProfile(); }
+    function toggleSOS() { document.getElementById("sosModal").style.display = "flex"; }
+    function closeSOS() { document.getElementById("sosModal").style.display = "none"; }
+    function confirmSOS() { alert("SOS sent to dispatch."); closeSOS(); }
+    function openChat() { document.getElementById("chatModal").style.display = "flex"; }
+    function closeChat() { document.getElementById("chatModal").style.display = "none"; }
+    function sendMessage() {
+      const msg = document.getElementById("chatInput").value.trim();
+      if (msg) document.getElementById("chatMessages").innerHTML += `<p><strong>You:</strong> ${msg}</p>`;
+      document.getElementById("chatInput").value = "";
+    }
+
+    let map;
+    function setupMap() {
+      map = L.map("map").setView([34.0007, -81.0348], 13);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+    }
+
+    function updateMapRoute(pickup, dropoff) {
+      if (!pickup || !dropoff) return;
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(pickup)}`)
+        .then(res => res.json()).then(data1 => {
+          fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(dropoff)}`)
+            .then(res => res.json()).then(data2 => {
+              const p1 = [parseFloat(data1[0].lat), parseFloat(data1[0].lon)];
+              const p2 = [parseFloat(data2[0].lat), parseFloat(data2[0].lon)];
+              if (routePolyline) map.removeLayer(routePolyline);
+              if (carMarker) map.removeLayer(carMarker);
+              routePolyline = L.polyline([p1, p2], { color: "blue" }).addTo(map);
+              carMarker = L.marker(p1, { icon: L.divIcon({ className: "car-icon" }) }).addTo(map);
+              map.fitBounds(routePolyline.getBounds());
+
+              let step = 0;
+              const interval = setInterval(() => {
+                step += 0.02;
+                if (step >= 1) return clearInterval(interval);
+                const lat = p1[0] + (p2[0] - p1[0]) * step;
+                const lon = p1[1] + (p2[1] - p1[1]) * step;
+                carMarker.setLatLng([lat, lon]);
+              }, 500);
+            });
         });
     }
   </script>
