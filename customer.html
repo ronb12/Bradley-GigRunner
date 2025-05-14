@@ -4,80 +4,48 @@
   <meta charset="UTF-8" />
   <title>Bradley GigRunner - Customer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.ico" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9fafb;
-      margin: 0;
-      padding: 20px;
-    }
+    body { font-family: Arial, sans-serif; margin: 0; background: #f5f7fa; }
     .container {
-      max-width: 600px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      max-width: 650px; margin: auto; padding: 20px;
+      background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-    h1, h2 {
-      color: #1a4d2e;
-      text-align: center;
-    }
-    input, textarea {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      font-size: 1em;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+    h1, h2 { color: #1a4d2e; text-align: center; }
+    input, textarea, select {
+      width: 100%; padding: 10px; margin: 10px 0;
+      font-size: 1em; border: 1px solid #ccc; border-radius: 6px;
     }
     button {
-      padding: 12px;
-      width: 100%;
-      background: #1a4d2e;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 1em;
-      cursor: pointer;
-      margin-top: 10px;
+      background: #1a4d2e; color: white; padding: 12px;
+      width: 100%; border: none; border-radius: 6px;
+      font-size: 1em; margin-top: 10px; cursor: pointer;
     }
-    button:hover {
-      background: #145032;
-    }
-    .logout {
-      background: #d9534f;
-    }
-    .logout:hover {
-      background: #c9302c;
-    }
+    button:hover { background: #145032; }
+    .logout { background: #d9534f; }
+    .logout:hover { background: #c9302c; }
     .job-card {
-      background: #fefefe;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      padding: 12px;
-      margin: 10px 0;
+      background: #fefefe; border: 1px solid #ccc;
+      border-radius: 6px; padding: 12px; margin: 10px 0;
     }
-    .job-card p {
-      margin: 6px 0;
-    }
+    .job-card p { margin: 6px 0; }
+    #map { height: 250px; margin: 10px 0; border-radius: 10px; }
     .small-btn {
-      font-size: 0.9em;
-      padding: 6px 10px;
-      margin-top: 6px;
-      margin-right: 6px;
+      padding: 6px 10px; font-size: 0.9em; margin-right: 6px;
+      border-radius: 5px; cursor: pointer;
     }
-    #map {
-      height: 250px;
-      margin: 10px 0;
-      border-radius: 10px;
-      border: 1px solid #ccc;
+    .modal {
+      display: none; position: fixed; z-index: 999;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6); justify-content: center; align-items: center;
     }
-    #car-icon {
-      width: 30px;
+    .modal-content {
+      background: white; padding: 20px;
+      max-width: 500px; width: 90%; border-radius: 10px;
     }
   </style>
 </head>
@@ -96,46 +64,64 @@
     <button onclick="submitRequest()">🚀 Submit Request</button>
 
     <h2>My Delivery Requests</h2>
-    <div id="jobList">Loading your deliveries...</div>
+    <select id="filterStatus" onchange="filterJobs()">
+      <option value="all">All</option>
+      <option value="pending">Pending</option>
+      <option value="accepted">Accepted</option>
+      <option value="completed">Completed</option>
+    </select>
+    <div id="jobList">Loading...</div>
 
     <h2>Notifications</h2>
     <div id="notificationsBox">Loading...</div>
   </div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Driver Chat Modal -->
+  <div id="chatModal" class="modal" onclick="if(event.target==this) closeChat()">
+    <div class="modal-content">
+      <h3>Chat with Driver</h3>
+      <div id="chatMessages" style="height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;"></div>
+      <input id="chatInput" placeholder="Type a message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <!-- PayPal / Export Buttons Modal -->
+  <div id="actionsModal" class="modal" onclick="if(event.target==this) closeModal()">
+    <div class="modal-content">
+      <h3>Actions</h3>
+      <div id="paypalContainer">Loading PayPal...</div>
+      <button onclick="downloadPDF()">📄 Export PDF</button>
+      <button onclick="closeModal()">Close</button>
+    </div>
+  </div>
+  <script src="https://www.paypal.com/sdk/js?client-id=sb&currency=USD"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import {
       getAuth, onAuthStateChanged, signOut
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import {
-      getFirestore, collection, addDoc, query, where, onSnapshot, doc,
-      updateDoc, getDoc, orderBy, serverTimestamp
+      getFirestore, collection, doc, addDoc, updateDoc, getDoc,
+      onSnapshot, orderBy, where, query, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-    const firebaseConfig = {
+    const app = initializeApp({
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
       authDomain: "bradley-gigrunner.firebaseapp.com",
-      projectId: "bradley-gigrunner",
-      storageBucket: "bradley-gigrunner.appspot.com",
-      messagingSenderId: "497753581430",
-      appId: "1:497753581430:web:db6c22866194dd3285bc57"
-    };
+      projectId: "bradley-gigrunner"
+    });
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
     const auth = getAuth();
-
+    const db = getFirestore(app);
     let currentUserId = null;
-    let map = null;
-    let carMarker = null;
+    let activeChatJobId = null;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (!userDoc.exists() || !(userDoc.data().roles || []).includes("customer")) {
-        alert("Access denied");
-        await signOut(auth);
-        return location.href = "login.html";
+        alert("Access denied."); signOut(auth); return location.href = "login.html";
       }
       currentUserId = user.uid;
       loadJobs();
@@ -143,20 +129,20 @@
       initMap();
     });
 
+    let map, carMarker;
+
     function initMap() {
-      map = L.map("map").setView([34.0007, -81.0348], 13); // Columbia, SC
+      map = L.map("map").setView([34.0007, -81.0348], 13);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap"
       }).addTo(map);
     }
 
     window.previewRoute = () => {
-      const pickup = document.getElementById("pickup").value.trim();
-      const dropoff = document.getElementById("dropoff").value.trim();
-      if (!pickup || !dropoff) return alert("Both locations required.");
-
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(pickup)}&destination=${encodeURIComponent(dropoff)}`;
-      window.open(url, "_blank");
+      const pickup = document.getElementById("pickup").value;
+      const dropoff = document.getElementById("dropoff").value;
+      if (!pickup || !dropoff) return alert("Both fields required.");
+      window.open(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(pickup)}&destination=${encodeURIComponent(dropoff)}`, "_blank");
     };
 
     window.submitRequest = async () => {
@@ -164,91 +150,145 @@
       const dropoff = document.getElementById("dropoff").value.trim();
       const details = document.getElementById("details").value.trim();
       const tip = parseFloat(document.getElementById("tip").value);
-      if (!pickup || !dropoff || !details || isNaN(tip) || tip < 1) {
-        return alert("Fill all fields with a tip of at least $1.");
-      }
+      if (!pickup || !dropoff || !details || isNaN(tip) || tip < 1) return alert("All fields required, tip at least $1.");
       await addDoc(collection(db, "requests"), {
         pickup, dropoff, details, tip,
-        status: "pending",
-        userId: currentUserId,
-        timestamp: serverTimestamp(),
-        paid: false
+        status: "pending", paid: false, userId: currentUserId,
+        timestamp: serverTimestamp()
       });
-      document.getElementById("pickup").value = "";
-      document.getElementById("dropoff").value = "";
-      document.getElementById("details").value = "";
-      document.getElementById("tip").value = "";
+      ["pickup", "dropoff", "details", "tip"].forEach(id => document.getElementById(id).value = "");
       alert("Request submitted!");
     };
 
+    let allJobs = [];
+
     function loadJobs() {
       const q = query(collection(db, "requests"), where("userId", "==", currentUserId), orderBy("timestamp", "desc"));
-      const box = document.getElementById("jobList");
       onSnapshot(q, snapshot => {
-        if (snapshot.empty) return box.innerHTML = "<p>No deliveries yet.</p>";
-        box.innerHTML = "";
-        snapshot.forEach(docSnap => {
-          const d = docSnap.data();
-          const time = d.timestamp?.seconds ? new Date(d.timestamp.seconds * 1000).toLocaleString() : "—";
-          box.innerHTML += `
-            <div class="job-card">
-              <p><strong>Pickup:</strong> ${d.pickup}</p>
-              <p><strong>Dropoff:</strong> ${d.dropoff}</p>
-              <p><strong>Details:</strong> ${d.details}</p>
-              <p><strong>Tip:</strong> $${d.tip?.toFixed(2)}</p>
-              <p><strong>Status:</strong> ${d.status}</p>
-              <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
-              <p><small>${time}</small></p>
-              <button class="small-btn" onclick="trackDriver('${docSnap.id}')">🚗 Track Driver</button>
-            </div>`;
-        });
+        allJobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderJobs();
       });
     }
+
+    function renderJobs() {
+      const filter = document.getElementById("filterStatus").value;
+      const box = document.getElementById("jobList");
+      const filtered = allJobs.filter(j => filter === "all" || j.status === filter);
+      box.innerHTML = filtered.map(d => `
+        <div class="job-card">
+          <p><strong>Pickup:</strong> ${d.pickup}</p>
+          <p><strong>Dropoff:</strong> ${d.dropoff}</p>
+          <p><strong>Status:</strong> ${d.status}</p>
+          <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
+          <button class="small-btn" onclick="trackDriver('${d.id}')">🚗 Track Driver</button>
+          <button class="small-btn" onclick="openChat('${d.id}')">💬 Chat</button>
+          <button class="small-btn" onclick="openActions('${d.id}', ${d.paid})">💳 Actions</button>
+        </div>
+      `).join("") || "<p>No deliveries.</p>";
+    }
+
+    window.filterJobs = () => renderJobs();
+
+    window.openChat = (jobId) => {
+      activeChatJobId = jobId;
+      document.getElementById("chatModal").style.display = "flex";
+      const box = document.getElementById("chatMessages");
+      box.innerHTML = "Loading...";
+      const q = query(collection(db, `requests/${jobId}/messages`), orderBy("timestamp"));
+      onSnapshot(q, snap => {
+        box.innerHTML = "";
+        snap.forEach(m => {
+          const msg = m.data();
+          const who = msg.userId === currentUserId ? "You" : "Driver";
+          box.innerHTML += `<p><strong>${who}:</strong> ${msg.text}</p>`;
+        });
+        box.scrollTop = box.scrollHeight;
+      });
+    };
+
+    window.sendMessage = async () => {
+      const text = document.getElementById("chatInput").value.trim();
+      if (!text || !activeChatJobId) return;
+      await addDoc(collection(db, `requests/${activeChatJobId}/messages`), {
+        text, userId: currentUserId, timestamp: new Date()
+      });
+      document.getElementById("chatInput").value = "";
+    };
+
+    window.closeChat = () => document.getElementById("chatModal").style.display = "none";
 
     function loadNotifications() {
       const q = query(collection(db, `users/${currentUserId}/notifications`), orderBy("timestamp", "desc"));
       const box = document.getElementById("notificationsBox");
-      onSnapshot(q, snapshot => {
-        if (snapshot.empty) return (box.innerHTML = "<p>No notifications yet.</p>");
-        box.innerHTML = "";
-        snapshot.forEach(doc => {
-          const n = doc.data();
-          const time = n.timestamp?.seconds ? new Date(n.timestamp.seconds * 1000).toLocaleString() : "";
-          box.innerHTML += `<div class="job-card"><p>${n.message}</p><p><small>${time}</small></p></div>`;
-        });
+      onSnapshot(q, snap => {
+        box.innerHTML = snap.empty ? "<p>No notifications.</p>" :
+        snap.docs.map(d => `<div class="job-card"><p>${d.data().message}</p></div>`).join("");
       });
     }
 
     window.logout = () => signOut(auth).then(() => location.href = "login.html");
 
-    // Driver tracking
-    window.trackDriver = async (requestId) => {
-      const reqDoc = await getDoc(doc(db, "requests", requestId));
-      if (!reqDoc.exists()) return alert("Job not found.");
-      const data = reqDoc.data();
-
-      const driverId = data.driverId;
-      if (!driverId) return alert("Driver not assigned yet.");
-
-      const locDocRef = doc(db, `drivers/${driverId}/location/current`);
-      onSnapshot(locDocRef, loc => {
-        if (!loc.exists()) return;
-
-        const { lat, lng } = loc.data();
-        const latLng = [lat, lng];
+    window.trackDriver = async (jobId) => {
+      const docSnap = await getDoc(doc(db, "requests", jobId));
+      const driverId = docSnap.data().driverId;
+      if (!driverId) return alert("Driver not assigned.");
+      const locRef = doc(db, `drivers/${driverId}/location/current`);
+      onSnapshot(locRef, snap => {
+        if (!snap.exists()) return;
+        const { lat, lng } = snap.data();
         if (!carMarker) {
-          carMarker = L.marker(latLng, {
+          carMarker = L.marker([lat, lng], {
             icon: L.icon({
               iconUrl: "https://cdn-icons-png.flaticon.com/512/854/854878.png",
-              iconSize: [40, 40],
-              iconAnchor: [20, 20]
+              iconSize: [40, 40], iconAnchor: [20, 20]
             })
           }).addTo(map);
-        } else {
-          carMarker.setLatLng(latLng);
-        }
-        map.setView(latLng, 15);
+        } else carMarker.setLatLng([lat, lng]);
+        map.setView([lat, lng], 15);
       });
+    };
+
+    let currentExportJob = null;
+
+    window.openActions = (jobId, paid) => {
+      currentExportJob = allJobs.find(j => j.id === jobId);
+      document.getElementById("actionsModal").style.display = "flex";
+      if (!paid) {
+        paypal.Buttons({
+          createOrder: (data, actions) => actions.order.create({
+            purchase_units: [{ amount: { value: (currentExportJob.tip + 5).toFixed(2) } }]
+          }),
+          onApprove: async (data, actions) => {
+            await actions.order.capture();
+            await updateDoc(doc(db, "requests", jobId), { paid: true });
+            alert("Payment completed!");
+            document.getElementById("actionsModal").style.display = "none";
+          }
+        }).render("#paypalContainer");
+      } else {
+        document.getElementById("paypalContainer").innerHTML = "<p>Already paid.</p>";
+      }
+    };
+
+    window.closeModal = () => {
+      document.getElementById("actionsModal").style.display = "none";
+      document.getElementById("paypalContainer").innerHTML = "Loading PayPal...";
+    };
+
+    window.downloadPDF = () => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const job = currentExportJob;
+      doc.setFontSize(14);
+      doc.text("📄 Delivery Receipt", 10, 10);
+      doc.setFontSize(12);
+      doc.text(`Pickup: ${job.pickup}`, 10, 20);
+      doc.text(`Dropoff: ${job.dropoff}`, 10, 30);
+      doc.text(`Details: ${job.details}`, 10, 40);
+      doc.text(`Status: ${job.status}`, 10, 50);
+      doc.text(`Paid: ${job.paid ? "Yes" : "No"}`, 10, 60);
+      doc.text(`Tip: $${job.tip.toFixed(2)}`, 10, 70);
+      doc.save("receipt.pdf");
     };
   </script>
 </body>
