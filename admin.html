@@ -107,8 +107,16 @@
   <div class="box">
     <div style="display: flex; justify-content: space-between; align-items: center;">
       <div class="filters">
-        <label>Status: <select id="statusFilter"></select></label>
-        <label>Sort by: <select id="sortOrder"></select></label>
+        <label>Status: <select id="statusFilter">
+          <option value="">All</option>
+          <option value="New">New</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Completed">Completed</option>
+        </select></label>
+        <label>Sort by: <select id="sortOrder">
+          <option value="timestamp">Created</option>
+          <option value="eta">ETA</option>
+        </select></label>
       </div>
       <div>
         <button class="action-btn" onclick="location.href='admin_user_manager.html'">👥 Manage Users</button>
@@ -116,183 +124,184 @@
         <button class="logout" id="logoutButton">Logout</button>
       </div>
     </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Pickup</th>
-          <th>Dropoff</th>
-          <th>Status</th>
-          <th>Paid</th>
-          <th>Created</th>
-          <th>Customer</th>
-          <th>ETA</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="requestsTable"></tbody>
-    </table>
-  </div>
-
-  <!-- Edit Modal -->
-  <div id="editModal" class="modal">
-    <div class="modal-content">
-      <h3>Edit Request Details</h3>
-      <input type="text" id="modalDriver" placeholder="Assigned Driver" />
-      <input type="number" id="modalETAMins" placeholder="ETA (minutes from now)" min="1" />
-      <button onclick="saveRequestChanges()">💾 Save Changes</button>
-    </div>
-  </div>
-
-  <!-- Chat Modal -->
-  <div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
-    <div class="chat-box">
-      <h3>Chat</h3>
-      <div id="chatMessages" class="chat-messages">Loading...</div>
-      <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
-      <button onclick="sendMessage()">Send</button>
-    </div>
-  </div>
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
-    import { getFirestore, collection, doc, getDoc, updateDoc, deleteDoc, query, onSnapshot, orderBy, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
-      authDomain: "bradley-gigrunner.firebaseapp.com",
-      projectId: "bradley-gigrunner",
-      storageBucket: "bradley-gigrunner.appspot.com",
-      messagingSenderId: "497753581430",
-      appId: "1:497753581430:web:db6c22866194dd3285bc57"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth();
-    let currentAdminId = null;
-    let allRequests = [];
-    let activeChatRequestId = null;
-    let editRequestId = null;
-
-    onAuthStateChanged(auth, async user => {
-      if (!user) return (window.location.href = "login.html");
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const roles = userDoc.exists() ? (userDoc.data().roles || []) : [];
-      if (!userDoc.exists() || !roles.includes("admin")) {
-        alert("Access denied.");
-        await signOut(auth);
-        window.location.href = "login.html";
-      } else {
-        currentAdminId = user.uid;
-        loadRequests();
-      }
-    });
-
-    function loadRequests() {
-      const q = query(collection(db, "requests"));
-      onSnapshot(q, async snapshot => {
-        allRequests = [];
-        const badgeTracker = {};
-        for (const docSnap of snapshot.docs) {
-          const data = docSnap.data();
-          const metaRef = doc(db, "requests", docSnap.id, "meta", "status");
-          const metaSnap = await getDoc(metaRef);
-          badgeTracker[docSnap.id] = metaSnap.exists() && metaSnap.data().newForAdmin;
-          allRequests.push({ id: docSnap.id, ...data });
-        }
-        renderRequests(badgeTracker);
-      });
-    }
-
-    function renderRequests(badges = {}) {
-      const tbody = document.getElementById("requestsTable");
-      tbody.innerHTML = "";
-      allRequests.forEach(req => {
-        const eta = req.eta ? new Date(req.eta) : null;
-        const etaText = eta ? ((min => min < 0 ? `<span style='color:red;'>⏰ overdue</span>` : `<span style='color:${min<=15 ? 'green' : min<=30 ? 'orange' : '#777'}; font-weight:bold;'>in ${min} min</span>`)(Math.round((eta - Date.now()) / 60000))) : "—";
-        const badge = badges[req.id] ? "<span class='badge'>New</span>" : "";
-        const created = req.timestamp ? new Date(req.timestamp.seconds * 1000).toLocaleString() : "";
-        tbody.innerHTML += `
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
           <tr>
-            <td>${req.pickup}</td>
-            <td>${req.dropoff}</td>
-            <td>${req.status}</td>
-            <td>${req.paid ? "✅" : "❌"}</td>
-            <td>${created}</td>
-            <td>${req.userId}</td>
-            <td>${etaText}</td>
-            <td>
-              <button class='action-btn' onclick="openEditModal('${req.id}', '${req.driver || ''}', '${req.eta || ''}')">✏️ Edit</button>
-              <button class='action-btn' onclick="openChat('${req.id}')">💬 Chat ${badge}</button>
-              <button class='action-btn delete-btn' onclick="deleteRequest('${req.id}')">🗑 Delete</button>
-            </td>
-          </tr>`;
-      });
-    }
-
-    window.openEditModal = (id, driver, eta) => {
-      editRequestId = id;
-      document.getElementById("modalDriver").value = driver;
-      document.getElementById("modalETAMins").value = eta ? Math.round((new Date(eta) - Date.now()) / 60000) : "";
-      document.getElementById("editModal").style.display = "block";
-    };
-
-    window.saveRequestChanges = async () => {
-      const driver = document.getElementById("modalDriver").value;
-      const etaMins = parseInt(document.getElementById("modalETAMins").value);
-      if (!editRequestId || isNaN(etaMins)) return;
-      const eta = new Date(Date.now() + etaMins * 60000).toISOString();
-      await updateDoc(doc(db, "requests", editRequestId), { driver, eta });
-      document.getElementById("editModal").style.display = "none";
-    };
-
-    window.deleteRequest = async (id) => {
-      if (confirm("Delete this request?")) await deleteDoc(doc(db, "requests", id));
-    };
-
-    window.openChat = (requestId) => {
-      activeChatRequestId = requestId;
-      document.getElementById("chatModal").style.display = "block";
-      const messagesDiv = document.getElementById("chatMessages");
-      messagesDiv.innerHTML = "Loading...";
-      const q = query(collection(db, "requests", requestId, "messages"), orderBy("timestamp"));
-      onSnapshot(q, snapshot => {
-        messagesDiv.innerHTML = "";
-        snapshot.forEach(doc => {
-          const m = doc.data();
-          const who = m.userId === currentAdminId ? "🧑‍💼 You" : "👤 Other";
-          messagesDiv.innerHTML += `<p><strong>${who}:</strong> ${m.text}</p>`;
-        });
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-      });
-
-      const metaRef = doc(db, "requests", requestId, "meta", "status");
-      updateDoc(metaRef, { newForAdmin: false });
-    };
-
-    window.sendMessage = async () => {
-      const input = document.getElementById("chatInput");
-      const text = input.value.trim();
-      if (!text || !activeChatRequestId) return;
-      await addDoc(collection(db, "requests", activeChatRequestId, "messages"), {
-        text,
-        userId: currentAdminId,
-        timestamp: new Date()
-      });
-      const metaRef = doc(db, "requests", activeChatRequestId, "meta", "status");
-      await updateDoc(metaRef, { newForDriver: true });
-      input.value = "";
-    };
-
-    window.closeChat = () => {
-      document.getElementById("chatModal").style.display = "none";
-    };
-
-    document.getElementById("logoutButton").addEventListener("click", async () => {
-      await signOut(auth);
-      window.location.href = "login.html";
-    });
-  </script>
+            <th>Pickup</th>
+            <th>Dropoff</th>
+            <th>Status</th>
+            <th>Paid</th>
+            <th>Created</th>
+            <th>Customer ID</th>
+            <th>ETA</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="requestsTable"></tbody>
+      </table>
+    </div>
+  </div>
 </body>
 </html>
+<!-- Edit Modal -->
+<div id="editModal" class="modal">
+  <div class="modal-content">
+    <h3>Edit Request Details</h3>
+    <input type="text" id="modalDriver" placeholder="Assigned Driver" />
+    <input type="number" id="modalETAMins" placeholder="ETA (minutes from now)" min="1" />
+    <button onclick="saveRequestChanges()">💾 Save Changes</button>
+  </div>
+</div>
+
+<!-- Chat Modal -->
+<div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
+  <div class="chat-box">
+    <h3>Chat</h3>
+    <div id="chatMessages" class="chat-messages">Loading...</div>
+    <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
+    <button onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
+  import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
+  import {
+    getFirestore, collection, doc, getDoc, updateDoc, deleteDoc, query, onSnapshot,
+    orderBy, addDoc
+  } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+    authDomain: "bradley-gigrunner.firebaseapp.com",
+    projectId: "bradley-gigrunner",
+    storageBucket: "bradley-gigrunner.appspot.com",
+    messagingSenderId: "497753581430",
+    appId: "1:497753581430:web:db6c22866194dd3285bc57"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth();
+  let currentAdminId = null;
+  let allRequests = [];
+  let activeChatRequestId = null;
+  let editRequestId = null;
+
+  onAuthStateChanged(auth, async user => {
+    if (!user) return location.href = "login.html";
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    const roles = userDoc.exists() ? (userDoc.data().roles || []) : [];
+    if (!roles.includes("admin")) {
+      alert("Access denied.");
+      await signOut(auth);
+      return location.href = "login.html";
+    }
+    currentAdminId = user.uid;
+    loadRequests();
+  });
+
+  function loadRequests() {
+    const q = query(collection(db, "requests"));
+    onSnapshot(q, async snapshot => {
+      allRequests = [];
+      const metaMap = {};
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        const metaSnap = await getDoc(doc(db, `requests/${docSnap.id}/meta`));
+        metaMap[docSnap.id] = metaSnap.exists() && metaSnap.data().newForAdmin;
+        allRequests.push({ id: docSnap.id, ...data });
+      }
+      renderRequests(metaMap);
+    });
+  }
+
+  function renderRequests(badges = {}) {
+    const tbody = document.getElementById("requestsTable");
+    tbody.innerHTML = "";
+    allRequests.forEach(req => {
+      const eta = req.eta ? new Date(req.eta) : null;
+      const etaText = eta ? ((min => min < 0 ? `<span style='color:red;'>⏰ overdue</span>` :
+        `<span style='color:${min <= 15 ? 'green' : min <= 30 ? 'orange' : '#777'}; font-weight:bold;'>in ${min} min</span>`)
+        (Math.round((eta - Date.now()) / 60000))) : "—";
+      const created = req.timestamp ? new Date(req.timestamp.seconds * 1000).toLocaleString() : "";
+      const badge = badges[req.id] ? "<span style='color:red;'>NEW</span>" : "";
+      tbody.innerHTML += `
+        <tr>
+          <td>${req.pickup}</td>
+          <td>${req.dropoff}</td>
+          <td>${req.status}</td>
+          <td>${req.paid ? "✅" : "❌"}</td>
+          <td>${created}</td>
+          <td>${req.userId}</td>
+          <td>${etaText}</td>
+          <td>
+            <button class="action-btn" onclick="openEditModal('${req.id}', '${req.driver || ''}', '${req.eta || ''}')">✏️ Edit</button>
+            <button class="action-btn" onclick="openChat('${req.id}')">💬 Chat ${badge}</button>
+            <button class="action-btn delete-btn" onclick="deleteRequest('${req.id}')">🗑 Delete</button>
+          </td>
+        </tr>`;
+    });
+  }
+
+  window.openEditModal = (id, driver, eta) => {
+    editRequestId = id;
+    document.getElementById("modalDriver").value = driver;
+    document.getElementById("modalETAMins").value = eta ? Math.round((new Date(eta) - Date.now()) / 60000) : "";
+    document.getElementById("editModal").style.display = "block";
+  };
+
+  window.saveRequestChanges = async () => {
+    const driver = document.getElementById("modalDriver").value;
+    const etaMins = parseInt(document.getElementById("modalETAMins").value);
+    if (!editRequestId || isNaN(etaMins)) return;
+    const eta = new Date(Date.now() + etaMins * 60000).toISOString();
+    await updateDoc(doc(db, "requests", editRequestId), { driver, eta });
+    document.getElementById("editModal").style.display = "none";
+  };
+
+  window.deleteRequest = async (id) => {
+    if (confirm("Delete this request?")) await deleteDoc(doc(db, "requests", id));
+  };
+
+  window.openChat = (requestId) => {
+    activeChatRequestId = requestId;
+    document.getElementById("chatModal").style.display = "block";
+    const messagesDiv = document.getElementById("chatMessages");
+    messagesDiv.innerHTML = "Loading...";
+    const q = query(collection(db, `requests/${requestId}/messages`), orderBy("timestamp"));
+    onSnapshot(q, snapshot => {
+      messagesDiv.innerHTML = "";
+      snapshot.forEach(doc => {
+        const m = doc.data();
+        const who = m.userId === currentAdminId ? "🧑‍💼 You" : "👤 Other";
+        messagesDiv.innerHTML += `<p><strong>${who}:</strong> ${m.text}</p>`;
+      });
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    });
+    updateDoc(doc(db, `requests/${requestId}/meta`), { newForAdmin: false });
+  };
+
+  window.sendMessage = async () => {
+    const input = document.getElementById("chatInput");
+    const text = input.value.trim();
+    if (!text || !activeChatRequestId) return;
+    await addDoc(collection(db, `requests/${activeChatRequestId}/messages`), {
+      text,
+      userId: currentAdminId,
+      timestamp: new Date()
+    });
+    await updateDoc(doc(db, `requests/${activeChatRequestId}/meta`), { newForDriver: true });
+    input.value = "";
+  };
+
+  window.closeChat = () => {
+    document.getElementById("chatModal").style.display = "none";
+  };
+
+  document.getElementById("logoutButton").addEventListener("click", async () => {
+    await signOut(auth);
+    window.location.href = "login.html";
+  });
+</script>
