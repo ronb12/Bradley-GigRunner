@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <title>Admin Dashboard – Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.ico" />
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f7fafc;
+      margin: 0; padding: 0;
+      background: #f0f4f8;
     }
     header {
       background: #1a4d2e;
@@ -20,125 +20,141 @@
     }
     .tabs {
       display: flex;
-      justify-content: center;
-      margin-top: 10px;
+      background: #cce5d0;
     }
-    .tabs button {
-      margin: 5px;
-      padding: 10px 16px;
-      border: none;
-      border-radius: 6px;
-      background: #ccc;
+    .tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
       cursor: pointer;
+      font-weight: bold;
     }
-    .tabs button.active {
+    .tab.active {
       background: #1a4d2e;
       color: white;
     }
-    .tab-content {
+    .content {
       display: none;
       padding: 20px;
     }
-    .tab-content.active {
+    .content.active {
       display: block;
-    }
-    .table-container {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      max-width: 1000px;
-      margin: 20px auto;
     }
     table {
       width: 100%;
       border-collapse: collapse;
+      background: white;
     }
     th, td {
       padding: 10px;
       border: 1px solid #ccc;
-      font-size: 0.95em;
     }
-    th {
-      background: #e8f5e9;
-    }
-    .btn {
-      padding: 6px 10px;
-      border: none;
-      border-radius: 4px;
-      margin: 2px;
-      cursor: pointer;
-    }
-    .btn.edit { background: #2e7d32; color: white; }
-    .btn.delete { background: #c62828; color: white; }
-    .btn.chat { background: #0277bd; color: white; }
-    .btn.logout {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: #c62828;
+    .logout-btn {
+      float: right;
+      background: #d9534f;
       color: white;
       padding: 8px 12px;
       border: none;
-      border-radius: 6px;
+      margin: -48px 20px 10px 0;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .action-btn {
+      padding: 5px 10px;
+      margin: 2px;
+      background: #1a4d2e;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .delete-btn {
+      background: #d9534f;
+    }
+    .metrics {
+      display: flex;
+      gap: 15px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .metric-box {
+      flex: 1;
+      min-width: 150px;
+      background: #ffffff;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>Admin Dashboard</h1>
-    <button class="btn logout" onclick="logout()">Logout</button>
+    <h2>Admin Dashboard – Bradley GigRunner</h2>
+    <button class="logout-btn" onclick="logout()">Logout</button>
   </header>
-
   <div class="tabs">
-    <button class="tab-btn active" onclick="showTab('requestsTab')">📦 Requests</button>
-    <button class="tab-btn" onclick="showTab('recurringTab')">🔁 Recurring Jobs</button>
-    <button class="tab-btn" onclick="showTab('earningsTab')">📈 Earnings</button>
+    <div class="tab active" onclick="showTab('requests')">Requests</div>
+    <div class="tab" onclick="showTab('recurring')">Recurring Jobs</div>
+    <div class="tab" onclick="showTab('earnings')">Earnings</div>
   </div>
 
-  <div id="requestsTab" class="tab-content active">
-    <div class="table-container">
-      <h2>Delivery Requests</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Pickup</th>
-            <th>Dropoff</th>
-            <th>Driver</th>
-            <th>Status</th>
-            <th>Paid</th>
-            <th>Assign</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="requestsTable"></tbody>
-      </table>
+  <div id="requests" class="content active">
+    <h3>Service Requests</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Pickup</th>
+          <th>Dropoff</th>
+          <th>Driver</th>
+          <th>Status</th>
+          <th>Paid</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="requestsTable">Loading...</tbody>
+    </table>
+  </div>
+
+  <div id="recurring" class="content">
+    <h3>Recurring Jobs</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Pickup</th>
+          <th>Dropoff</th>
+          <th>Frequency</th>
+          <th>Next</th>
+          <th>Driver</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="recurringTable">Loading...</tbody>
+    </table>
+  </div>
+  <div id="earnings" class="content">
+    <h3>Earnings Report</h3>
+    <div class="metrics">
+      <div class="metric-box">
+        <strong>Total Earnings</strong><br>
+        $<span id="totalEarnings">0.00</span>
+      </div>
+      <div class="metric-box">
+        <strong>Total Tips</strong><br>
+        $<span id="totalTips">0.00</span>
+      </div>
+      <div class="metric-box">
+        <strong>Completed Jobs</strong><br>
+        <span id="jobCount">0</span>
+      </div>
     </div>
   </div>
 
-  <div id="recurringTab" class="tab-content">
-    <div class="table-container">
-      <h2>Recurring Jobs</h2>
-      <p>Coming soon: You can set weekly or monthly recurring delivery templates.</p>
-    </div>
-  </div>
-
-  <div id="earningsTab" class="tab-content">
-    <div class="table-container">
-      <h2>Earnings Reports</h2>
-      <button class="btn" onclick="exportEarnings()">📤 Export as PDF</button>
-      <div id="earningsSummary"></div>
-    </div>
-  </div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import {
-      getFirestore, collection, query, onSnapshot, updateDoc, doc,
-      getDoc, getDocs
-    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-    import {
-      getAuth, onAuthStateChanged, signOut
-    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
+    import { getFirestore, collection, query, onSnapshot, doc, updateDoc, deleteDoc, getDocs } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -153,85 +169,98 @@
     const db = getFirestore(app);
     const auth = getAuth();
 
-    let currentAdmin = null;
-    onAuthStateChanged(auth, async user => {
-      if (!user) return location.href = "login.html";
-      const snap = await getDoc(doc(db, "users", user.uid));
-      const roles = snap.exists() ? snap.data().roles || [] : [];
-      if (!roles.includes("admin")) {
-        alert("Access denied");
-        await signOut(auth);
-        return location.href = "login.html";
-      }
-      currentAdmin = user.uid;
-      loadRequests();
-    });
-
     function showTab(tabId) {
-      document.querySelectorAll(".tab-content").forEach(div => div.classList.remove("active"));
-      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
-      document.getElementById(tabId).classList.add("active");
-      event.target.classList.add("active");
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      document.querySelector(`.tab[onclick="showTab('${tabId}')"]`).classList.add('active');
     }
 
-    window.logout = () => signOut(auth).then(() => location.href = "login.html");
+    function logout() {
+      signOut(auth).then(() => location.href = "login.html");
+    }
 
-    async function loadRequests() {
-      const q = query(collection(db, "requests"));
-      onSnapshot(q, snapshot => {
-        const table = document.getElementById("requestsTable");
-        table.innerHTML = "";
-        snapshot.forEach(docSnap => {
-          const d = docSnap.data();
-          const id = docSnap.id;
-          const driver = d.driver || "Unassigned";
-          const row = document.createElement("tr");
-          row.innerHTML = `
+    function renderRequests(data) {
+      const tbody = document.getElementById("requestsTable");
+      tbody.innerHTML = "";
+      data.forEach(doc => {
+        const d = doc.data();
+        tbody.innerHTML += `
+          <tr>
             <td>${d.pickup}</td>
             <td>${d.dropoff}</td>
-            <td>${driver}</td>
+            <td>${d.driverId || "—"}</td>
             <td>${d.status}</td>
             <td>${d.paid ? "✅" : "❌"}</td>
             <td>
-              <input type="text" placeholder="Driver ID" style="width:100px;" onchange="assignDriver('${id}', this.value)" />
+              <button class="action-btn" onclick="markPaid('${doc.id}')">Mark Paid</button>
+              <button class="action-btn delete-btn" onclick="deleteRequest('${doc.id}')">Delete</button>
             </td>
-            <td>
-              <button class="btn delete" onclick="deleteRequest('${id}')">🗑</button>
-            </td>
-          `;
-          table.appendChild(row);
-        });
+          </tr>`;
       });
     }
 
-    window.assignDriver = async (requestId, driverId) => {
-      if (!driverId) return alert("Driver ID is required");
-      await updateDoc(doc(db, "requests", requestId), { driver: driverId, driverId });
-      alert("Driver assigned");
-    };
-
-    window.deleteRequest = async (id) => {
-      if (confirm("Delete this request?")) {
-        await updateDoc(doc(db, "requests", id), { status: "deleted" });
-      }
-    };
-
-    window.exportEarnings = async () => {
-      const snap = await getDocs(collection(db, "requests"));
-      let total = 0;
-      const doc = new jspdf.jsPDF();
-      doc.text("Earnings Report", 10, 10);
-      let y = 20;
-      snap.forEach(r => {
-        const d = r.data();
-        const amount = (d.payout || 0) + (d.tip || 0);
-        total += amount;
-        doc.text(`${d.pickup} to ${d.dropoff} — $${amount.toFixed(2)}`, 10, y);
-        y += 10;
+    function renderRecurring(data) {
+      const tbody = document.getElementById("recurringTable");
+      tbody.innerHTML = "";
+      data.forEach(doc => {
+        const d = doc.data();
+        tbody.innerHTML += `
+          <tr>
+            <td>${d.userId}</td>
+            <td>${d.pickup}</td>
+            <td>${d.dropoff}</td>
+            <td>${d.frequency || "weekly"}</td>
+            <td>${d.nextRun || "—"}</td>
+            <td>${d.driverId || "—"}</td>
+            <td>
+              <button class="action-btn delete-btn" onclick="deleteRecurring('${doc.id}')">Remove</button>
+            </td>
+          </tr>`;
       });
-      doc.text(`Total Earnings: $${total.toFixed(2)}`, 10, y + 10);
-      doc.save("earnings_report.pdf");
-    };
+    }
+
+    function markPaid(id) {
+      updateDoc(doc(db, "requests", id), { paid: true });
+    }
+
+    function deleteRequest(id) {
+      if (confirm("Delete this request?")) deleteDoc(doc(db, "requests", id));
+    }
+
+    function deleteRecurring(id) {
+      if (confirm("Delete recurring job?")) deleteDoc(doc(db, "recurring", id));
+    }
+
+    async function loadEarnings(data) {
+      let total = 0, tips = 0, count = 0;
+      data.forEach(doc => {
+        const d = doc.data();
+        if (d.paid) {
+          total += Number(d.payout || 0);
+          tips += Number(d.tip || 0);
+          count++;
+        }
+      });
+      document.getElementById("totalEarnings").textContent = total.toFixed(2);
+      document.getElementById("totalTips").textContent = tips.toFixed(2);
+      document.getElementById("jobCount").textContent = count;
+    }
+
+    onAuthStateChanged(auth, user => {
+      if (!user) return location.href = "login.html";
+      const requestsQ = query(collection(db, "requests"));
+      const recurringQ = query(collection(db, "recurring"));
+
+      onSnapshot(requestsQ, snap => {
+        renderRequests(snap.docs);
+        loadEarnings(snap.docs);
+      });
+
+      onSnapshot(recurringQ, snap => {
+        renderRecurring(snap.docs);
+      });
+    });
   </script>
 </body>
 </html>
