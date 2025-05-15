@@ -7,118 +7,231 @@
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
   <style>
-    body { font-family: Arial, sans-serif; background: #f9fafb; margin: 0; padding: 20px; }
-    h1 { color: #1a4d2e; text-align: center; }
-    button {
-      background: #1a4d2e; color: white; border: none; padding: 10px 14px;
-      border-radius: 5px; margin: 5px; cursor: pointer;
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f7fafc;
     }
-    button:hover { background: #145032; }
-    .tab-section { display: none; }
-    .tab-section.active { display: block; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 10px; border: 1px solid #ccc; }
-    th { background: #e0f0e9; }
-    input[type="text"] { width: 100%; padding: 6px; }
+    header {
+      background: #1a4d2e;
+      color: white;
+      padding: 15px;
+      text-align: center;
+    }
+    .tabs {
+      display: flex;
+      justify-content: center;
+      margin-top: 10px;
+    }
+    .tabs button {
+      margin: 5px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      background: #ccc;
+      cursor: pointer;
+    }
+    .tabs button.active {
+      background: #1a4d2e;
+      color: white;
+    }
+    .tab-content {
+      display: none;
+      padding: 20px;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .table-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 1000px;
+      margin: 20px auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      font-size: 0.95em;
+    }
+    th {
+      background: #e8f5e9;
+    }
+    .btn {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 4px;
+      margin: 2px;
+      cursor: pointer;
+    }
+    .btn.edit { background: #2e7d32; color: white; }
+    .btn.delete { background: #c62828; color: white; }
+    .btn.chat { background: #0277bd; color: white; }
+    .btn.logout {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #c62828;
+      color: white;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+    }
   </style>
 </head>
 <body>
-  <h1>Admin Dashboard</h1>
-  <div style="text-align:center;">
-    <button onclick="showTab('requestsTab')">🗂 Requests</button>
-    <button onclick="showTab('recurringTab')">🔁 Recurring Jobs</button>
-    <button onclick="showTab('earningsTab')">💰 Earnings</button>
+  <header>
+    <h1>Admin Dashboard</h1>
+    <button class="btn logout" onclick="logout()">Logout</button>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('requestsTab')">📦 Requests</button>
+    <button class="tab-btn" onclick="showTab('recurringTab')">🔁 Recurring Jobs</button>
+    <button class="tab-btn" onclick="showTab('earningsTab')">📈 Earnings</button>
   </div>
 
-  <!-- Requests Tab -->
-  <div id="requestsTab" class="tab-section active">
-    <h2>Delivery Requests</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Pickup</th>
-          <th>Dropoff</th>
-          <th>Driver</th>
-          <th>Status</th>
-          <th>Paid</th>
-          <th>Assign</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="requestsTable">
-        <tr>
-          <td>227 peninsula way, columbia sc 2229</td>
-          <td>walmart</td>
-          <td>Unassigned</td>
-          <td>pending</td>
-          <td>❌</td>
-          <td><input type="text" placeholder="Driver ID" /></td>
-          <td><button style="background:#d9534f;">🗑 Delete</button></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <!-- Recurring Jobs Tab -->
-  <div id="recurringTab" class="tab-section">
-    <h2>Recurring Jobs</h2>
-    <p>📅 You can manage weekly/monthly recurring deliveries here.</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Pickup</th>
-          <th>Dropoff</th>
-          <th>Frequency</th>
-          <th>Next Run</th>
-          <th>Assigned Driver</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>100 Main St</td>
-          <td>200 Oak Ave</td>
-          <td>Weekly</td>
-          <td>5/18/2025</td>
-          <td>driver001</td>
-          <td><button style="background:#d9534f;">🗑 Cancel</button></td>
-        </tr>
-      </tbody>
-    </table>
+  <div id="requestsTab" class="tab-content active">
+    <div class="table-container">
+      <h2>Delivery Requests</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Pickup</th>
+            <th>Dropoff</th>
+            <th>Driver</th>
+            <th>Status</th>
+            <th>Paid</th>
+            <th>Assign</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="requestsTable"></tbody>
+      </table>
+    </div>
   </div>
 
-  <!-- Earnings Tab -->
-  <div id="earningsTab" class="tab-section">
-    <h2>Earnings Report</h2>
-    <p>💵 Summary of delivery income, tips, and platform fees.</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Jobs</th>
-          <th>Gross</th>
-          <th>Tips</th>
-          <th>Fees</th>
-          <th>Net</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>May 2025</td>
-          <td>23</td>
-          <td>$460.00</td>
-          <td>$90.00</td>
-          <td>$46.00</td>
-          <td>$504.00</td>
-        </tr>
-      </tbody>
-    </table>
+  <div id="recurringTab" class="tab-content">
+    <div class="table-container">
+      <h2>Recurring Jobs</h2>
+      <p>Coming soon: You can set weekly or monthly recurring delivery templates.</p>
+    </div>
   </div>
 
-  <script>
+  <div id="earningsTab" class="tab-content">
+    <div class="table-container">
+      <h2>Earnings Reports</h2>
+      <button class="btn" onclick="exportEarnings()">📤 Export as PDF</button>
+      <div id="earningsSummary"></div>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import {
+      getFirestore, collection, query, onSnapshot, updateDoc, doc,
+      getDoc, getDocs
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import {
+      getAuth, onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+      authDomain: "bradley-gigrunner.firebaseapp.com",
+      projectId: "bradley-gigrunner",
+      storageBucket: "bradley-gigrunner.appspot.com",
+      messagingSenderId: "497753581430",
+      appId: "1:497753581430:web:db6c22866194dd3285bc57"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth();
+
+    let currentAdmin = null;
+    onAuthStateChanged(auth, async user => {
+      if (!user) return location.href = "login.html";
+      const snap = await getDoc(doc(db, "users", user.uid));
+      const roles = snap.exists() ? snap.data().roles || [] : [];
+      if (!roles.includes("admin")) {
+        alert("Access denied");
+        await signOut(auth);
+        return location.href = "login.html";
+      }
+      currentAdmin = user.uid;
+      loadRequests();
+    });
+
     function showTab(tabId) {
-      document.querySelectorAll('.tab-section').forEach(tab => tab.classList.remove('active'));
-      document.getElementById(tabId).classList.add('active');
+      document.querySelectorAll(".tab-content").forEach(div => div.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+      document.getElementById(tabId).classList.add("active");
+      event.target.classList.add("active");
     }
+
+    window.logout = () => signOut(auth).then(() => location.href = "login.html");
+
+    async function loadRequests() {
+      const q = query(collection(db, "requests"));
+      onSnapshot(q, snapshot => {
+        const table = document.getElementById("requestsTable");
+        table.innerHTML = "";
+        snapshot.forEach(docSnap => {
+          const d = docSnap.data();
+          const id = docSnap.id;
+          const driver = d.driver || "Unassigned";
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${d.pickup}</td>
+            <td>${d.dropoff}</td>
+            <td>${driver}</td>
+            <td>${d.status}</td>
+            <td>${d.paid ? "✅" : "❌"}</td>
+            <td>
+              <input type="text" placeholder="Driver ID" style="width:100px;" onchange="assignDriver('${id}', this.value)" />
+            </td>
+            <td>
+              <button class="btn delete" onclick="deleteRequest('${id}')">🗑</button>
+            </td>
+          `;
+          table.appendChild(row);
+        });
+      });
+    }
+
+    window.assignDriver = async (requestId, driverId) => {
+      if (!driverId) return alert("Driver ID is required");
+      await updateDoc(doc(db, "requests", requestId), { driver: driverId, driverId });
+      alert("Driver assigned");
+    };
+
+    window.deleteRequest = async (id) => {
+      if (confirm("Delete this request?")) {
+        await updateDoc(doc(db, "requests", id), { status: "deleted" });
+      }
+    };
+
+    window.exportEarnings = async () => {
+      const snap = await getDocs(collection(db, "requests"));
+      let total = 0;
+      const doc = new jspdf.jsPDF();
+      doc.text("Earnings Report", 10, 10);
+      let y = 20;
+      snap.forEach(r => {
+        const d = r.data();
+        const amount = (d.payout || 0) + (d.tip || 0);
+        total += amount;
+        doc.text(`${d.pickup} to ${d.dropoff} — $${amount.toFixed(2)}`, 10, y);
+        y += 10;
+      });
+      doc.text(`Total Earnings: $${total.toFixed(2)}`, 10, y + 10);
+      doc.save("earnings_report.pdf");
+    };
   </script>
 </body>
 </html>
