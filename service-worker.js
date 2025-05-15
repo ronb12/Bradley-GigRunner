@@ -1,15 +1,16 @@
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open('v1').then(cache =>
-      cache.addAll([
+    caches.open('v1').then(cache => {
+      return cache.addAll([
+        './',
         'index.html',
-        'offline.html',  // Fallback page for offline use
+        'offline.html',
         'manifest.json',
         'icons/icon-192.png',
         'icons/icon-512.png',
         'favicon.ico'
-      ])
-    )
+      ]);
+    })
   );
 });
 
@@ -18,7 +19,9 @@ self.addEventListener('activate', event => {
     caches.keys().then(keys =>
       Promise.all(
         keys.map(key => {
-          if (key !== 'v1') return caches.delete(key);
+          if (key !== 'v1') {
+            return caches.delete(key);
+          }
         })
       )
     )
@@ -27,8 +30,19 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request).then(response =>
-      response || fetch(event.request).catch(() => caches.match('offline.html'))
-    )
+    fetch(event.request)
+      .then(response => {
+        // Clone response and store in cache
+        const resClone = response.clone();
+        caches.open('v1').then(cache => {
+          cache.put(event.request, resClone);
+        });
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request).then(res => {
+          return res || caches.match('offline.html');
+        });
+      })
   );
 });
