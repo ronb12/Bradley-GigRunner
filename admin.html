@@ -1,4 +1,3 @@
-<!-- Part 1: Admin Dashboard - Header, Filters, Table Structure, and Analytics -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -19,27 +18,40 @@
       color: #1a4d2e;
       text-align: center;
     }
-    .analytics {
-      text-align: center;
-      margin: 10px 0;
+    .tabs {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 20px;
     }
-    .analytics span {
-      margin: 0 10px;
+    .tab-button {
+      padding: 10px 20px;
+      background: #ddd;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
       font-weight: bold;
     }
-    .filters {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      margin: 10px 0;
+    .tab-button.active {
+      background: #1a4d2e;
+      color: white;
     }
-    .filters label {
-      margin: 5px;
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .box {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
+      margin-top: 15px;
     }
     th, td {
       padding: 10px;
@@ -49,223 +61,225 @@
     th {
       background: #e0f0e9;
     }
-    .action-btn {
-      background: #1a4d2e;
-      color: white;
-      padding: 5px 10px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .delete-btn {
-      background: #d9534f;
-    }
-    .logout {
-      float: right;
-      background: #d9534f;
-      color: white;
+    button {
       padding: 6px 10px;
       border: none;
       border-radius: 4px;
       cursor: pointer;
     }
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6);
-      justify-content: center;
-      align-items: center;
+    .action-btn {
+      background: #1a4d2e;
+      color: white;
     }
-    .modal-content {
-      background: white;
-      padding: 20px;
-      width: 90%;
-      max-width: 500px;
-      border-radius: 8px;
+    .delete-btn {
+      background: #d9534f;
+      color: white;
+    }
+    .generate-btn {
+      background: #145032;
+      color: white;
     }
   </style>
 </head>
 <body>
   <h1>Admin Dashboard</h1>
-  <div class="analytics">
-    <span>Total Jobs: <span id="totalJobs">0</span></span>
-    <span>Completed: <span id="completedJobs">0</span></span>
-    <span>Total Payout: $<span id="totalPayout">0.00</span></span>
+  <div class="tabs">
+    <button class="tab-button active" onclick="showTab('requestsTab')">📝 Requests</button>
+    <button class="tab-button" onclick="showTab('recurringTab')">🔁 Recurring Jobs</button>
+    <button class="tab-button" onclick="showTab('earningsTab')">📊 Earnings</button>
   </div>
-  <div class="filters">
-    <label>Status:
-      <select id="statusFilter" onchange="filterJobs()">
-        <option value="">All</option>
-        <option value="pending">Pending</option>
-        <option value="accepted">Accepted</option>
-        <option value="completed">Completed</option>
-      </select>
-    </label>
-    <label>Date:
-      <input type="date" id="startDate" onchange="filterJobs()" />
-      to
-      <input type="date" id="endDate" onchange="filterJobs()" />
-    </label>
-    <label><button onclick="exportPDF()">📄 Export PDF</button></label>
-    <label><button class="logout" onclick="logout()">Logout</button></label>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Pickup</th>
-        <th>Dropoff</th>
-        <th>Status</th>
-        <th>Paid</th>
-        <th>Tip</th>
-        <th>Payout</th>
-        <th>Date</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody id="jobTable"></tbody>
-  </table>
-  <!-- Edit Modal -->
-  <div id="editModal" class="modal" onclick="if(event.target==this) closeModal()">
-    <div class="modal-content">
-      <h3>Edit Request</h3>
-      <label>Driver:
-        <input type="text" id="editDriver" />
-      </label>
-      <label>Status:
-        <select id="editStatus">
-          <option value="pending">Pending</option>
-          <option value="accepted">Accepted</option>
-          <option value="completed">Completed</option>
-        </select>
-      </label>
-      <button onclick="saveEdit()">💾 Save</button>
+
+  <!-- Requests Tab -->
+  <div id="requestsTab" class="tab-content active">
+    <div class="box">
+      <h2>Delivery Requests</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Pickup</th>
+            <th>Dropoff</th>
+            <th>Driver</th>
+            <th>Status</th>
+            <th>Paid</th>
+            <th>Assign</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="requestsTable"></tbody>
+      </table>
     </div>
   </div>
 
+  <!-- Recurring Jobs Tab -->
+  <div id="recurringTab" class="tab-content">
+    <div class="box">
+      <h2>Recurring Jobs</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Pickup</th>
+            <th>Dropoff</th>
+            <th>Interval</th>
+            <th>Next Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="recurringTable"></tbody>
+      </table>
+      <button class="action-btn" onclick="createRecurring()">➕ Add Recurring Job</button>
+    </div>
+  </div>
+
+  <!-- Earnings Report Tab -->
+  <div id="earningsTab" class="tab-content">
+    <div class="box">
+      <h2>Earnings Report Generator</h2>
+      <label>Start Date: <input type="date" id="startDate" /></label>
+      <label>End Date: <input type="date" id="endDate" /></label>
+      <button class="generate-btn" onclick="generateEarningsReport()">📄 Generate Report</button>
+      <div id="earningsResult" style="margin-top: 15px;"></div>
+    </div>
+  </div>
+
+  <!-- Modals, Scripts, and Part 2 continues... -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import {
-      getFirestore, collection, getDocs, getDoc, updateDoc, deleteDoc, doc, query, where
+      getFirestore, collection, doc, getDoc, getDocs, updateDoc, deleteDoc,
+      query, where, orderBy, onSnapshot, addDoc
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-    import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
       authDomain: "bradley-gigrunner.firebaseapp.com",
-      projectId: "bradley-gigrunner"
+      projectId: "bradley-gigrunner",
+      storageBucket: "bradley-gigrunner.appspot.com",
+      messagingSenderId: "497753581430",
+      appId: "1:497753581430:web:db6c22866194dd3285bc57"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth();
-
-    let requests = [];
-    let editId = null;
+    let currentAdminId = null;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
-      const snap = await getDoc(doc(db, "users", user.uid));
-      if (!snap.exists() || !(snap.data().roles || []).includes("admin")) {
-        alert("Access denied"); await signOut(auth); return location.href = "login.html";
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      const roles = userDoc.exists() ? (userDoc.data().roles || []) : [];
+      if (!roles.includes("admin")) {
+        alert("Access denied.");
+        await signOut(auth);
+        return location.href = "login.html";
       }
-      loadJobs();
+      currentAdminId = user.uid;
+      loadRequests();
+      loadRecurringJobs();
     });
 
-    async function loadJobs() {
-      const q = query(collection(db, "requests"));
-      const snap = await getDocs(q);
-      requests = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      renderJobs();
+    window.logout = () => signOut(auth).then(() => location.href = "login.html");
+
+    function showTab(tabId) {
+      document.querySelectorAll(".tab-content").forEach(tab => tab.classList.remove("active"));
+      document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
+      document.getElementById(tabId).classList.add("active");
+      event.target.classList.add("active");
     }
 
-    function renderJobs(filtered = requests) {
-      const tbody = document.getElementById("jobTable");
+    async function loadRequests() {
+      const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
+      onSnapshot(q, async snapshot => {
+        const tbody = document.getElementById("requestsTable");
+        tbody.innerHTML = "";
+        snapshot.forEach(docSnap => {
+          const d = docSnap.data();
+          tbody.innerHTML += `
+            <tr>
+              <td>${d.pickup}</td>
+              <td>${d.dropoff}</td>
+              <td>${d.driver || "Unassigned"}</td>
+              <td>${d.status}</td>
+              <td>${d.paid ? "✅" : "❌"}</td>
+              <td><input type="text" value="${d.driver || ""}" onchange="assignDriver('${docSnap.id}', this.value)" /></td>
+              <td>
+                <button class="delete-btn" onclick="deleteRequest('${docSnap.id}')">🗑</button>
+              </td>
+            </tr>`;
+        });
+      });
+    }
+
+    window.assignDriver = async (requestId, driverId) => {
+      await updateDoc(doc(db, "requests", requestId), { driver: driverId });
+    };
+
+    window.deleteRequest = async (id) => {
+      if (confirm("Delete this request?")) await deleteDoc(doc(db, "requests", id));
+    };
+
+    async function loadRecurringJobs() {
+      const q = query(collection(db, "recurring_jobs"));
+      const snapshot = await getDocs(q);
+      const tbody = document.getElementById("recurringTable");
       tbody.innerHTML = "";
-      let total = 0, completed = 0, payoutSum = 0;
-      filtered.forEach(r => {
-        total++;
-        if (r.status === "completed") completed++;
-        payoutSum += r.payout || 0;
-        const date = r.timestamp?.seconds ? new Date(r.timestamp.seconds * 1000).toLocaleString() : "—";
+      snapshot.forEach(docSnap => {
+        const d = docSnap.data();
         tbody.innerHTML += `
           <tr>
-            <td>${r.pickup}</td>
-            <td>${r.dropoff}</td>
-            <td>${r.status}</td>
-            <td>${r.paid ? "✅" : "❌"}</td>
-            <td>$${r.tip?.toFixed(2) || "0.00"}</td>
-            <td>$${r.payout?.toFixed(2) || "0.00"}</td>
-            <td>${date}</td>
-            <td>
-              <button class="action-btn" onclick="editJob('${r.id}')">✏️</button>
-              <button class="delete-btn action-btn" onclick="deleteJob('${r.id}')">🗑</button>
-            </td>
+            <td>${d.customerId}</td>
+            <td>${d.pickup}</td>
+            <td>${d.dropoff}</td>
+            <td>${d.interval}</td>
+            <td>${d.nextRun}</td>
+            <td><button class="delete-btn" onclick="deleteRecurring('${docSnap.id}')">🗑</button></td>
           </tr>`;
       });
-      document.getElementById("totalJobs").textContent = total;
-      document.getElementById("completedJobs").textContent = completed;
-      document.getElementById("totalPayout").textContent = payoutSum.toFixed(2);
     }
 
-    function filterJobs() {
-      const status = document.getElementById("statusFilter").value;
-      const start = document.getElementById("startDate").valueAsDate;
-      const end = document.getElementById("endDate").valueAsDate;
-      renderJobs(requests.filter(r => {
-        const t = r.timestamp?.seconds ? new Date(r.timestamp.seconds * 1000) : null;
-        return (!status || r.status === status) &&
-          (!start || (t && t >= start)) &&
-          (!end || (t && t <= end));
-      }));
-    }
+    window.deleteRecurring = async (id) => {
+      if (confirm("Delete this recurring job?")) await deleteDoc(doc(db, "recurring_jobs", id));
+    };
 
-    function logout() {
-      signOut(auth).then(() => location.href = "login.html");
-    }
+    window.createRecurring = async () => {
+      const customerId = prompt("Customer ID:");
+      const pickup = prompt("Pickup Location:");
+      const dropoff = prompt("Dropoff Location:");
+      const interval = prompt("Interval (e.g., weekly):");
+      const nextRun = prompt("Next Date (YYYY-MM-DD):");
 
-    function editJob(id) {
-      editId = id;
-      const job = requests.find(r => r.id === id);
-      if (!job) return;
-      document.getElementById("editDriver").value = job.driver || "";
-      document.getElementById("editStatus").value = job.status;
-      document.getElementById("editModal").style.display = "flex";
-    }
-
-    async function saveEdit() {
-      const driver = document.getElementById("editDriver").value;
-      const status = document.getElementById("editStatus").value;
-      if (!editId) return;
-      await updateDoc(doc(db, "requests", editId), { driver, status });
-      document.getElementById("editModal").style.display = "none";
-      loadJobs();
-    }
-
-    async function deleteJob(id) {
-      if (confirm("Delete this request?")) {
-        await deleteDoc(doc(db, "requests", id));
-        loadJobs();
-      }
-    }
-
-    function closeModal() {
-      document.getElementById("editModal").style.display = "none";
-    }
-
-    function exportPDF() {
-      const doc = new jsPDF();
-      doc.text("Job Report", 10, 10);
-      let y = 20;
-      requests.forEach(r => {
-        const line = `${r.pickup} → ${r.dropoff} | ${r.status} | $${(r.payout || 0).toFixed(2)} | Tip: $${(r.tip || 0).toFixed(2)}`;
-        doc.text(line, 10, y);
-        y += 10;
+      if (!customerId || !pickup || !dropoff || !interval || !nextRun) return alert("All fields required.");
+      await addDoc(collection(db, "recurring_jobs"), {
+        customerId, pickup, dropoff, interval, nextRun
       });
-      doc.save("jobs_report.pdf");
-    }
+      loadRecurringJobs();
+    };
+
+    window.generateEarningsReport = async () => {
+      const start = new Date(document.getElementById("startDate").value);
+      const end = new Date(document.getElementById("endDate").value);
+      if (!start || !end) return alert("Pick both dates.");
+      const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
+      const snapshot = await getDocs(q);
+      let total = 0, count = 0;
+
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        if (d.timestamp?.seconds) {
+          const t = new Date(d.timestamp.seconds * 1000);
+          if (t >= start && t <= end) {
+            total += (d.payout || 0) + (d.tip || 0);
+            count++;
+          }
+        }
+      });
+
+      document.getElementById("earningsResult").innerHTML = `
+        <p><strong>Jobs:</strong> ${count}</p>
+        <p><strong>Total Earnings:</strong> $${total.toFixed(2)}</p>
+      `;
+    };
   </script>
 </body>
 </html>
