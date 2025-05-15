@@ -1,3 +1,4 @@
+<!-- Part 1: Admin Dashboard - Header, Filters, Table Structure, and Analytics -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,239 +9,263 @@
   <link rel="manifest" href="manifest.json" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #f5f7fa; margin: 0; padding: 20px; }
-    h1 { color: #1a4d2e; text-align: center; }
-    .box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); max-width: 1000px; margin: 20px auto; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 10px; border: 1px solid #ccc; text-align: left; font-size: 0.95em; }
-    th { background: #e0f0e9; }
-    .action-btn { background: #1a4d2e; color: white; border: none; padding: 5px 10px; border-radius: 4px; margin: 2px; cursor: pointer; }
-    .action-btn:hover { background: #145032; }
-    .delete-btn { background: #d9534f; }
-    .delete-btn:hover { background: #c9302c; }
-    .logout { background: #d9534f; color: white; padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; }
-    .logout:hover { background: #c9302c; }
-    .filters { margin-bottom: 10px; }
-    .modal, .chat-modal {
-      display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      color: #1a4d2e;
+      text-align: center;
+    }
+    .analytics {
+      text-align: center;
+      margin: 10px 0;
+    }
+    .analytics span {
+      margin: 0 10px;
+      font-weight: bold;
+    }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      margin: 10px 0;
+    }
+    .filters label {
+      margin: 5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background: #e0f0e9;
+    }
+    .action-btn {
+      background: #1a4d2e;
+      color: white;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .delete-btn {
+      background: #d9534f;
+    }
+    .logout {
+      float: right;
+      background: #d9534f;
+      color: white;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
     }
-    .modal-content, .chat-box {
-      background: white; margin: 10% auto; padding: 20px; width: 90%; max-width: 500px; border-radius: 10px;
-    }
-    .chat-messages {
-      height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px;
-    }
-    .chat-input {
-      width: 100%; padding: 10px; font-size: 1em;
+    .modal-content {
+      background: white;
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
   <h1>Admin Dashboard</h1>
-  <div class="box">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <div class="filters">
-        <label>Status: 
-          <select id="statusFilter">
-            <option>All</option>
-            <option>pending</option>
-            <option>assigned</option>
-            <option>delivered</option>
-          </select>
-        </label>
-        <label>Sort by: 
-          <select id="sortOrder">
-            <option value="timestamp">Created</option>
-            <option value="status">Status</option>
-            <option value="paid">Paid</option>
-          </select>
-        </label>
-      </div>
-      <div>
-        <button class="action-btn" onclick="location.href='admin_user_manager.html'">👥 Manage Users</button>
-        <button class="action-btn" onclick="location.href='logs.html'">📜 View Logs</button>
-        <button class="logout" id="logoutButton">Logout</button>
-      </div>
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Pickup</th>
-          <th>Dropoff</th>
-          <th>Status</th>
-          <th>Paid</th>
-          <th>Created</th>
-          <th>Customer ID</th>
-          <th>ETA</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="requestsTable"></tbody>
-    </table>
+  <div class="analytics">
+    <span>Total Jobs: <span id="totalJobs">0</span></span>
+    <span>Completed: <span id="completedJobs">0</span></span>
+    <span>Total Payout: $<span id="totalPayout">0.00</span></span>
   </div>
-
-<!-- Continue to Part 2 for full scripts and modals -->
+  <div class="filters">
+    <label>Status:
+      <select id="statusFilter" onchange="filterJobs()">
+        <option value="">All</option>
+        <option value="pending">Pending</option>
+        <option value="accepted">Accepted</option>
+        <option value="completed">Completed</option>
+      </select>
+    </label>
+    <label>Date:
+      <input type="date" id="startDate" onchange="filterJobs()" />
+      to
+      <input type="date" id="endDate" onchange="filterJobs()" />
+    </label>
+    <label><button onclick="exportPDF()">📄 Export PDF</button></label>
+    <label><button class="logout" onclick="logout()">Logout</button></label>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Pickup</th>
+        <th>Dropoff</th>
+        <th>Status</th>
+        <th>Paid</th>
+        <th>Tip</th>
+        <th>Payout</th>
+        <th>Date</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="jobTable"></tbody>
+  </table>
   <!-- Edit Modal -->
-  <div id="editModal" class="modal">
+  <div id="editModal" class="modal" onclick="if(event.target==this) closeModal()">
     <div class="modal-content">
-      <h3>Edit Request Details</h3>
-      <input type="text" id="modalDriver" placeholder="Assigned Driver" />
-      <input type="number" id="modalETAMins" placeholder="ETA (minutes from now)" min="1" />
-      <button onclick="saveRequestChanges()">💾 Save Changes</button>
-    </div>
-  </div>
-
-  <!-- Chat Modal -->
-  <div id="chatModal" class="chat-modal" onclick="if(event.target==this) closeChat()">
-    <div class="chat-box">
-      <h3>Chat</h3>
-      <div id="chatMessages" class="chat-messages">Loading...</div>
-      <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
-      <button onclick="sendMessage()">Send</button>
+      <h3>Edit Request</h3>
+      <label>Driver:
+        <input type="text" id="editDriver" />
+      </label>
+      <label>Status:
+        <select id="editStatus">
+          <option value="pending">Pending</option>
+          <option value="accepted">Accepted</option>
+          <option value="completed">Completed</option>
+        </select>
+      </label>
+      <button onclick="saveEdit()">💾 Save</button>
     </div>
   </div>
 
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
-    import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
-    import { getFirestore, collection, doc, getDoc, updateDoc, deleteDoc, query, onSnapshot, orderBy, addDoc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import {
+      getFirestore, collection, getDocs, getDoc, updateDoc, deleteDoc, doc, query, where
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
       authDomain: "bradley-gigrunner.firebaseapp.com",
-      projectId: "bradley-gigrunner",
-      storageBucket: "bradley-gigrunner.appspot.com",
-      messagingSenderId: "497753581430",
-      appId: "1:497753581430:web:db6c22866194dd3285bc57"
+      projectId: "bradley-gigrunner"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth();
 
-    let currentAdminId = null;
-    let allRequests = [];
-    let activeChatRequestId = null;
-    let editRequestId = null;
+    let requests = [];
+    let editId = null;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const roles = userDoc.exists() ? userDoc.data().roles || [] : [];
-      if (!roles.includes("admin")) {
-        alert("Access denied");
-        await signOut(auth);
-        return location.href = "login.html";
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (!snap.exists() || !(snap.data().roles || []).includes("admin")) {
+        alert("Access denied"); await signOut(auth); return location.href = "login.html";
       }
-      currentAdminId = user.uid;
-      loadRequests();
+      loadJobs();
     });
 
-    function loadRequests() {
+    async function loadJobs() {
       const q = query(collection(db, "requests"));
-      onSnapshot(q, async snapshot => {
-        allRequests = [];
-        const badgeTracker = {};
-        for (const docSnap of snapshot.docs) {
-          const data = docSnap.data();
-          const metaPath = doc(db, "requests", docSnap.id, "meta", "status");
-          const metaSnap = await getDoc(metaPath).catch(() => null);
-          badgeTracker[docSnap.id] = metaSnap?.exists() && metaSnap.data().newForAdmin;
-          allRequests.push({ id: docSnap.id, ...data });
-        }
-        renderRequests(badgeTracker);
-      });
+      const snap = await getDocs(q);
+      requests = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderJobs();
     }
 
-    function renderRequests(badges = {}) {
-      const tbody = document.getElementById("requestsTable");
+    function renderJobs(filtered = requests) {
+      const tbody = document.getElementById("jobTable");
       tbody.innerHTML = "";
-      allRequests.forEach(req => {
-        const eta = req.eta ? new Date(req.eta) : null;
-        const etaText = eta ? ((min => min < 0 ? `<span style='color:red;'>⏰ overdue</span>` : `<span style='color:${min<=15 ? 'green' : min<=30 ? 'orange' : '#777'}; font-weight:bold;'>in ${min} min</span>`)(Math.round((eta - Date.now()) / 60000))) : "—";
-        const created = req.timestamp?.seconds ? new Date(req.timestamp.seconds * 1000).toLocaleString() : "";
-        const badge = badges[req.id] ? "<span class='badge'>New</span>" : "";
+      let total = 0, completed = 0, payoutSum = 0;
+      filtered.forEach(r => {
+        total++;
+        if (r.status === "completed") completed++;
+        payoutSum += r.payout || 0;
+        const date = r.timestamp?.seconds ? new Date(r.timestamp.seconds * 1000).toLocaleString() : "—";
         tbody.innerHTML += `
           <tr>
-            <td>${req.pickup}</td>
-            <td>${req.dropoff}</td>
-            <td>${req.status}</td>
-            <td>${req.paid ? "✅" : "❌"}</td>
-            <td>${created}</td>
-            <td>${req.userId}</td>
-            <td>${etaText}</td>
+            <td>${r.pickup}</td>
+            <td>${r.dropoff}</td>
+            <td>${r.status}</td>
+            <td>${r.paid ? "✅" : "❌"}</td>
+            <td>$${r.tip?.toFixed(2) || "0.00"}</td>
+            <td>$${r.payout?.toFixed(2) || "0.00"}</td>
+            <td>${date}</td>
             <td>
-              <button class='action-btn' onclick="openEditModal('${req.id}', '${req.driver || ''}', '${req.eta || ''}')">✏️ Edit</button>
-              <button class='action-btn' onclick="openChat('${req.id}')">💬 Chat ${badge}</button>
-              <button class='action-btn delete-btn' onclick="deleteRequest('${req.id}')">🗑 Delete</button>
+              <button class="action-btn" onclick="editJob('${r.id}')">✏️</button>
+              <button class="delete-btn action-btn" onclick="deleteJob('${r.id}')">🗑</button>
             </td>
           </tr>`;
       });
+      document.getElementById("totalJobs").textContent = total;
+      document.getElementById("completedJobs").textContent = completed;
+      document.getElementById("totalPayout").textContent = payoutSum.toFixed(2);
     }
 
-    window.openEditModal = (id, driver, eta) => {
-      editRequestId = id;
-      document.getElementById("modalDriver").value = driver;
-      document.getElementById("modalETAMins").value = eta ? Math.round((new Date(eta) - Date.now()) / 60000) : "";
-      document.getElementById("editModal").style.display = "block";
-    };
+    function filterJobs() {
+      const status = document.getElementById("statusFilter").value;
+      const start = document.getElementById("startDate").valueAsDate;
+      const end = document.getElementById("endDate").valueAsDate;
+      renderJobs(requests.filter(r => {
+        const t = r.timestamp?.seconds ? new Date(r.timestamp.seconds * 1000) : null;
+        return (!status || r.status === status) &&
+          (!start || (t && t >= start)) &&
+          (!end || (t && t <= end));
+      }));
+    }
 
-    window.saveRequestChanges = async () => {
-      const driver = document.getElementById("modalDriver").value;
-      const etaMins = parseInt(document.getElementById("modalETAMins").value);
-      if (!editRequestId || isNaN(etaMins)) return;
-      const eta = new Date(Date.now() + etaMins * 60000).toISOString();
-      await updateDoc(doc(db, "requests", editRequestId), { driver, eta });
+    function logout() {
+      signOut(auth).then(() => location.href = "login.html");
+    }
+
+    function editJob(id) {
+      editId = id;
+      const job = requests.find(r => r.id === id);
+      if (!job) return;
+      document.getElementById("editDriver").value = job.driver || "";
+      document.getElementById("editStatus").value = job.status;
+      document.getElementById("editModal").style.display = "flex";
+    }
+
+    async function saveEdit() {
+      const driver = document.getElementById("editDriver").value;
+      const status = document.getElementById("editStatus").value;
+      if (!editId) return;
+      await updateDoc(doc(db, "requests", editId), { driver, status });
       document.getElementById("editModal").style.display = "none";
-    };
+      loadJobs();
+    }
 
-    window.deleteRequest = async (id) => {
-      if (confirm("Delete this request?")) await deleteDoc(doc(db, "requests", id));
-    };
+    async function deleteJob(id) {
+      if (confirm("Delete this request?")) {
+        await deleteDoc(doc(db, "requests", id));
+        loadJobs();
+      }
+    }
 
-    window.openChat = async (requestId) => {
-      activeChatRequestId = requestId;
-      document.getElementById("chatModal").style.display = "block";
-      const messagesDiv = document.getElementById("chatMessages");
-      messagesDiv.innerHTML = "Loading...";
-      const q = query(collection(db, "requests", requestId, "messages"), orderBy("timestamp"));
-      onSnapshot(q, snapshot => {
-        messagesDiv.innerHTML = "";
-        snapshot.forEach(doc => {
-          const m = doc.data();
-          const who = m.userId === currentAdminId ? "🧑‍💼 You" : "👤 Other";
-          messagesDiv.innerHTML += `<p><strong>${who}:</strong> ${m.text}</p>`;
-        });
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    function closeModal() {
+      document.getElementById("editModal").style.display = "none";
+    }
+
+    function exportPDF() {
+      const doc = new jsPDF();
+      doc.text("Job Report", 10, 10);
+      let y = 20;
+      requests.forEach(r => {
+        const line = `${r.pickup} → ${r.dropoff} | ${r.status} | $${(r.payout || 0).toFixed(2)} | Tip: $${(r.tip || 0).toFixed(2)}`;
+        doc.text(line, 10, y);
+        y += 10;
       });
-      const metaRef = doc(db, "requests", requestId, "meta", "status");
-      await updateDoc(metaRef, { newForAdmin: false }).catch(() => {});
-    };
-
-    window.sendMessage = async () => {
-      const input = document.getElementById("chatInput");
-      const text = input.value.trim();
-      if (!text || !activeChatRequestId) return;
-      await addDoc(collection(db, "requests", activeChatRequestId, "messages"), {
-        text,
-        userId: currentAdminId,
-        timestamp: new Date()
-      });
-      const metaRef = doc(db, "requests", activeChatRequestId, "meta", "status");
-      await updateDoc(metaRef, { newForDriver: true }).catch(() => {});
-      input.value = "";
-    };
-
-    window.closeChat = () => {
-      document.getElementById("chatModal").style.display = "none";
-    };
-
-    document.getElementById("logoutButton").addEventListener("click", async () => {
-      await signOut(auth);
-      window.location.href = "login.html";
-    });
+      doc.save("jobs_report.pdf");
+    }
   </script>
 </body>
 </html>
