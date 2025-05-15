@@ -4,45 +4,78 @@
   <meta charset="UTF-8" />
   <title>Admin Dashboard – Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.ico" />
   <style>
-    body { font-family: Arial, sans-serif; background: #f9fafb; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f9fafb;
+    }
     header {
-      background: #1a4d2e; color: white; padding: 10px; text-align: center;
-      position: relative;
+      background: #1a4d2e;
+      color: white;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     .tabs {
-      display: flex; justify-content: center; background: #e8f5e9;
-      flex-wrap: wrap; padding: 10px;
+      display: flex;
+      justify-content: center;
+      background: #e0f2f1;
+      padding: 10px;
     }
     .tabs button {
-      margin: 5px; padding: 10px 20px; background: #1a4d2e;
-      color: white; border: none; border-radius: 5px; cursor: pointer;
+      background: #1a4d2e;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin: 0 5px;
+      cursor: pointer;
+      border-radius: 5px;
     }
-    .tabs button:hover { background: #145032; }
-    .tab-content { display: none; padding: 20px; }
-    .tab-content.active { display: block; }
+    .tabs button.active {
+      background: #145032;
+    }
+    .tab-content {
+      display: none;
+      padding: 20px;
+    }
+    .tab-content.active {
+      display: block;
+    }
     table {
-      width: 100%; border-collapse: collapse; margin-top: 20px;
+      width: 100%;
+      border-collapse: collapse;
       background: white;
+      margin-top: 10px;
     }
-    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
-    th { background: #e0f2f1; }
-    .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; }
-    .btn-green { background: #4caf50; color: white; }
-    .btn-red { background: #e53935; color: white; }
-    .btn-blue { background: #1e88e5; color: white; }
-    .btn:hover { opacity: 0.8; }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background: #c8e6c9;
+    }
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 5px;
+      margin: 2px;
+      cursor: pointer;
+    }
+    .btn.green { background: #4caf50; color: white; }
+    .btn.red { background: #e53935; color: white; }
+    .btn.blue { background: #1976d2; color: white; }
     .logout {
-      position: absolute; top: 10px; right: 20px;
-      background: #e53935; color: white;
-      border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer;
-    }
-    .summary { font-weight: bold; margin-top: 10px; }
-    @media (max-width: 600px) {
-      .tabs { flex-direction: column; }
-      table, th, td { font-size: 14px; }
+      background: #e53935;
+      border: none;
+      padding: 8px 14px;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -53,12 +86,12 @@
   </header>
 
   <div class="tabs">
-    <button onclick="showTab('requests')">Requests</button>
-    <button onclick="showTab('recurring')">Recurring Jobs</button>
-    <button onclick="showTab('earnings')">Earnings</button>
+    <button onclick="showTab('requestsTab')" class="active">Requests</button>
+    <button onclick="showTab('recurringTab')">Recurring Jobs</button>
+    <button onclick="showTab('earningsTab')">Earnings</button>
   </div>
 
-  <div id="requests" class="tab-content active">
+  <div id="requestsTab" class="tab-content active">
     <h3>Service Requests</h3>
     <table id="requestsTable">
       <thead>
@@ -75,33 +108,35 @@
     </table>
   </div>
 
-  <div id="recurring" class="tab-content">
-    <h3>Recurring Jobs</h3>
-    <p>Coming soon: scheduling and managing recurring deliveries.</p>
+  <div id="recurringTab" class="tab-content">
+    <h3>Recurring Job Scheduler</h3>
+    <input type="text" id="recurringPickup" placeholder="Pickup Address" />
+    <input type="text" id="recurringDropoff" placeholder="Dropoff Address" />
+    <input type="text" id="recurringDriver" placeholder="Driver ID" />
+    <input type="date" id="recurringDate" />
+    <button class="btn blue" onclick="scheduleRecurringJob()">Schedule</button>
+    <div id="recurringJobsList"></div>
   </div>
 
-  <div id="earnings" class="tab-content">
-    <h3>Earnings Report</h3>
-    <div class="summary" id="monthlySummary">Loading summary...</div>
-    <button class="btn btn-blue" onclick="exportEarnings()">Export to PDF</button>
+  <div id="earningsTab" class="tab-content">
+    <h3>Monthly Earnings Summary</h3>
+    <p><strong>Total Earnings:</strong> $<span id="monthlyTotal">0.00</span></p>
+    <button class="btn green" onclick="exportEarnings()">Export to PDF</button>
     <table id="earningsTable">
       <thead>
-        <tr>
-          <th>Date</th>
-          <th>Driver</th>
-          <th>Payout</th>
-          <th>Tip</th>
-        </tr>
+        <tr><th>Date</th><th>Base</th><th>Tip</th><th>Total</th></tr>
       </thead>
       <tbody></tbody>
     </table>
   </div>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import {
+      getAuth, onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import {
       getFirestore, collection, query, orderBy, onSnapshot,
-      doc, updateDoc, deleteDoc, getDocs
+      addDoc, updateDoc, deleteDoc, doc, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
     import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 
@@ -117,14 +152,13 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth();
+    let totalEarnings = 0;
 
-    let currentAdminId = null;
-
-    onAuthStateChanged(auth, async user => {
+    onAuthStateChanged(auth, user => {
       if (!user) return location.href = "login.html";
-      currentAdminId = user.uid;
       loadRequests();
       loadEarnings();
+      loadRecurringJobs();
     });
 
     function logout() {
@@ -132,8 +166,10 @@
     }
 
     function showTab(id) {
-      document.querySelectorAll('.tab-content').forEach(div => div.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tabs button').forEach(btn => btn.classList.remove('active'));
       document.getElementById(id).classList.add('active');
+      document.querySelector(`[onclick="showTab('${id}')"]`).classList.add('active');
     }
 
     function loadRequests() {
@@ -143,90 +179,105 @@
         tbody.innerHTML = "";
         snapshot.forEach(docSnap => {
           const d = docSnap.data();
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
+          const row = document.createElement("tr");
+
+          row.innerHTML = `
             <td>${d.pickup}</td>
             <td>${d.dropoff}</td>
-            <td><input type="text" value="${d.driver || ""}" onchange="assignDriver('${docSnap.id}', this.value)" /></td>
+            <td>
+              <input value="${d.driver || ''}" onchange="assignDriver('${docSnap.id}', this.value)" />
+            </td>
             <td>
               <select onchange="updateStatus('${docSnap.id}', this.value)">
-                <option value="pending" ${d.status === "pending" ? "selected" : ""}>Pending</option>
-                <option value="in progress" ${d.status === "in progress" ? "selected" : ""}>In Progress</option>
-                <option value="completed" ${d.status === "completed" ? "selected" : ""}>Completed</option>
+                <option value="pending" ${d.status === 'pending' ? 'selected' : ''}>Pending</option>
+                <option value="in-progress" ${d.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                <option value="delivered" ${d.status === 'delivered' ? 'selected' : ''}>Delivered</option>
               </select>
             </td>
             <td>${d.paid ? "✅" : "❌"}</td>
             <td>
-              <button class="btn btn-green" onclick="markPaid('${docSnap.id}')">Mark Paid</button>
-              <button class="btn btn-red" onclick="deleteRequest('${docSnap.id}')">Delete</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
+              <button class="btn green" onclick="markPaid('${docSnap.id}')">Mark Paid</button>
+              <button class="btn red" onclick="deleteRequest('${docSnap.id}')">Delete</button>
+            </td>`;
+          tbody.appendChild(row);
         });
       });
     }
 
-    window.assignDriver = async (id, driver) => {
-      const ref = doc(db, "requests", id);
-      await updateDoc(ref, { driver });
-    };
-
-    window.updateStatus = async (id, status) => {
-      const ref = doc(db, "requests", id);
-      await updateDoc(ref, { status });
-    };
-
     window.markPaid = async (id) => {
-      const ref = doc(db, "requests", id);
-      await updateDoc(ref, { paid: true });
-      alert("Marked as paid.");
+      await updateDoc(doc(db, "requests", id), { paid: true });
     };
 
     window.deleteRequest = async (id) => {
-      if (confirm("Are you sure you want to delete this request?")) {
+      if (confirm("Delete this request?")) {
         await deleteDoc(doc(db, "requests", id));
       }
     };
 
+    window.assignDriver = async (id, value) => {
+      await updateDoc(doc(db, "requests", id), { driver: value });
+    };
+
+    window.updateStatus = async (id, value) => {
+      await updateDoc(doc(db, "requests", id), { status: value });
+    };
+
+    window.scheduleRecurringJob = async () => {
+      const pickup = document.getElementById("recurringPickup").value.trim();
+      const dropoff = document.getElementById("recurringDropoff").value.trim();
+      const driver = document.getElementById("recurringDriver").value.trim();
+      const date = document.getElementById("recurringDate").value;
+      if (!pickup || !dropoff || !driver || !date) return alert("All fields required.");
+      await addDoc(collection(db, "recurringJobs"), {
+        pickup, dropoff, driver, date, created: serverTimestamp()
+      });
+      alert("Recurring job scheduled.");
+      loadRecurringJobs();
+    };
+
+    function loadRecurringJobs() {
+      const list = document.getElementById("recurringJobsList");
+      onSnapshot(collection(db, "recurringJobs"), snapshot => {
+        list.innerHTML = "";
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          list.innerHTML += `<p><strong>${d.date}</strong>: ${d.pickup} → ${d.dropoff} (${d.driver})</p>`;
+        });
+      });
+    }
+
     function loadEarnings() {
-      const tbody = document.querySelector("#earningsTable tbody");
-      const summaryBox = document.getElementById("monthlySummary");
+      const tbody = document.getElementById("earningsTable").querySelector("tbody");
+      totalEarnings = 0;
       const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
-      let total = 0, tipTotal = 0;
       onSnapshot(q, snapshot => {
         tbody.innerHTML = "";
         snapshot.forEach(doc => {
           const d = doc.data();
-          if (!d.payout && !d.tip) return;
-          const payout = d.payout || 0;
+          const base = d.payout || 0;
           const tip = d.tip || 0;
+          const total = base + tip;
           const date = d.timestamp?.seconds ? new Date(d.timestamp.seconds * 1000).toLocaleDateString() : "—";
-          total += payout;
-          tipTotal += tip;
-          tbody.innerHTML += `
-            <tr>
-              <td>${date}</td>
-              <td>${d.driver || "—"}</td>
-              <td>$${payout.toFixed(2)}</td>
-              <td>$${tip.toFixed(2)}</td>
-            </tr>`;
+          totalEarnings += total;
+          tbody.innerHTML += `<tr><td>${date}</td><td>$${base.toFixed(2)}</td><td>$${tip.toFixed(2)}</td><td>$${total.toFixed(2)}</td></tr>`;
         });
-        summaryBox.textContent = `Total Payouts: $${total.toFixed(2)} | Total Tips: $${tipTotal.toFixed(2)} | Grand Total: $${(total + tipTotal).toFixed(2)}`;
+        document.getElementById("monthlyTotal").textContent = totalEarnings.toFixed(2);
       });
     }
 
     window.exportEarnings = () => {
+      const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
+      doc.text("Earnings Summary – Bradley GigRunner", 10, 10);
       const rows = document.querySelectorAll("#earningsTable tbody tr");
-      doc.text("Earnings Report – Bradley GigRunner", 10, 10);
       let y = 20;
-      rows.forEach(r => {
-        const cols = r.querySelectorAll("td");
-        const line = Array.from(cols).map(td => td.textContent).join(" | ");
+      rows.forEach(row => {
+        const cols = row.querySelectorAll("td");
+        const line = [...cols].map(td => td.textContent).join(" | ");
         doc.text(line, 10, y);
-        y += 8;
+        y += 10;
       });
-      doc.save("earnings_report.pdf");
+      doc.save("earnings_summary.pdf");
     };
   </script>
 </body>
