@@ -4,45 +4,46 @@
   <meta charset="UTF-8" />
   <title>Admin Dashboard – Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.ico" />
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #f9fafb;
+      background: #f4f9f4;
       margin: 0;
+      padding: 0;
     }
     header {
       background: #1a4d2e;
       color: white;
-      padding: 12px;
+      padding: 10px;
       text-align: center;
       position: relative;
     }
     .logout {
       position: absolute;
+      top: 10px;
       right: 20px;
-      top: 14px;
-      background: #e53935;
-      color: white;
+      background: #c62828;
       border: none;
-      border-radius: 5px;
-      padding: 6px 12px;
+      color: white;
+      padding: 6px 14px;
+      border-radius: 6px;
       cursor: pointer;
     }
     .tabs {
       display: flex;
       justify-content: center;
+      background: #e0f2f1;
       padding: 10px;
-      background: #e8f5e9;
     }
     .tabs button {
-      margin: 0 5px;
-      padding: 10px 18px;
+      margin: 0 6px;
+      padding: 10px 16px;
       background: #1a4d2e;
       color: white;
       border: none;
-      border-radius: 5px;
+      border-radius: 6px;
       cursor: pointer;
     }
     .tabs button:hover {
@@ -59,33 +60,29 @@
       width: 100%;
       border-collapse: collapse;
       background: white;
+      margin-top: 10px;
     }
     th, td {
       padding: 10px;
       border: 1px solid #ccc;
     }
     th {
-      background: #d0f0d0;
+      background: #e8f5e9;
     }
     .btn {
-      padding: 6px 10px;
-      border: none;
+      padding: 5px 10px;
       border-radius: 4px;
+      border: none;
       cursor: pointer;
     }
-    .btn-green { background: #4caf50; color: white; }
-    .btn-red { background: #e53935; color: white; }
-    .summary {
-      font-weight: bold;
-      margin-bottom: 15px;
+    .btn-green { background: #2e7d32; color: white; }
+    .btn-red { background: #c62828; color: white; }
+    .filter-bar {
+      margin-bottom: 10px;
     }
-    @media (max-width: 768px) {
-      table, thead, tbody, th, td, tr {
-        display: block;
-      }
-      th {
-        background: #c5e1a5;
-      }
+    select {
+      padding: 6px;
+      margin-left: 6px;
     }
   </style>
 </head>
@@ -103,6 +100,16 @@
 
   <div id="requests" class="tab-content active">
     <h3>Service Requests</h3>
+    <div class="filter-bar">
+      <label>Status:
+        <select id="statusFilter" onchange="loadRequests()">
+          <option value="">All</option>
+          <option value="pending">Pending</option>
+          <option value="assigned">Assigned</option>
+          <option value="completed">Completed</option>
+        </select>
+      </label>
+    </div>
     <table>
       <thead>
         <tr>
@@ -117,17 +124,17 @@
       <tbody id="requestsTable"></tbody>
     </table>
   </div>
-
   <div id="recurring" class="tab-content">
     <h3>Recurring Jobs</h3>
-    <p>Coming soon: schedule weekly or daily recurring deliveries with auto-assignments.</p>
+    <p>Coming soon: scheduling weekly/monthly recurring deliveries with driver auto-assignment.</p>
   </div>
 
   <div id="earnings" class="tab-content">
-    <h3>Earnings Report</h3>
-    <div class="summary">Monthly Total: $<span id="monthlyTotal">0.00</span></div>
-    <button class="btn btn-green" onclick="exportPDF()">📄 Export PDF</button>
+    <h3>Earnings Summary</h3>
+    <p><strong>Total Earnings:</strong> $<span id="earningsTotal">0.00</span></p>
+    <button class="btn btn-green" onclick="exportEarnings()">📄 Export to PDF</button>
   </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import {
@@ -135,9 +142,9 @@
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import {
       getFirestore, collection, query, orderBy, onSnapshot,
-      doc, updateDoc, deleteDoc
+      doc, updateDoc, deleteDoc, getDocs
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-    import { jsPDF } from "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm";
+    import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -153,86 +160,98 @@
     const auth = getAuth();
 
     let currentAdminId = null;
-    let totalEarnings = 0;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
       currentAdminId = user.uid;
       loadRequests();
+      loadEarnings();
     });
 
     function logout() {
       signOut(auth).then(() => location.href = "login.html");
     }
 
-    window.showTab = (id) => {
-      document.querySelectorAll(".tab-content").forEach(tab => {
-        tab.classList.remove("active");
-      });
-      document.getElementById(id).classList.add("active");
-    };
+    function showTab(id) {
+      document.querySelectorAll('.tab-content').forEach(div => div.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
 
-    function loadRequests() {
+    async function loadRequests() {
       const tbody = document.getElementById("requestsTable");
+      const statusFilter = document.getElementById("statusFilter").value;
       const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
-      onSnapshot(q, snapshot => {
-        tbody.innerHTML = "";
-        totalEarnings = 0;
-        snapshot.forEach(docSnap => {
-          const d = docSnap.data();
-          const tr = document.createElement("tr");
-          const tip = parseFloat(d.tip || 0);
-          if (d.paid) totalEarnings += tip;
+      const snapshot = await getDocs(q);
+      tbody.innerHTML = "";
 
-          tr.innerHTML = `
-            <td>${d.pickup || "—"}</td>
-            <td>${d.dropoff || "—"}</td>
-            <td>
-              <input value="${d.driver || ""}" onchange="assignDriver('${docSnap.id}', this.value)" placeholder="Assign driver" />
-            </td>
-            <td>
-              <select onchange="updateStatus('${docSnap.id}', this.value)">
-                <option ${d.status === "pending" ? "selected" : ""}>pending</option>
-                <option ${d.status === "in progress" ? "selected" : ""}>in progress</option>
-                <option ${d.status === "completed" ? "selected" : ""}>completed</option>
-              </select>
-            </td>
-            <td>${d.paid ? "✅" : "❌"}</td>
-            <td>
-              <button class="btn btn-green" onclick="markPaid('${docSnap.id}')">Mark Paid</button>
-              <button class="btn btn-red" onclick="deleteRequest('${docSnap.id}')">Delete</button>
-            </td>
-          `;
-          tbody.appendChild(tr);
-        });
-        document.getElementById("monthlyTotal").textContent = totalEarnings.toFixed(2);
+      snapshot.forEach(docSnap => {
+        const d = docSnap.data();
+        if (statusFilter && d.status !== statusFilter) return;
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${d.pickup}</td>
+          <td>${d.dropoff}</td>
+          <td><input value="${d.driver || ''}" onchange="assignDriver('${docSnap.id}', this.value)" /></td>
+          <td>
+            <select onchange="updateStatus('${docSnap.id}', this.value)">
+              <option value="pending" ${d.status === "pending" ? "selected" : ""}>Pending</option>
+              <option value="assigned" ${d.status === "assigned" ? "selected" : ""}>Assigned</option>
+              <option value="completed" ${d.status === "completed" ? "selected" : ""}>Completed</option>
+            </select>
+          </td>
+          <td>${d.paid ? "✅" : "❌"}</td>
+          <td>
+            <button class="btn btn-green" onclick="markPaid('${docSnap.id}')">Mark Paid</button>
+            <button class="btn btn-red" onclick="deleteRequest('${docSnap.id}')">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(row);
       });
     }
 
-    window.markPaid = async (id) => {
+    async function assignDriver(requestId, driverName) {
+      await updateDoc(doc(db, "requests", requestId), { driver: driverName });
+      alert("Driver assigned.");
+    }
+
+    async function updateStatus(requestId, newStatus) {
+      await updateDoc(doc(db, "requests", requestId), { status: newStatus });
+      alert("Status updated.");
+    }
+
+    async function markPaid(id) {
       await updateDoc(doc(db, "requests", id), { paid: true });
-    };
+      alert("Marked as paid.");
+      loadRequests();
+    }
 
-    window.deleteRequest = async (id) => {
-      if (confirm("Are you sure?")) {
+    async function deleteRequest(id) {
+      if (confirm("Delete this request?")) {
         await deleteDoc(doc(db, "requests", id));
+        loadRequests();
       }
-    };
+    }
 
-    window.assignDriver = async (id, driverName) => {
-      await updateDoc(doc(db, "requests", id), { driver: driverName });
-    };
+    async function loadEarnings() {
+      const q = query(collection(db, "requests"));
+      const snapshot = await getDocs(q);
+      let total = 0;
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        if (d.paid && d.payout) total += d.payout;
+      });
+      document.getElementById("earningsTotal").textContent = total.toFixed(2);
+    }
 
-    window.updateStatus = async (id, status) => {
-      await updateDoc(doc(db, "requests", id), { status });
-    };
-
-    window.exportPDF = () => {
+    function exportEarnings() {
+      const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-      doc.text("Bradley GigRunner - Monthly Earnings", 10, 10);
-      doc.text(`Total Earnings: $${totalEarnings.toFixed(2)}`, 10, 20);
-      doc.save("earnings_summary.pdf");
-    };
+      const total = document.getElementById("earningsTotal").textContent;
+      doc.text("Earnings Report - Bradley GigRunner", 10, 10);
+      doc.text("Total Earnings: $" + total, 10, 20);
+      doc.save("earnings_report.pdf");
+    }
   </script>
 </body>
 </html>
