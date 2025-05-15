@@ -2,255 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Dashboard – Bradley GigRunner</title>
+  <title>Admin Dashboard - Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="favicon.ico" />
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f9f4;
-      margin: 0;
-      padding: 0;
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f7f9; }
+    header { background: #1a4d2e; color: white; padding: 15px; text-align: center; }
+    .tab-buttons { display: flex; justify-content: center; background: #dcefe7; padding: 10px; }
+    .tab-buttons button {
+      margin: 0 10px; padding: 10px 20px; background: #1a4d2e; color: white;
+      border: none; border-radius: 5px; cursor: pointer;
     }
-    header {
-      background: #1a4d2e;
-      color: white;
-      padding: 10px;
-      text-align: center;
-      position: relative;
-    }
-    .logout {
-      position: absolute;
-      top: 10px;
-      right: 20px;
-      background: #c62828;
-      border: none;
-      color: white;
-      padding: 6px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .tabs {
-      display: flex;
-      justify-content: center;
-      background: #e0f2f1;
-      padding: 10px;
-    }
-    .tabs button {
-      margin: 0 6px;
-      padding: 10px 16px;
-      background: #1a4d2e;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .tabs button:hover {
-      background: #145032;
-    }
-    .tab-content {
-      display: none;
-      padding: 20px;
-    }
-    .tab-content.active {
-      display: block;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      margin-top: 10px;
-    }
-    th, td {
-      padding: 10px;
-      border: 1px solid #ccc;
-    }
-    th {
-      background: #e8f5e9;
-    }
-    .btn {
-      padding: 5px 10px;
-      border-radius: 4px;
-      border: none;
-      cursor: pointer;
-    }
-    .btn-green { background: #2e7d32; color: white; }
-    .btn-red { background: #c62828; color: white; }
-    .filter-bar {
-      margin-bottom: 10px;
-    }
-    select {
-      padding: 6px;
-      margin-left: 6px;
-    }
+    .tab-buttons button:hover { background: #145032; }
+    .tab-content { display: none; padding: 20px; }
+    .tab-content.active { display: block; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
+    th { background: #e8f5e9; }
   </style>
 </head>
 <body>
   <header>
-    <h2>Admin Dashboard – Bradley GigRunner</h2>
-    <button class="logout" onclick="logout()">Logout</button>
+    <h2>Bradley GigRunner Admin</h2>
   </header>
 
-  <div class="tabs">
+  <div class="tab-buttons">
     <button onclick="showTab('requests')">Requests</button>
-    <button onclick="showTab('recurring')">Recurring Jobs</button>
     <button onclick="showTab('earnings')">Earnings</button>
   </div>
 
   <div id="requests" class="tab-content active">
     <h3>Service Requests</h3>
-    <div class="filter-bar">
-      <label>Status:
-        <select id="statusFilter" onchange="loadRequests()">
-          <option value="">All</option>
-          <option value="pending">Pending</option>
-          <option value="assigned">Assigned</option>
-          <option value="completed">Completed</option>
-        </select>
-      </label>
-    </div>
     <table>
       <thead>
-        <tr>
-          <th>Pickup</th>
-          <th>Dropoff</th>
-          <th>Driver</th>
-          <th>Status</th>
-          <th>Paid</th>
-          <th>Actions</th>
-        </tr>
+        <tr><th>Pickup</th><th>Dropoff</th><th>Status</th></tr>
       </thead>
-      <tbody id="requestsTable"></tbody>
+      <tbody id="requestList">
+        <tr><td>123 Main</td><td>456 Oak</td><td>Pending</td></tr>
+      </tbody>
     </table>
-  </div>
-  <div id="recurring" class="tab-content">
-    <h3>Recurring Jobs</h3>
-    <p>Coming soon: scheduling weekly/monthly recurring deliveries with driver auto-assignment.</p>
   </div>
 
   <div id="earnings" class="tab-content">
-    <h3>Earnings Summary</h3>
-    <p><strong>Total Earnings:</strong> $<span id="earningsTotal">0.00</span></p>
-    <button class="btn btn-green" onclick="exportEarnings()">📄 Export to PDF</button>
+    <h3>Total Earnings</h3>
+    <p>$0.00</p>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import {
-      getAuth, signOut, onAuthStateChanged
-    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import {
-      getFirestore, collection, query, orderBy, onSnapshot,
-      doc, updateDoc, deleteDoc, getDocs
-    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-    import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
-      authDomain: "bradley-gigrunner.firebaseapp.com",
-      projectId: "bradley-gigrunner",
-      storageBucket: "bradley-gigrunner.appspot.com",
-      messagingSenderId: "497753581430",
-      appId: "1:497753581430:web:db6c22866194dd3285bc57"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth();
-
-    let currentAdminId = null;
-
-    onAuthStateChanged(auth, async user => {
-      if (!user) return location.href = "login.html";
-      currentAdminId = user.uid;
-      loadRequests();
-      loadEarnings();
-    });
-
-    function logout() {
-      signOut(auth).then(() => location.href = "login.html");
-    }
-
+  <script>
     function showTab(id) {
-      document.querySelectorAll('.tab-content').forEach(div => div.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.getElementById(id).classList.add('active');
-    }
-
-    async function loadRequests() {
-      const tbody = document.getElementById("requestsTable");
-      const statusFilter = document.getElementById("statusFilter").value;
-      const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
-      const snapshot = await getDocs(q);
-      tbody.innerHTML = "";
-
-      snapshot.forEach(docSnap => {
-        const d = docSnap.data();
-        if (statusFilter && d.status !== statusFilter) return;
-
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${d.pickup}</td>
-          <td>${d.dropoff}</td>
-          <td><input value="${d.driver || ''}" onchange="assignDriver('${docSnap.id}', this.value)" /></td>
-          <td>
-            <select onchange="updateStatus('${docSnap.id}', this.value)">
-              <option value="pending" ${d.status === "pending" ? "selected" : ""}>Pending</option>
-              <option value="assigned" ${d.status === "assigned" ? "selected" : ""}>Assigned</option>
-              <option value="completed" ${d.status === "completed" ? "selected" : ""}>Completed</option>
-            </select>
-          </td>
-          <td>${d.paid ? "✅" : "❌"}</td>
-          <td>
-            <button class="btn btn-green" onclick="markPaid('${docSnap.id}')">Mark Paid</button>
-            <button class="btn btn-red" onclick="deleteRequest('${docSnap.id}')">Delete</button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
-
-    async function assignDriver(requestId, driverName) {
-      await updateDoc(doc(db, "requests", requestId), { driver: driverName });
-      alert("Driver assigned.");
-    }
-
-    async function updateStatus(requestId, newStatus) {
-      await updateDoc(doc(db, "requests", requestId), { status: newStatus });
-      alert("Status updated.");
-    }
-
-    async function markPaid(id) {
-      await updateDoc(doc(db, "requests", id), { paid: true });
-      alert("Marked as paid.");
-      loadRequests();
-    }
-
-    async function deleteRequest(id) {
-      if (confirm("Delete this request?")) {
-        await deleteDoc(doc(db, "requests", id));
-        loadRequests();
-      }
-    }
-
-    async function loadEarnings() {
-      const q = query(collection(db, "requests"));
-      const snapshot = await getDocs(q);
-      let total = 0;
-      snapshot.forEach(doc => {
-        const d = doc.data();
-        if (d.paid && d.payout) total += d.payout;
-      });
-      document.getElementById("earningsTotal").textContent = total.toFixed(2);
-    }
-
-    function exportEarnings() {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      const total = document.getElementById("earningsTotal").textContent;
-      doc.text("Earnings Report - Bradley GigRunner", 10, 10);
-      doc.text("Total Earnings: $" + total, 10, 20);
-      doc.save("earnings_report.pdf");
     }
   </script>
 </body>
