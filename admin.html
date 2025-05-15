@@ -1,4 +1,3 @@
-<!-- PART 1 of 2 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,56 +7,102 @@
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
   <style>
-    body { font-family: Arial, sans-serif; background: #f5f7fa; margin: 0; padding: 0; }
-    header {
-      background: #1a4d2e; color: white; padding: 1em;
-      display: flex; justify-content: space-between; align-items: center;
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      margin: 0;
+      padding: 0;
     }
-    button {
-      padding: 8px 12px;
-      margin: 4px;
+    header {
+      background: #1a4d2e;
+      color: white;
+      padding: 10px;
+      text-align: center;
+    }
+    .tabs {
+      display: flex;
+      justify-content: center;
+      background: #e8f5e9;
+      padding: 10px;
+    }
+    .tabs button {
+      margin: 0 5px;
+      padding: 10px 20px;
+      background: #1a4d2e;
+      color: white;
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      background: #1a4d2e;
-      color: white;
     }
-    button:hover { background: #145032; }
-    .tab-buttons {
-      display: flex;
-      background: #ddd;
-      justify-content: space-around;
-      padding: 10px;
+    .tabs button:hover {
+      background: #145032;
     }
-    .tab-buttons button.active { background: #1a4d2e; color: white; }
-    .tab-content { display: none; padding: 1em; }
-    .tab-content.active { display: block; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+    .tab-content {
+      display: none;
+      padding: 20px;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+    }
     th, td {
-      padding: 10px;
       border: 1px solid #ccc;
+      padding: 10px;
       text-align: left;
     }
-    th { background: #e0f0e9; }
-    .paid { color: green; }
-    .unpaid { color: red; }
+    th {
+      background: #e0f2f1;
+    }
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-green {
+      background: #4caf50;
+      color: white;
+    }
+    .btn-red {
+      background: #e53935;
+      color: white;
+    }
+    .btn:hover {
+      opacity: 0.8;
+    }
+    .logout {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      padding: 6px 14px;
+      background: #e53935;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <header>
     <h2>Admin Dashboard – Bradley GigRunner</h2>
-    <button onclick="logout()">Logout</button>
+    <button class="logout" onclick="logout()">Logout</button>
   </header>
 
-  <div class="tab-buttons">
-    <button onclick="showTab('requests')" class="active">Requests</button>
+  <div class="tabs">
+    <button onclick="showTab('requests')">Requests</button>
     <button onclick="showTab('recurring')">Recurring Jobs</button>
     <button onclick="showTab('earnings')">Earnings</button>
   </div>
 
   <div id="requests" class="tab-content active">
     <h3>Service Requests</h3>
-    <table>
+    <table id="requestsTable">
       <thead>
         <tr>
           <th>Pickup</th>
@@ -68,28 +113,28 @@
           <th>Actions</th>
         </tr>
       </thead>
-      <tbody id="requestTable"><tr><td colspan="6">Loading...</td></tr></tbody>
+      <tbody></tbody>
     </table>
   </div>
+
   <div id="recurring" class="tab-content">
     <h3>Recurring Jobs</h3>
-    <p>Coming soon – You can manage weekly deliveries or scheduled pickups here.</p>
+    <p>Coming soon: scheduling and managing recurring deliveries.</p>
   </div>
 
   <div id="earnings" class="tab-content">
     <h3>Earnings Report</h3>
-    <p>Total earned and payout breakdown will appear here once implemented.</p>
+    <p>Coming soon: export monthly totals, driver tips, and tax summaries.</p>
   </div>
-
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js';
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import {
-      getAuth, onAuthStateChanged, signOut
-    } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
+      getAuth, signOut, onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import {
-      getFirestore, collection, getDoc, doc, onSnapshot,
-      updateDoc, deleteDoc, query
-    } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
+      getFirestore, collection, query, orderBy, onSnapshot,
+      doc, updateDoc, deleteDoc
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -101,20 +146,14 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
     const db = getFirestore(app);
+    const auth = getAuth();
 
-    let currentAdmin = null;
+    let currentAdminId = null;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
-      const docSnap = await getDoc(doc(db, "users", user.uid));
-      if (!docSnap.exists() || !docSnap.data().roles?.includes("admin")) {
-        alert("Access denied.");
-        await signOut(auth);
-        return location.href = "login.html";
-      }
-      currentAdmin = user.uid;
+      currentAdminId = user.uid;
       loadRequests();
     });
 
@@ -123,47 +162,44 @@
     }
 
     function showTab(id) {
-      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-      document.querySelectorAll('.tab-buttons button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(div => {
+        div.classList.remove('active');
+      });
       document.getElementById(id).classList.add('active');
-      event.target.classList.add('active');
     }
 
     function loadRequests() {
-      const q = query(collection(db, "requests"));
-      const tbody = document.getElementById("requestTable");
+      const tbody = document.querySelector("#requestsTable tbody");
+      const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
       onSnapshot(q, snapshot => {
         tbody.innerHTML = "";
-        if (snapshot.empty) {
-          tbody.innerHTML = "<tr><td colspan='6'>No requests found.</td></tr>";
-          return;
-        }
         snapshot.forEach(docSnap => {
           const d = docSnap.data();
-          tbody.innerHTML += `
-            <tr>
-              <td>${d.pickup}</td>
-              <td>${d.dropoff}</td>
-              <td>${d.driver || "—"}</td>
-              <td>${d.status || "pending"}</td>
-              <td class="${d.paid ? 'paid' : 'unpaid'}">${d.paid ? "✅" : "❌"}</td>
-              <td>
-                <button onclick="markPaid('${docSnap.id}')">Mark Paid</button>
-                <button onclick="deleteRequest('${docSnap.id}')" style="background:#d9534f;">Delete</button>
-              </td>
-            </tr>
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${d.pickup}</td>
+            <td>${d.dropoff}</td>
+            <td>${d.driver || "—"}</td>
+            <td>${d.status || "pending"}</td>
+            <td>${d.paid ? "✅" : "❌"}</td>
+            <td>
+              <button class="btn btn-green" onclick="markPaid('${docSnap.id}')">Mark Paid</button>
+              <button class="btn btn-red" onclick="deleteRequest('${docSnap.id}')">Delete</button>
+            </td>
           `;
+          tbody.appendChild(tr);
         });
       });
     }
 
     window.markPaid = async (id) => {
-      await updateDoc(doc(db, "requests", id), { paid: true });
+      const ref = doc(db, "requests", id);
+      await updateDoc(ref, { paid: true });
       alert("Marked as paid.");
     };
 
     window.deleteRequest = async (id) => {
-      if (confirm("Delete this request?")) {
+      if (confirm("Are you sure you want to delete this request?")) {
         await deleteDoc(doc(db, "requests", id));
       }
     };
