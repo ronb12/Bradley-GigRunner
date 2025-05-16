@@ -5,9 +5,22 @@
   <title>Admin Dashboard - Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f7f9; }
-    header { background: #1a4d2e; color: white; padding: 15px; text-align: center; }
-    .tab-buttons { display: flex; justify-content: center; background: #dcefe7; padding: 10px; }
+    body {
+      font-family: Arial, sans-serif; margin: 0; padding: 0;
+      background: #f4f7f9; color: #222;
+    }
+    header {
+      background: #1a4d2e; color: white; padding: 15px; text-align: center;
+      position: relative;
+    }
+    .logout-btn {
+      position: absolute; right: 20px; top: 15px; padding: 8px 15px;
+      background: #fff; color: #1a4d2e; border: none; border-radius: 4px;
+      cursor: pointer;
+    }
+    .tab-buttons {
+      display: flex; justify-content: center; background: #dcefe7; padding: 10px;
+    }
     .tab-buttons button {
       margin: 0 10px; padding: 10px 20px; background: #1a4d2e; color: white;
       border: none; border-radius: 5px; cursor: pointer;
@@ -15,42 +28,123 @@
     .tab-buttons button:hover { background: #145032; }
     .tab-content { display: none; padding: 20px; }
     .tab-content.active { display: block; }
+
     table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
     th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
     th { background: #e8f5e9; }
+
+    .toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 10px;
+    }
+
+    .dark-mode {
+      background: #121212;
+      color: #e0e0e0;
+    }
+    .dark-mode table { background: #1f1f1f; color: #fff; }
+    .dark-mode th { background: #333; }
+
+    @media (max-width: 600px) {
+      .tab-buttons { flex-direction: column; align-items: center; }
+    }
   </style>
 </head>
 <body>
   <header>
     <h2>Bradley GigRunner Admin</h2>
+    <button class="logout-btn" onclick="logout()">Logout</button>
   </header>
 
   <div class="tab-buttons">
     <button onclick="showTab('requests')">Requests</button>
     <button onclick="showTab('earnings')">Earnings</button>
+    <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
   </div>
 
   <div id="requests" class="tab-content active">
-    <h3>Service Requests</h3>
+    <div class="toolbar">
+      <input type="text" id="searchInput" placeholder="Search pickup/dropoff..." onkeyup="filterRequests()" />
+      <button onclick="print()">Print</button>
+      <button onclick="exportToCSV()">Export CSV</button>
+    </div>
+
     <table>
       <thead>
         <tr><th>Pickup</th><th>Dropoff</th><th>Status</th></tr>
       </thead>
       <tbody id="requestList">
-        <tr><td>123 Main</td><td>456 Oak</td><td>Pending</td></tr>
+        <tr>
+          <td>123 Main</td>
+          <td>456 Oak</td>
+          <td>
+            <select onchange="handleStatusChange(this)">
+              <option>Pending</option>
+              <option>In Progress</option>
+              <option>Completed</option>
+            </select>
+          </td>
+        </tr>
       </tbody>
     </table>
   </div>
 
   <div id="earnings" class="tab-content">
     <h3>Total Earnings</h3>
-    <p>$0.00</p>
+    <p id="earningsAmount">$0.00</p>
   </div>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="firebase-init.js"></script>
 
   <script>
+    // Firebase Auth Check
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) window.location.href = "login.html";
+    });
+
+    function logout() {
+      firebase.auth().signOut().then(() => {
+        window.location.href = "login.html";
+      });
+    }
+
     function showTab(id) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.getElementById(id).classList.add('active');
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+    }
+
+    function filterRequests() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const rows = document.querySelectorAll("#requestList tr");
+      rows.forEach(row => {
+        const pickup = row.children[0].textContent.toLowerCase();
+        const dropoff = row.children[1].textContent.toLowerCase();
+        row.style.display = (pickup.includes(query) || dropoff.includes(query)) ? '' : 'none';
+      });
+    }
+
+    function exportToCSV() {
+      let csv = "Pickup,Dropoff,Status\n";
+      const rows = document.querySelectorAll("#requestList tr");
+      rows.forEach(row => {
+        const cols = row.querySelectorAll("td");
+        csv += `${cols[0].textContent},${cols[1].textContent},${cols[2].querySelector("select").value}\n`;
+      });
+      const blob = new Blob([csv], { type: "text/csv" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "requests.csv";
+      link.click();
+    }
+
+    function handleStatusChange(selectElement) {
+      // Add Firebase update logic here if needed
+      alert("Status updated to: " + selectElement.value);
     }
   </script>
 </body>
