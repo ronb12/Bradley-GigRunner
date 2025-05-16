@@ -92,34 +92,50 @@
     <button onclick="exportMonthlyReport()">Export Monthly Report</button>
   </div>
 
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="firebase-init.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { getFirestore, collection, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-  <script>
-    const db = firebase.firestore();
+    const firebaseConfig = {
+      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+      authDomain: "bradley-gigrunner.firebaseapp.com",
+      projectId: "bradley-gigrunner",
+      storageBucket: "bradley-gigrunner.appspot.com",
+      messagingSenderId: "497753581430",
+      appId: "1:497753581430:web:db6c22866194dd3285bc57"
+    };
 
-    firebase.auth().onAuthStateChanged(user => {
-      if (!user) window.location.href = "login.html";
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    window.logout = async () => {
+      try {
+        await signOut(auth);
+        window.location.href = "login.html";
+      } catch (err) {
+        console.error("Logout failed:", err);
+        alert("Logout error: " + err.message);
+      }
+    };
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = "login.html";
+      }
     });
 
-    function logout() {
-      firebase.auth().signOut().then(() => {
-        window.location.href = "login.html";
-      });
-    }
-
-    function showTab(id) {
+    window.showTab = (id) => {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.getElementById(id).classList.add('active');
-    }
+    };
 
-    function toggleDarkMode() {
+    window.toggleDarkMode = () => {
       document.body.classList.toggle('dark-mode');
-    }
+    };
 
-    function filterRequests() {
+    window.filterRequests = () => {
       const query = document.getElementById('searchInput').value.toLowerCase();
       const rows = document.querySelectorAll("#requestList tr");
       rows.forEach(row => {
@@ -127,9 +143,9 @@
         const dropoff = row.children[1].textContent.toLowerCase();
         row.style.display = (pickup.includes(query) || dropoff.includes(query)) ? '' : 'none';
       });
-    }
+    };
 
-    function exportToCSV() {
+    window.exportToCSV = () => {
       let csv = "Pickup,Dropoff,Status,Driver,Payout\n";
       const rows = document.querySelectorAll("#requestList tr");
       rows.forEach(row => {
@@ -141,9 +157,9 @@
       link.href = URL.createObjectURL(blob);
       link.download = "requests.csv";
       link.click();
-    }
+    };
 
-    function exportMonthlyReport() {
+    window.exportMonthlyReport = () => {
       const date = new Date();
       const month = date.toLocaleString('default', { month: 'long' });
       const year = date.getFullYear();
@@ -155,21 +171,21 @@
       link.href = URL.createObjectURL(blob);
       link.download = `monthly_report_${month}_${year}.csv`;
       link.click();
-    }
+    };
 
     let totalJobs = 0, completedJobs = 0, totalEarnings = 0, avgPayout = 0;
 
     function loadRequests() {
-      db.collection("requests").onSnapshot(snapshot => {
-        const list = document.getElementById("requestList");
+      const list = document.getElementById("requestList");
+      onSnapshot(collection(db, "requests"), snapshot => {
         list.innerHTML = "";
         totalJobs = 0;
         completedJobs = 0;
         totalEarnings = 0;
 
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          const docId = doc.id;
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          const docId = docSnap.id;
           const payout = parseFloat(data.payout || 0);
           totalEarnings += payout;
           totalJobs++;
@@ -206,17 +222,17 @@
       });
     }
 
-    function updateStatus(docId, status) {
-      db.collection("requests").doc(docId).update({ status })
+    window.updateStatus = (docId, status) => {
+      updateDoc(doc(db, "requests", docId), { status })
         .then(() => console.log("Status updated"))
         .catch(err => console.error("Error updating status", err));
-    }
+    };
 
-    function assignDriver(docId, driver) {
-      db.collection("requests").doc(docId).update({ driver })
+    window.assignDriver = (docId, driver) => {
+      updateDoc(doc(db, "requests", docId), { driver })
         .then(() => console.log("Driver assigned:" + driver))
         .catch(err => console.error("Error assigning driver", err));
-    }
+    };
 
     loadRequests();
   </script>
