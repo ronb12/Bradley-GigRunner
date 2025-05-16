@@ -73,19 +73,7 @@
       <thead>
         <tr><th>Pickup</th><th>Dropoff</th><th>Status</th></tr>
       </thead>
-      <tbody id="requestList">
-        <tr>
-          <td>123 Main</td>
-          <td>456 Oak</td>
-          <td>
-            <select onchange="handleStatusChange(this)">
-              <option>Pending</option>
-              <option>In Progress</option>
-              <option>Completed</option>
-            </select>
-          </td>
-        </tr>
-      </tbody>
+      <tbody id="requestList"></tbody>
     </table>
   </div>
 
@@ -93,12 +81,15 @@
     <h3>Total Earnings</h3>
     <p id="earningsAmount">$0.00</p>
   </div>
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
   <script src="firebase-init.js"></script>
 
   <script>
-    // Firebase Auth Check
+    const db = firebase.firestore();
+
     firebase.auth().onAuthStateChanged(user => {
       if (!user) window.location.href = "login.html";
     });
@@ -142,10 +133,37 @@
       link.click();
     }
 
-    function handleStatusChange(selectElement) {
-      // Add Firebase update logic here if needed
-      alert("Status updated to: " + selectElement.value);
+    function loadRequests() {
+      db.collection("requests").onSnapshot(snapshot => {
+        const list = document.getElementById("requestList");
+        list.innerHTML = "";
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${data.pickup || ''}</td>
+            <td>${data.dropoff || ''}</td>
+            <td>
+              <select onchange="updateStatus('${doc.id}', this.value)">
+                <option ${data.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option ${data.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                <option ${data.status === 'Completed' ? 'selected' : ''}>Completed</option>
+              </select>
+            </td>
+          `;
+          list.appendChild(row);
+        });
+      });
     }
+
+    function updateStatus(docId, status) {
+      db.collection("requests").doc(docId).update({ status })
+        .then(() => console.log("Status updated"))
+        .catch(err => console.error("Error updating status", err));
+    }
+
+    // Load requests on startup
+    loadRequests();
   </script>
 </body>
 </html>
