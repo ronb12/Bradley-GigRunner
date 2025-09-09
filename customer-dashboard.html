@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bradley GigRunner - Food Delivery</title>
+  <link rel="icon" href="favicon.ico">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=sb&currency=USD"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f7f7f7;
+      color: #333;
+    }
+    
+    .header {
+      background: #ff6b35;
+      color: white;
+      padding: 15px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .logo {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    
+    .search-bar {
+      flex: 1;
+      max-width: 500px;
+      margin: 0 20px;
+      position: relative;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 12px 20px 12px 45px;
+      border: none;
+      border-radius: 25px;
+      font-size: 16px;
+      background: white;
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #666;
+    }
+    
+    .user-actions {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .cart-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      position: relative;
+    }
+    
+    .cart-count {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #ff4757;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .main-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .delivery-info {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .delivery-address {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    
+    .delivery-time {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .categories {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+    }
+    
+    .category-btn {
+      background: white;
+      border: 2px solid #e0e0e0;
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.3s;
+    }
+    
+    .category-btn.active {
+      background: #ff6b35;
+      color: white;
+      border-color: #ff6b35;
+    }
+    
+    .restaurants-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    
+    .restaurant-card {
+      background: white;
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: transform 0.3s;
+      cursor: pointer;
+    }
+    
+    .restaurant-card:hover {
+      transform: translateY(-5px);
+    }
+    
+    .restaurant-image {
+      width: 100%;
+      height: 150px;
+      background: #f0f0f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+    }
+    
+    .restaurant-info {
+      padding: 15px;
+    }
+    
+    .restaurant-name {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .restaurant-rating {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 5px;
+    }
+    
+    .stars {
+      color: #ffd700;
+    }
+    
+    .restaurant-details {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    
+    .delivery-info-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+    
+    .delivery-fee {
+      color: #ff6b35;
+      font-weight: bold;
+    }
+    
+    .delivery-time {
+      color: #666;
+    }
+    
+    .cart-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: flex-end;
+    }
+    
+    .cart-content {
+      background: white;
+      width: 100%;
+      max-width: 500px;
+      max-height: 80vh;
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      transform: translateY(100%);
+      transition: transform 0.3s;
+    }
+    
+    .cart-modal.show .cart-content {
+      transform: translateY(0);
+    }
+    
+    .cart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .item-details h4 {
+      margin-bottom: 5px;
+    }
+    
+    .item-price {
+      font-weight: bold;
+      color: #ff6b35;
+    }
+    
+    .quantity-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .qty-btn {
+      background: #ff6b35;
+      color: white;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    
+    .checkout-btn {
+      background: #ff6b35;
+      color: white;
+      border: none;
+      padding: 15px;
+      width: 100%;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    
+    .hidden { display: none; }
+    
+    @media (max-width: 768px) {
+      .header-content {
+        flex-direction: column;
+        gap: 15px;
+      }
+      
+      .search-bar {
+        margin: 0;
+        max-width: 100%;
+      }
+      
+      .restaurants-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">🍔 Bradley GigRunner</div>
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" placeholder="Search for restaurants or food" id="searchInput">
+      </div>
+      <div class="user-actions">
+        <button class="cart-btn" onclick="toggleCart()">
+          🛒
+          <span class="cart-count" id="cartCount">0</span>
+        </button>
+        <button onclick="logout()">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-content">
+    <div class="delivery-info">
+      <div class="delivery-address">
+        <span>📍</span>
+        <span id="deliveryAddress">Enter your delivery address</span>
+        <button onclick="changeAddress()">Change</button>
+      </div>
+      <div class="delivery-time" id="deliveryTime">Delivery in 25-35 min</div>
+    </div>
+
+    <div class="categories">
+      <button class="category-btn active" onclick="filterByCategory('all')">All</button>
+      <button class="category-btn" onclick="filterByCategory('pizza')">🍕 Pizza</button>
+      <button class="category-btn" onclick="filterByCategory('burger')">🍔 Burgers</button>
+      <button class="category-btn" onclick="filterByCategory('asian')">🍜 Asian</button>
+      <button class="category-btn" onclick="filterByCategory('mexican')">🌮 Mexican</button>
+      <button class="category-btn" onclick="filterByCategory('dessert')">🍰 Dessert</button>
+    </div>
+
+    <div class="restaurants-grid" id="restaurantsGrid">
+      <!-- Restaurants will be loaded here -->
+    </div>
+  </div>
+
+  <!-- Cart Modal -->
+  <div class="cart-modal" id="cartModal">
+    <div class="cart-content">
+      <div class="cart-header">
+        <h3>Your Order</h3>
+        <button onclick="toggleCart()">✕</button>
+      </div>
+      <div id="cartItems">
+        <!-- Cart items will be loaded here -->
+      </div>
+      <div id="cartTotal">
+        <div style="display: flex; justify-content: space-between; margin: 15px 0;">
+          <span>Subtotal:</span>
+          <span id="subtotal">$0.00</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin: 15px 0;">
+          <span>Delivery Fee:</span>
+          <span id="deliveryFee">$2.99</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin: 15px 0; font-weight: bold; font-size: 18px;">
+          <span>Total:</span>
+          <span id="total">$0.00</span>
+        </div>
+      </div>
+      <button class="checkout-btn" onclick="checkout()">Checkout</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, updateDoc, doc, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import { firebaseConfig, COLLECTIONS, ORDER_STATUS, USER_ROLES } from "./firebase-config.js";
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    let currentUser = null;
+    let cart = [];
+    let restaurants = [];
+    let currentCategory = 'all';
+
+    // Sample restaurant data
+    const sampleRestaurants = [
+      {
+        id: '1',
+        name: 'Mario\'s Pizza',
+        category: 'pizza',
+        rating: 4.5,
+        deliveryTime: '25-35 min',
+        deliveryFee: 2.99,
+        image: '🍕',
+        menu: [
+          { id: '1', name: 'Margherita Pizza', price: 12.99, description: 'Fresh mozzarella, tomato sauce, basil' },
+          { id: '2', name: 'Pepperoni Pizza', price: 14.99, description: 'Pepperoni, mozzarella, tomato sauce' },
+          { id: '3', name: 'Supreme Pizza', price: 16.99, description: 'Pepperoni, sausage, peppers, onions, mushrooms' }
+        ]
+      },
+      {
+        id: '2',
+        name: 'Burger Palace',
+        category: 'burger',
+        rating: 4.3,
+        deliveryTime: '20-30 min',
+        deliveryFee: 1.99,
+        image: '🍔',
+        menu: [
+          { id: '4', name: 'Classic Burger', price: 8.99, description: 'Beef patty, lettuce, tomato, onion' },
+          { id: '5', name: 'Cheeseburger', price: 9.99, description: 'Beef patty, cheese, lettuce, tomato' },
+          { id: '6', name: 'Bacon Burger', price: 11.99, description: 'Beef patty, bacon, cheese, lettuce, tomato' }
+        ]
+      },
+      {
+        id: '3',
+        name: 'Dragon Garden',
+        category: 'asian',
+        rating: 4.7,
+        deliveryTime: '30-40 min',
+        deliveryFee: 3.99,
+        image: '🍜',
+        menu: [
+          { id: '7', name: 'Chicken Fried Rice', price: 10.99, description: 'Stir-fried rice with chicken and vegetables' },
+          { id: '8', name: 'Beef Lo Mein', price: 12.99, description: 'Noodles with beef and mixed vegetables' },
+          { id: '9', name: 'Sweet and Sour Chicken', price: 11.99, description: 'Breaded chicken with sweet and sour sauce' }
+        ]
+      }
+    ];
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+      currentUser = user;
+      loadRestaurants();
+    });
+
+    function loadRestaurants() {
+      restaurants = sampleRestaurants;
+      renderRestaurants();
+    }
+
+    function renderRestaurants() {
+      const grid = document.getElementById('restaurantsGrid');
+      const filtered = currentCategory === 'all' 
+        ? restaurants 
+        : restaurants.filter(r => r.category === currentCategory);
+      
+      grid.innerHTML = filtered.map(restaurant => `
+        <div class="restaurant-card" onclick="openRestaurant('${restaurant.id}')">
+          <div class="restaurant-image">${restaurant.image}</div>
+          <div class="restaurant-info">
+            <div class="restaurant-name">${restaurant.name}</div>
+            <div class="restaurant-rating">
+              <span class="stars">${'★'.repeat(Math.floor(restaurant.rating))}</span>
+              <span>${restaurant.rating}</span>
+            </div>
+            <div class="restaurant-details">Chinese • $$</div>
+            <div class="delivery-info-card">
+              <span class="delivery-fee">$${restaurant.deliveryFee} delivery fee</span>
+              <span class="delivery-time">${restaurant.deliveryTime}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    window.filterByCategory = (category) => {
+      currentCategory = category;
+      document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      renderRestaurants();
+    };
+
+    window.openRestaurant = (restaurantId) => {
+      const restaurant = restaurants.find(r => r.id === restaurantId);
+      if (restaurant) {
+        // Open restaurant menu modal
+        openRestaurantMenu(restaurant);
+      }
+    };
+
+    function openRestaurantMenu(restaurant) {
+      // Create menu modal
+      const modal = document.createElement('div');
+      modal.className = 'cart-modal show';
+      modal.innerHTML = `
+        <div class="cart-content">
+          <div class="cart-header">
+            <h3>${restaurant.name}</h3>
+            <button onclick="this.closest('.cart-modal').remove()">✕</button>
+          </div>
+          <div style="max-height: 400px; overflow-y: auto;">
+            ${restaurant.menu.map(item => `
+              <div class="cart-item">
+                <div class="item-details">
+                  <h4>${item.name}</h4>
+                  <p style="color: #666; font-size: 14px;">${item.description}</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                  <span class="item-price">$${item.price.toFixed(2)}</span>
+                  <button class="qty-btn" onclick="addToCart('${restaurant.id}', '${item.id}', '${item.name}', ${item.price})">+</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    window.addToCart = (restaurantId, itemId, itemName, price) => {
+      const existingItem = cart.find(item => item.id === itemId);
+      if (existingItem) {
+        existingItem.quantity += 1;
+      } else {
+        cart.push({
+          id: itemId,
+          name: itemName,
+          price: price,
+          quantity: 1,
+          restaurantId: restaurantId
+        });
+      }
+      updateCartDisplay();
+    };
+
+    window.toggleCart = () => {
+      const modal = document.getElementById('cartModal');
+      modal.classList.toggle('show');
+      updateCartDisplay();
+    };
+
+    function updateCartDisplay() {
+      const cartCount = document.getElementById('cartCount');
+      const cartItems = document.getElementById('cartItems');
+      const subtotal = document.getElementById('subtotal');
+      const total = document.getElementById('total');
+      
+      cartCount.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+      
+      cartItems.innerHTML = cart.map(item => `
+        <div class="cart-item">
+          <div class="item-details">
+            <h4>${item.name}</h4>
+            <span class="item-price">$${item.price.toFixed(2)}</span>
+          </div>
+          <div class="quantity-controls">
+            <button class="qty-btn" onclick="updateQuantity('${item.id}', -1)">-</button>
+            <span>${item.quantity}</span>
+            <button class="qty-btn" onclick="updateQuantity('${item.id}', 1)">+</button>
+          </div>
+        </div>
+      `).join('');
+      
+      const subtotalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const deliveryFee = 2.99;
+      const totalAmount = subtotalAmount + deliveryFee;
+      
+      subtotal.textContent = `$${subtotalAmount.toFixed(2)}`;
+      total.textContent = `$${totalAmount.toFixed(2)}`;
+    }
+
+    window.updateQuantity = (itemId, change) => {
+      const item = cart.find(item => item.id === itemId);
+      if (item) {
+        item.quantity += change;
+        if (item.quantity <= 0) {
+          cart = cart.filter(item => item.id !== itemId);
+        }
+        updateCartDisplay();
+      }
+    };
+
+    window.checkout = async () => {
+      if (cart.length === 0) return;
+      
+      const order = {
+        userId: currentUser.uid,
+        items: cart,
+        status: ORDER_STATUS.PENDING,
+        total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 2.99,
+        deliveryFee: 2.99,
+        timestamp: new Date(),
+        deliveryAddress: document.getElementById('deliveryAddress').textContent
+      };
+      
+      try {
+        await addDoc(collection(db, COLLECTIONS.ORDERS), order);
+        cart = [];
+        updateCartDisplay();
+        document.getElementById('cartModal').classList.remove('show');
+        alert('Order placed successfully!');
+      } catch (error) {
+        console.error('Error placing order:', error);
+        alert('Error placing order. Please try again.');
+      }
+    };
+
+    window.logout = () => {
+      signOut(auth).then(() => {
+        window.location.href = 'login.html';
+      });
+    };
+
+    window.changeAddress = () => {
+      const newAddress = prompt('Enter your delivery address:');
+      if (newAddress) {
+        document.getElementById('deliveryAddress').textContent = newAddress;
+      }
+    };
+  </script>
+</body>
+</html>
