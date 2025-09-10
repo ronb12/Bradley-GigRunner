@@ -54,8 +54,6 @@
     <input type="email" id="email" placeholder="Email" autocomplete="email" />
     <input type="password" id="password" placeholder="Password" autocomplete="current-password" />
     <button id="loginBtn">Login</button>
-    <button id="createTestBtn" style="background: #17a2b8; margin-top: 10px;">Create Test User</button>
-    <button id="fillTestBtn" style="background: #28a745; margin-top: 5px;">Fill Test Credentials</button>
     <div class="footer">
       Don't have an account? <a href="signup.html">Sign Up</a><br>
       <a href="index.html" style="color: #666; text-decoration: none;">← Back to Home</a>
@@ -159,65 +157,6 @@
       }
     });
 
-    // Test user creation functionality
-    document.getElementById('createTestBtn').addEventListener('click', async () => {
-      const errorDiv = document.getElementById("errorMessage");
-      const successDiv = document.getElementById("successMessage");
-      
-      try {
-        const testEmail = "test@bradleygigrunner.com";
-        const testPassword = "test123456";
-        
-        const userCredential = await createUserWithEmailAndPassword(auth, testEmail, testPassword);
-        
-        // Create user profile
-        // Create user document with the UID as the document ID
-        await setDoc(doc(db, "users", userCredential.user.uid), {
-          uid: userCredential.user.uid,
-          email: testEmail,
-          roles: ["customer"],
-          createdAt: new Date(),
-          profile: {
-            name: 'Test User',
-            phone: '',
-            address: ''
-          }
-        });
-        
-        successDiv.innerText = "✅ Test user created! Email: test@bradleygigrunner.com, Password: test123456";
-        successDiv.style.display = "block";
-        errorDiv.style.display = "none";
-        
-        // Auto-fill the form
-        document.getElementById("email").value = testEmail;
-        document.getElementById("password").value = testPassword;
-        
-      } catch (error) {
-        if (error.code === 'auth/email-already-in-use') {
-          successDiv.innerText = "✅ Test user already exists! Email: test@bradleygigrunner.com, Password: test123456";
-          successDiv.style.display = "block";
-          errorDiv.style.display = "none";
-          
-          // Auto-fill the form
-          document.getElementById("email").value = "test@bradleygigrunner.com";
-          document.getElementById("password").value = "test123456";
-        } else {
-          errorDiv.innerText = "Test user creation failed: " + error.message;
-          errorDiv.style.display = "block";
-          successDiv.style.display = "none";
-        }
-      }
-    });
-
-    // Fill test credentials
-    document.getElementById('fillTestBtn').addEventListener('click', () => {
-      document.getElementById("email").value = "test@bradleygigrunner.com";
-      document.getElementById("password").value = "test123456";
-      
-      const successDiv = document.getElementById("successMessage");
-      successDiv.innerText = "✅ Test credentials filled! Click 'Create Test User' first, then 'Login'";
-      successDiv.style.display = "block";
-    });
   </script>
 </body>
 </html>
