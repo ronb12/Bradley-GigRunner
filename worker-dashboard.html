@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bradley GigRunner - Worker Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  
+  <!-- Google Places API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc&libraries=places&loading=async&callback=initGoogleMaps" async defer></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f8f9fa;
+      color: #2d3436;
+      line-height: 1.6;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      padding: 1rem 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .worker-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .status-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .status-switch {
+      position: relative;
+      width: 60px;
+      height: 30px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 15px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .status-switch.active {
+      background: #ffd700;
+    }
+
+    .status-switch::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 24px;
+      height: 24px;
+      background: white;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
+
+    .status-switch.active::after {
+      transform: translateX(30px);
+    }
+
+    .logout-btn {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+
+    .logout-btn:hover {
+      background: rgba(255,255,255,0.3);
+      transform: translateY(-1px);
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+    }
+
+    .stat-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem;
+      font-size: 1.5rem;
+      color: white;
+    }
+
+    .stat-icon.earnings {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+
+    .stat-icon.orders {
+      background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    }
+
+    .stat-icon.rating {
+      background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+    }
+
+    .stat-icon.time {
+      background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #2d3436;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      color: #6c757d;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    /* Available Jobs Section */
+    .jobs-section {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #2d3436;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .refresh-btn {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+    }
+
+    .refresh-btn:hover {
+      background: #218838;
+      transform: translateY(-1px);
+    }
+
+    .jobs-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .job-card {
+      border: 2px solid #e9ecef;
+      border-radius: 16px;
+      padding: 1.5rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .job-card:hover {
+      border-color: #28a745;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(40, 167, 69, 0.15);
+    }
+
+    .job-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+
+    .job-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .job-type {
+      background: #e3f2fd;
+      color: #1976d2;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .job-pay {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #28a745;
+    }
+
+    .job-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .job-detail {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #495057;
+    }
+
+    .job-detail i {
+      color: #28a745;
+      width: 16px;
+    }
+
+    .job-description {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-style: italic;
+      color: #6c757d;
+    }
+
+    .job-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-accept {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-accept:hover {
+      background: #218838;
+      transform: translateY(-1px);
+    }
+
+    .btn-decline {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-decline:hover {
+      background: #c82333;
+      transform: translateY(-1px);
+    }
+
+    .btn-view {
+      background: #007bff;
+      color: white;
+    }
+
+    .btn-view:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+    }
+
+    /* My Jobs Section */
+    .my-jobs-section {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .job-status {
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-accepted {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+
+    .status-picked-up {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-delivered {
+      background: #e2e3e5;
+      color: #383d41;
+    }
+
+    /* Map Section */
+    .map-section {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .map-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #2d3436;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    #map {
+      height: 300px;
+      border-radius: 12px;
+      border: 2px solid #e9ecef;
+    }
+
+    /* Chat Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .modal-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #2d3436;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #6c757d;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
+
+    .close-btn:hover {
+      background: #f8f9fa;
+      color: #2d3436;
+    }
+
+    .chat-messages {
+      height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e9ecef;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: #f8f9fa;
+    }
+
+    .message {
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      border-radius: 12px;
+      max-width: 80%;
+    }
+
+    .message.sent {
+      background: #28a745;
+      color: white;
+      margin-left: auto;
+    }
+
+    .message.received {
+      background: white;
+      color: #2d3436;
+      border: 1px solid #e9ecef;
+    }
+
+    .message-sender {
+      font-weight: 600;
+      font-size: 0.8rem;
+      margin-bottom: 0.25rem;
+      opacity: 0.8;
+    }
+
+    .message-text {
+      font-size: 0.9rem;
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .chat-input input {
+      flex: 1;
+      padding: 0.75rem;
+      border: 1px solid #e9ecef;
+      border-radius: 12px;
+      font-size: 0.9rem;
+    }
+
+    .chat-input button {
+      padding: 0.75rem 1.5rem;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* Loading States */
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #6c757d;
+    }
+
+    .loading i {
+      font-size: 2rem;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Empty States */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #6c757d;
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .empty-state h3 {
+      margin-bottom: 0.5rem;
+      color: #495057;
+    }
+
+    .empty-state p {
+      font-size: 0.9rem;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      }
+
+      .job-details {
+        grid-template-columns: 1fr;
+      }
+
+      .section-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+      }
+
+      .job-actions {
+        flex-direction: column;
+      }
+    }
+
+    .input-group {
+      display: flex;
+      align-items: center;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .input-prefix {
+      background: #f8f9fa;
+      padding: 0.75rem;
+      border-right: 1px solid #ddd;
+      font-weight: bold;
+    }
+
+    .input-group input {
+      border: none;
+      padding: 0.75rem;
+      flex: 1;
+      outline: none;
+    }
+
+    .fee-suggestions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .fee-btn {
+      padding: 0.5rem 1rem;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .fee-btn:hover {
+      background: #f8f9fa;
+      border-color: #007bff;
+    }
+
+    .form-text {
+      color: #6c757d;
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+
+    /* Custom Map Icons */
+    .custom-marker {
+      background: none !important;
+      border: none !important;
+    }
+
+    .marker-content {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      border: 2px solid white;
+    }
+
+    .worker-marker .marker-content {
+      background: #007bff;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">
+        <i class="fas fa-motorcycle"></i>
+        Bradley GigRunner - Worker
+      </div>
+      <div class="worker-info">
+        <div class="status-toggle">
+          <span id="statusText">Offline</span>
+          <div class="status-switch" id="statusSwitch" onclick="toggleStatus()"></div>
+        </div>
+        <span id="workerName">Loading...</span>
+        <button class="logout-btn" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i>
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon earnings">
+          <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="stat-value" id="totalEarnings">$0.00</div>
+        <div class="stat-label">Total Earnings</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orders">
+          <i class="fas fa-list"></i>
+        </div>
+        <div class="stat-value" id="completedOrders">0</div>
+        <div class="stat-label">Completed Orders</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon rating">
+          <i class="fas fa-star"></i>
+        </div>
+        <div class="stat-value" id="averageRating">0.0</div>
+        <div class="stat-label">Average Rating</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon time">
+          <i class="fas fa-clock"></i>
+        </div>
+        <div class="stat-value" id="onlineTime">0h</div>
+        <div class="stat-label">Online Today</div>
+      </div>
+      <div class="stat-card" onclick="openServiceFeeModal()" style="cursor: pointer;">
+        <div class="stat-icon">
+          <i class="fas fa-cog"></i>
+        </div>
+        <div class="stat-value" id="serviceFee">$5.00</div>
+        <div class="stat-label">Service Fee</div>
+      </div>
+    </div>
+
+    <!-- Available Jobs -->
+    <section class="jobs-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <i class="fas fa-briefcase"></i>
+          Available Jobs
+        </h2>
+        <button class="refresh-btn" onclick="loadAvailableJobs()">
+          <i class="fas fa-sync-alt"></i>
+          Refresh
+        </button>
+      </div>
+      <div id="availableJobs" class="jobs-grid">
+        <div class="loading">
+          <i class="fas fa-spinner"></i>
+          <p>Loading available jobs...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- My Jobs -->
+    <section class="my-jobs-section">
+      <h2 class="section-title">
+        <i class="fas fa-tasks"></i>
+        My Jobs
+      </h2>
+      <div id="myJobs" class="jobs-grid">
+        <div class="loading">
+          <i class="fas fa-spinner"></i>
+          <p>Loading your jobs...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Map -->
+    <section class="map-section">
+      <h2 class="map-title">
+        <i class="fas fa-map-marked-alt"></i>
+        Delivery Map
+      </h2>
+      <div id="map"></div>
+    </section>
+  </div>
+
+  <!-- Service Fee Modal -->
+  <div id="serviceFeeModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Set Your Service Fee</h3>
+        <button class="close-btn" onclick="closeServiceFeeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="serviceFeeInput">Service Fee per Delivery:</label>
+          <div class="input-group">
+            <span class="input-prefix">$</span>
+            <input type="number" id="serviceFeeInput" min="1" max="50" step="0.50" value="5.00">
+          </div>
+          <small class="form-text">This is what customers will pay you for each delivery. Higher fees may reduce demand.</small>
+        </div>
+        <div class="form-group">
+          <label>Recommended Ranges:</label>
+          <div class="fee-suggestions">
+            <button class="fee-btn" onclick="setServiceFee(3.00)">$3.00 - Budget</button>
+            <button class="fee-btn" onclick="setServiceFee(5.00)">$5.00 - Standard</button>
+            <button class="fee-btn" onclick="setServiceFee(8.00)">$8.00 - Premium</button>
+            <button class="fee-btn" onclick="setServiceFee(10.00)">$10.00 - Luxury</button>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" onclick="saveServiceFee()">Save Service Fee</button>
+          <button class="btn btn-secondary" onclick="closeServiceFeeModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Modal -->
+  <div id="chatModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Chat with Customer</h3>
+        <button class="close-btn" onclick="closeChat()">&times;</button>
+      </div>
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Type your message...">
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+    import {
+      getFirestore, collection, doc, addDoc, updateDoc, getDoc,
+      onSnapshot, orderBy, where, query, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+    const app = initializeApp({
+      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+      authDomain: "bradley-gigrunner.firebaseapp.com",
+      projectId: "bradley-gigrunner"
+    });
+
+    const auth = getAuth();
+    const db = getFirestore(app);
+    let currentWorkerId = null;
+    let isOnline = false;
+    let map, activeChatJobId = null;
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) return location.href = "login.html";
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists() || !(userDoc.data().roles || []).includes("driver")) {
+        alert("Access denied. Driver access only."); 
+        signOut(auth); 
+        return location.href = "login.html";
+      }
+      currentWorkerId = user.uid;
+      document.getElementById('workerName').textContent = user.email;
+      loadWorkerStats();
+      loadAvailableJobs();
+      loadMyJobs();
+      initMap();
+    });
+
+    function loadWorkerStats() {
+      // Load worker statistics
+      const q = query(collection(db, "requests"), where("assignedWorker", "==", currentWorkerId));
+      
+      onSnapshot(q, (snapshot) => {
+        let totalEarnings = 0;
+        let completedOrders = 0;
+        let totalRating = 0;
+        let ratingCount = 0;
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.status === 'delivered' || data.status === 'completed') {
+            completedOrders++;
+            totalEarnings += parseFloat(data.payout || 0);
+            if (data.rating) {
+              totalRating += data.rating;
+              ratingCount++;
+            }
+          }
+        });
+
+        document.getElementById('totalEarnings').textContent = `$${totalEarnings.toFixed(2)}`;
+        document.getElementById('completedOrders').textContent = completedOrders;
+        document.getElementById('averageRating').textContent = ratingCount > 0 ? (totalRating / ratingCount).toFixed(1) : '0.0';
+        
+        // Calculate online time (simplified)
+        const onlineTime = isOnline ? Math.floor((Date.now() - (window.startTime || Date.now())) / 3600000) : 0;
+        document.getElementById('onlineTime').textContent = `${onlineTime}h`;
+      });
+    }
+
+    function loadAvailableJobs() {
+      const availableJobsDiv = document.getElementById('availableJobs');
+      const q = query(collection(db, "requests"), where("status", "==", "pending"), orderBy("timestamp", "desc"));
+
+      onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+          availableJobsDiv.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-inbox"></i>
+              <h3>No available jobs</h3>
+              <p>Check back later for new delivery opportunities!</p>
+            </div>
+          `;
+          return;
+        }
+
+        availableJobsDiv.innerHTML = "";
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const jobCard = createJobCard(doc.id, data, true);
+          availableJobsDiv.appendChild(jobCard);
+        });
+      });
+    }
+
+    function loadMyJobs() {
+      const myJobsDiv = document.getElementById('myJobs');
+      const q = query(collection(db, "requests"), where("assignedWorker", "==", currentWorkerId), orderBy("timestamp", "desc"));
+
+      onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+          myJobsDiv.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-clipboard-list"></i>
+              <h3>No active jobs</h3>
+              <p>Accept a job from the available jobs above to get started!</p>
+            </div>
+          `;
+          return;
+        }
+
+        myJobsDiv.innerHTML = "";
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const jobCard = createJobCard(doc.id, data, false);
+          myJobsDiv.appendChild(jobCard);
+        });
+      });
+    }
+
+    function createJobCard(jobId, data, isAvailable) {
+      const card = document.createElement('div');
+      card.className = 'job-card';
+      
+      const jobType = data.type === 'food_order' ? 'Food Order' : 'Delivery';
+      const statusClass = `status-${data.status}`;
+      const statusText = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+      
+      // Payment status indicator
+      const paymentStatus = data.paymentMethod === 'restaurant_direct' ? 
+        `<div style="background: #d4edda; color: #155724; padding: 0.5rem; border-radius: 8px; margin: 0.5rem 0; font-size: 0.9rem;">
+          <i class="fas fa-check-circle"></i> Food already paid for at restaurant (Order #${data.orderNumber || 'TBD'})
+        </div>` : 
+        data.paymentMethod ? 
+        `<div style="background: #fff3cd; color: #856404; padding: 0.5rem; border-radius: 8px; margin: 0.5rem 0; font-size: 0.9rem;">
+          <i class="fas fa-exclamation-triangle"></i> Customer will pay you via ${data.paymentMethod} (${data.totalWithFee ? '$' + data.totalWithFee.toFixed(2) : 'Amount TBD'})
+        </div>` :
+        `<div style="background: #fff3cd; color: #856404; padding: 0.5rem; border-radius: 8px; margin: 0.5rem 0; font-size: 0.9rem;">
+          <i class="fas fa-exclamation-triangle"></i> You'll need to pay for food at restaurant and get reimbursed
+        </div>`;
+      
+      const actions = isAvailable ? `
+        <button class="btn btn-accept" onclick="acceptJob('${jobId}')">
+          <i class="fas fa-check"></i>
+          Accept Job
+        </button>
+        <button class="btn btn-decline" onclick="declineJob('${jobId}')">
+          <i class="fas fa-times"></i>
+          Decline
+        </button>
+      ` : `
+        <button class="btn btn-view" onclick="openChat('${jobId}')">
+          <i class="fas fa-comments"></i>
+          Chat
+        </button>
+        ${data.status === 'accepted' ? `
+          <button class="btn btn-accept" onclick="updateJobStatus('${jobId}', 'picked_up')">
+            <i class="fas fa-hand-paper"></i>
+            Mark Picked Up
+          </button>
+        ` : ''}
+        ${data.status === 'picked_up' ? `
+          <button class="btn btn-accept" onclick="updateJobStatus('${jobId}', 'delivered')">
+            <i class="fas fa-check-circle"></i>
+            Mark Delivered
+          </button>
+        ` : ''}
+      `;
+      
+      card.innerHTML = `
+        <div class="job-header">
+          <span class="job-type">${jobType}</span>
+          <span class="job-pay">$${data.workerPayout || data.payout || '15.00'}</span>
+        </div>
+        <div class="job-details">
+          <div class="job-detail">
+            <i class="fas fa-map-marker-alt"></i>
+            <span><strong>From:</strong> ${data.pickup || 'Restaurant'}</span>
+          </div>
+          <div class="job-detail">
+            <i class="fas fa-flag-checkered"></i>
+            <span><strong>To:</strong> ${data.dropoff || 'Customer'}</span>
+          </div>
+          <div class="job-detail" style="grid-column: 1 / -1;">
+            <i class="fas fa-clock"></i>
+            <span><strong>Created:</strong> ${new Date(data.createdAt?.toDate()).toLocaleString()}</span>
+          </div>
+        </div>
+        ${paymentStatus}
+        ${data.details ? `
+          <div class="job-description">
+            <strong>Details:</strong> ${data.details}
+          </div>
+        ` : ''}
+        ${data.items && data.items.length > 0 ? `
+          <div class="job-description">
+            <strong>Order Items:</strong> ${data.items.map(item => `${item.quantity}x ${item.itemName || item.name}`).join(', ')}
+          </div>
+        ` : ''}
+        ${!isAvailable ? `
+          <div class="job-header">
+            <span class="job-status ${statusClass}">${statusText}</span>
+          </div>
+        ` : ''}
+        <div class="job-actions">
+          ${actions}
+        </div>
+      `;
+      
+      return card;
+    }
+
+    window.acceptJob = async (jobId) => {
+      try {
+        // Get job details to check payment status
+        const jobDoc = await getDoc(doc(db, "requests", jobId));
+        const jobData = jobDoc.data();
+        
+        if (jobData.paymentMethod === 'restaurant_direct') {
+          // Food already paid for at restaurant - worker just picks up
+          await updateDoc(doc(db, "requests", jobId), {
+            assignedWorker: currentWorkerId,
+            status: "accepted",
+            acceptedAt: serverTimestamp()
+          });
+          
+          const serviceFee = jobData.serviceFee || 5.00;
+          const orderNumber = jobData.orderNumber || 'TBD';
+          
+          alert(`Job accepted! Food is already paid for at the restaurant (Order #${orderNumber}). Just pick up and deliver. You'll earn $${serviceFee.toFixed(2)}.`);
+        } else if (jobData.paymentMethod) {
+          // Customer has arranged payment - worker gets paid by customer
+          await updateDoc(doc(db, "requests", jobId), {
+            assignedWorker: currentWorkerId,
+            status: "accepted",
+            acceptedAt: serverTimestamp()
+          });
+          
+          const totalAmount = jobData.totalWithFee || (jobData.totalPrice + jobData.serviceFee);
+          const serviceFee = jobData.serviceFee || 5.00;
+          
+          alert(`Job accepted! Customer will pay you $${totalAmount.toFixed(2)} (${jobData.paymentMethod}). You'll earn $${serviceFee.toFixed(2)} after paying for food.`);
+        } else {
+          // No payment arranged - worker pays and gets reimbursed
+          await updateDoc(doc(db, "requests", jobId), {
+            assignedWorker: currentWorkerId,
+            status: "accepted",
+            acceptedAt: serverTimestamp()
+          });
+          
+          alert("Job accepted! You'll pay for the food at the restaurant and get reimbursed by the customer.");
+        }
+        
+        loadAvailableJobs();
+        loadMyJobs();
+      } catch (error) {
+        console.error("Error accepting job:", error);
+        alert("Failed to accept job. Please try again.");
+      }
+    };
+
+    async function showPaymentMethodModal(jobData) {
+      return new Promise((resolve) => {
+        // Create payment method selection modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 class="modal-title">Payment Method for Order</h3>
+              <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div style="padding: 1rem;">
+              <p><strong>Order Total:</strong> $${jobData.totalPrice || '25.00'}</p>
+              <p><strong>Service Fee:</strong> $${jobData.serviceFee || '5.00'}</p>
+              <p><strong>Total to Pay:</strong> $${(parseFloat(jobData.totalPrice || 25) + parseFloat(jobData.serviceFee || 5)).toFixed(2)}</p>
+              <br>
+              <h4>Select Payment Method:</h4>
+              <div style="display: grid; gap: 1rem; margin: 1rem 0;">
+                <button class="btn btn-primary" onclick="selectPaymentMethod('company_card')" style="width: 100%; padding: 1rem;">
+                  <i class="fas fa-credit-card"></i>
+                  Company Card (Pre-paid)
+                </button>
+                <button class="btn btn-secondary" onclick="selectPaymentMethod('customer_pay')" style="width: 100%; padding: 1rem;">
+                  <i class="fas fa-user"></i>
+                  Customer Pays Directly
+                </button>
+                <button class="btn btn-secondary" onclick="selectPaymentMethod('reimbursement')" style="width: 100%; padding: 1rem;">
+                  <i class="fas fa-receipt"></i>
+                  I'll Pay & Get Reimbursed
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Handle payment method selection
+        window.selectPaymentMethod = (method) => {
+          modal.remove();
+          resolve(method);
+        };
+        
+        // Handle modal close
+        modal.querySelector('.close-btn').onclick = () => {
+          modal.remove();
+          resolve(null);
+        };
+      });
+    }
+
+    window.declineJob = async (jobId) => {
+      if (!confirm("Are you sure you want to decline this job?")) return;
+      
+      try {
+        await updateDoc(doc(db, "requests", jobId), {
+          status: "declined",
+          declinedBy: currentWorkerId,
+          declinedAt: serverTimestamp()
+        });
+        alert("Job declined.");
+        loadAvailableJobs();
+      } catch (error) {
+        console.error("Error declining job:", error);
+        alert("Failed to decline job. Please try again.");
+      }
+    };
+
+    // Service Fee Management
+    let currentServiceFee = 5.00;
+
+    window.openServiceFeeModal = () => {
+      document.getElementById('serviceFeeModal').style.display = 'flex';
+      document.getElementById('serviceFeeInput').value = currentServiceFee.toFixed(2);
+    };
+
+    window.closeServiceFeeModal = () => {
+      document.getElementById('serviceFeeModal').style.display = 'none';
+    };
+
+    window.setServiceFee = (fee) => {
+      document.getElementById('serviceFeeInput').value = fee.toFixed(2);
+    };
+
+    window.saveServiceFee = async () => {
+      const newFee = parseFloat(document.getElementById('serviceFeeInput').value);
+      
+      if (isNaN(newFee) || newFee < 1 || newFee > 50) {
+        alert('Please enter a valid service fee between $1.00 and $50.00');
+        return;
+      }
+
+      try {
+        // Update worker's service fee in Firestore
+        await updateDoc(doc(db, "users", currentWorkerId), {
+          serviceFee: newFee,
+          lastUpdated: serverTimestamp()
+        });
+
+        currentServiceFee = newFee;
+        document.getElementById('serviceFee').textContent = `$${newFee.toFixed(2)}`;
+        
+        alert(`Service fee updated to $${newFee.toFixed(2)}`);
+        closeServiceFeeModal();
+      } catch (error) {
+        console.error("Error updating service fee:", error);
+        alert("Failed to update service fee. Please try again.");
+      }
+    };
+
+    window.updateJobStatus = async (jobId, newStatus) => {
+      try {
+        // Get current location if worker is moving
+        let locationData = null;
+        if (newStatus === 'picked_up' || newStatus === 'delivered') {
+          locationData = await getCurrentLocation();
+        }
+
+        const updateData = {
+          status: newStatus,
+          [`${newStatus}At`]: serverTimestamp()
+        };
+
+        // Add location data if available
+        if (locationData) {
+          updateData.workerLocation = locationData;
+          updateData.lastLocationUpdate = serverTimestamp();
+        }
+
+        await updateDoc(doc(db, "requests", jobId), updateData);
+        
+        if (newStatus === 'picked_up') {
+          alert("Order marked as picked up! Location sharing started.");
+          // Start location sharing for delivery
+          startLocationSharing(jobId);
+        } else if (newStatus === 'delivered') {
+          alert("Order marked as delivered! Location sharing stopped.");
+          // Stop location sharing
+          stopLocationSharing(jobId);
+        } else {
+          alert(`Job status updated to ${newStatus.replace('_', ' ')}`);
+        }
+        
+        loadMyJobs();
+      } catch (error) {
+        console.error("Error updating job status:", error);
+        alert("Failed to update job status. Please try again.");
+      }
+    };
+
+    // Location sharing functionality
+    let locationWatchId = null;
+    let currentJobId = null;
+
+    function getCurrentLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Geolocation not supported'));
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+              timestamp: new Date()
+            });
+          },
+          (error) => {
+            reject(error);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 30000
+          }
+        );
+      });
+    }
+
+    function startLocationSharing(jobId) {
+      if (locationWatchId) {
+        navigator.geolocation.clearWatch(locationWatchId);
+      }
+
+      currentJobId = jobId;
+
+      locationWatchId = navigator.geolocation.watchPosition(
+        async (position) => {
+          const locationData = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            timestamp: new Date()
+          };
+
+          try {
+            // Update worker location in Firestore
+            await updateDoc(doc(db, "requests", jobId), {
+              workerLocation: locationData,
+              lastLocationUpdate: serverTimestamp()
+            });
+
+            // Update map marker if map is open
+            updateWorkerMarker(locationData);
+          } catch (error) {
+            console.error("Error updating location:", error);
+          }
+        },
+        (error) => {
+          console.error("Location sharing error:", error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 5000
+        }
+      );
+    }
+
+    function stopLocationSharing(jobId) {
+      if (locationWatchId) {
+        navigator.geolocation.clearWatch(locationWatchId);
+        locationWatchId = null;
+      }
+      currentJobId = null;
+    }
+
+    function updateWorkerMarker(locationData) {
+      if (map && carMarker) {
+        carMarker.setLatLng([locationData.lat, locationData.lng]);
+      }
+    }
+
+    window.openChat = (jobId) => {
+      activeChatJobId = jobId;
+      document.getElementById('chatModal').style.display = 'flex';
+      loadMessages(jobId);
+    };
+
+    window.closeChat = () => {
+      document.getElementById('chatModal').style.display = 'none';
+      activeChatJobId = null;
+    };
+
+    function loadMessages(jobId) {
+      const chatMessages = document.getElementById('chatMessages');
+      const messagesRef = collection(db, "requests", jobId, "messages");
+      
+      onSnapshot(messagesRef, (snapshot) => {
+        chatMessages.innerHTML = "";
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const message = document.createElement("div");
+          message.className = `message ${data.sender === 'worker' ? 'sent' : 'received'}`;
+          message.innerHTML = `
+            <div class="message-sender">${data.sender}</div>
+            <div class="message-text">${data.text}</div>
+          `;
+          chatMessages.appendChild(message);
+        });
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      });
+    }
+
+    window.sendMessage = async () => {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      
+      if (!text || !activeChatJobId) return;
+      
+      try {
+        await addDoc(collection(db, "requests", activeChatJobId, "messages"), {
+          sender: 'worker',
+          text,
+          timestamp: serverTimestamp()
+        });
+        input.value = "";
+      } catch (error) {
+        console.error("Error sending message:", error);
+        alert("Failed to send message. Please try again.");
+      }
+    };
+
+    window.toggleStatus = () => {
+      isOnline = !isOnline;
+      const statusSwitch = document.getElementById('statusSwitch');
+      const statusText = document.getElementById('statusText');
+      
+      if (isOnline) {
+        statusSwitch.classList.add('active');
+        statusText.textContent = 'Online';
+        window.startTime = Date.now();
+        loadAvailableJobs();
+      } else {
+        statusSwitch.classList.remove('active');
+        statusText.textContent = 'Offline';
+      }
+    };
+
+    function initMap() {
+      map = L.map("map").setView([34.0007, -81.0348], 13);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap"
+      }).addTo(map);
+      
+      // Create custom car icon for worker
+      const carIcon = L.divIcon({
+        className: 'custom-marker worker-marker',
+        html: '<div class="marker-content"><i class="fas fa-car"></i></div>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+      
+      // Add worker location marker
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+          const { latitude, longitude } = position.coords;
+          map.setView([latitude, longitude], 13);
+          
+          carMarker = L.marker([latitude, longitude], { icon: carIcon })
+            .addTo(map)
+            .bindPopup('Your Location')
+            .openPopup();
+        });
+      }
+    }
+
+    window.logout = async () => {
+      try {
+        await signOut(auth);
+        location.href = "login.html";
+      } catch (error) {
+        console.error("Error signing out:", error);
+        alert("Failed to sign out. Please try again.");
+      }
+    };
+
+    // Handle Enter key in chat input
+    document.addEventListener('DOMContentLoaded', () => {
+      const chatInput = document.getElementById('chatInput');
+      if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            sendMessage();
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>

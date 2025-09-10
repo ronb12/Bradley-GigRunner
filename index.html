@@ -14,286 +14,177 @@
       background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
       min-height: 100vh;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-    }
-    
-    .login-container {
-      background: white;
-      border-radius: 20px;
-      padding: 40px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 400px;
-      text-align: center;
-    }
-    
-    .logo {
-      font-size: 48px;
-      margin-bottom: 10px;
-    }
-    
-    .app-name {
-      font-size: 28px;
-      font-weight: bold;
-      color: #ff6b35;
-      margin-bottom: 10px;
-    }
-    
-    .tagline {
-      color: #666;
-      margin-bottom: 30px;
-      font-size: 16px;
-    }
-    
-    .form-group {
-      margin-bottom: 20px;
-      text-align: left;
-    }
-    
-    .form-group label {
-      display: block;
-      margin-bottom: 5px;
-      color: #333;
-      font-weight: 500;
-    }
-    
-    .form-group input {
-      width: 100%;
-      padding: 15px;
-      border: 2px solid #e0e0e0;
-      border-radius: 10px;
-      font-size: 16px;
-      transition: border-color 0.3s;
-    }
-    
-    .form-group input:focus {
-      outline: none;
-      border-color: #ff6b35;
-    }
-    
-    .btn {
-      width: 100%;
-      padding: 15px;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.3s;
-      margin-bottom: 10px;
-    }
-    
-    .btn-primary {
-      background: #ff6b35;
       color: white;
     }
     
-    .btn-primary:hover {
-      background: #e55a2b;
-      transform: translateY(-2px);
+    .hero-section {
+      text-align: center;
+      max-width: 800px;
+      padding: 40px 20px;
     }
     
-    .btn-secondary {
-      background: #f8f9fa;
-      color: #333;
-      border: 2px solid #e0e0e0;
+    .logo {
+      font-size: 72px;
+      margin-bottom: 20px;
     }
     
-    .btn-secondary:hover {
-      background: #e9ecef;
+    .app-name {
+      font-size: 48px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
     }
     
-    .role-selection {
-      margin: 20px 0;
+    .tagline {
+      font-size: 24px;
+      margin-bottom: 40px;
+      opacity: 0.9;
     }
     
-    .role-buttons {
+    .description {
+      font-size: 18px;
+      margin-bottom: 50px;
+      line-height: 1.6;
+      opacity: 0.8;
+    }
+    
+    .action-buttons {
       display: flex;
-      gap: 10px;
-      margin-top: 10px;
+      gap: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
     }
     
-    .role-btn {
-      flex: 1;
-      padding: 10px;
-      border: 2px solid #e0e0e0;
-      background: white;
-      border-radius: 8px;
+    .btn {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 50px;
+      font-size: 18px;
+      font-weight: bold;
       cursor: pointer;
       transition: all 0.3s;
+      text-decoration: none;
+      display: inline-block;
+      min-width: 200px;
     }
     
-    .role-btn.active {
-      border-color: #ff6b35;
-      background: #fff5f2;
+    .btn-primary {
+      background: white;
       color: #ff6b35;
     }
     
-    .error-message {
-      color: #dc3545;
-      font-size: 14px;
-      margin-top: 10px;
+    .btn-primary:hover {
+      background: #f8f9fa;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
     }
     
-    .hidden { display: none; }
+    .btn-secondary {
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: 2px solid white;
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.3);
+      transform: translateY(-2px);
+    }
+    
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 30px;
+      margin-top: 60px;
+      max-width: 1000px;
+    }
+    
+    .feature-card {
+      background: rgba(255,255,255,0.1);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+    }
+    
+    .feature-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    
+    .feature-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    
+    .feature-description {
+      font-size: 16px;
+      opacity: 0.8;
+      line-height: 1.5;
+    }
+    
+    .footer {
+      margin-top: 60px;
+      text-align: center;
+      opacity: 0.7;
+    }
+    
+    @media (max-width: 768px) {
+      .app-name { font-size: 36px; }
+      .tagline { font-size: 20px; }
+      .action-buttons { flex-direction: column; align-items: center; }
+      .btn { min-width: 250px; }
+    }
   </style>
 </head>
 <body>
-  <div class="login-container">
+  <div class="hero-section">
     <div class="logo">🍔</div>
-    <div class="app-name">Bradley GigRunner</div>
-    <div class="tagline">Food delivery made simple</div>
+    <h1 class="app-name">Bradley GigRunner</h1>
+    <p class="tagline">Food delivery made simple</p>
+    <p class="description">
+      Connect customers with local restaurants and drivers for fast, reliable food delivery. 
+      Whether you're ordering food or delivering it, we've got you covered.
+    </p>
     
-    <div id="loginForm">
-      <div class="form-group">
-        <label for="email">Email</label>
-        <input type="email" id="email" placeholder="Enter your email" />
-      </div>
-      
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" placeholder="Enter your password" />
-      </div>
-      
-      <div class="role-selection">
-        <label>I want to:</label>
-        <div class="role-buttons">
-          <button class="role-btn active" onclick="selectRole('customer')">Order Food</button>
-          <button class="role-btn" onclick="selectRole('driver')">Deliver Food</button>
-          <button class="role-btn" onclick="selectRole('restaurant')">Manage Restaurant</button>
-        </div>
-      </div>
-      
-      <button class="btn btn-primary" onclick="login()">Login</button>
-      <button class="btn btn-secondary" onclick="signup()">Sign Up</button>
-      
-      <div id="errorMessage" class="error-message hidden"></div>
+    <div class="action-buttons">
+      <a href="login.html" class="btn btn-primary">Get Started</a>
+      <a href="signup.html" class="btn btn-secondary">Sign Up</a>
     </div>
   </div>
-
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-  import { getFirestore, collection, addDoc, updateDoc, doc, query, where, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-  import { firebaseConfig, COLLECTIONS, USER_ROLES } from "./firebase-config.js";
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const auth = getAuth(app);
-
-  let selectedRole = 'customer';
-
-  window.selectRole = (role) => {
-    selectedRole = role;
-    document.querySelectorAll('.role-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-  };
-
-  window.login = async () => {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    const errorDiv = document.getElementById("errorMessage");
+  
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">👥</div>
+      <h3 class="feature-title">For Customers</h3>
+      <p class="feature-description">
+        Browse local restaurants, place orders, and track your delivery in real-time.
+      </p>
+    </div>
     
-    if (!email || !password) {
-      showError("Please fill in all fields");
-      return;
-    }
-
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await redirectUser(userCredential.user);
-    } catch (error) {
-      showError("Login failed: " + error.message);
-    }
-  };
-
-  window.signup = async () => {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    const errorDiv = document.getElementById("errorMessage");
+    <div class="feature-card">
+      <div class="feature-icon">🚗</div>
+      <h3 class="feature-title">For Drivers</h3>
+      <p class="feature-description">
+        Accept delivery requests, earn money, and work on your own schedule.
+      </p>
+    </div>
     
-    if (!email || !password) {
-      showError("Please fill in all fields");
-      return;
-    }
-
-    if (password.length < 6) {
-      showError("Password must be at least 6 characters");
-      return;
-    }
-
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      
-      // Create user profile with selected role
-      await addDoc(collection(db, COLLECTIONS.USERS), {
-        uid: userCredential.user.uid,
-        email: email,
-        role: selectedRole,
-        createdAt: new Date(),
-        profile: {
-          name: email.split('@')[0],
-          phone: '',
-          address: ''
-        }
-      });
-      
-      await redirectUser(userCredential.user);
-    } catch (error) {
-      showError("Signup failed: " + error.message);
-    }
-  };
-
-  async function redirectUser(user) {
-    try {
-      // Get user role from database
-      const userDoc = await doc(db, COLLECTIONS.USERS, user.uid);
-      const userSnap = await getDoc(userDoc);
-      
-      let role = selectedRole;
-      if (userSnap.exists()) {
-        role = userSnap.data().role;
-      }
-
-      // Redirect based on role
-      switch (role) {
-        case USER_ROLES.CUSTOMER:
-          window.location.href = 'customer-dashboard.html';
-          break;
-        case USER_ROLES.DRIVER:
-          window.location.href = 'driver-dashboard.html';
-          break;
-        case USER_ROLES.RESTAURANT_OWNER:
-          window.location.href = 'restaurant-dashboard.html';
-          break;
-        case USER_ROLES.ADMIN:
-          window.location.href = 'admin.html';
-          break;
-        default:
-          window.location.href = 'customer-dashboard.html';
-      }
-    } catch (error) {
-      console.error('Error redirecting user:', error);
-      window.location.href = 'customer-dashboard.html';
-    }
-  }
-
-  function showError(message) {
-    const errorDiv = document.getElementById("errorMessage");
-    errorDiv.textContent = message;
-    errorDiv.classList.remove("hidden");
-    setTimeout(() => {
-      errorDiv.classList.add("hidden");
-    }, 5000);
-  }
-
-  // Check if user is already logged in
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      redirectUser(user);
-    }
-  });
-</script>
+    <div class="feature-card">
+      <div class="feature-icon">🏪</div>
+      <h3 class="feature-title">For Restaurants</h3>
+      <p class="feature-description">
+        Manage your menu, process orders, and grow your business with delivery.
+      </p>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <p>&copy; 2024 Bradley Virtual Solutions, LLC. All rights reserved.</p>
+  </div>
 </body>
 </html>

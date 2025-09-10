@@ -2,100 +2,1626 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Bradley GigRunner - Customer</title>
+  <title>Bradley GigRunner - Customer Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="favicon.ico" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; background: #f5f7fa; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f8f9fa;
+      color: #2d3436;
+      line-height: 1.6;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+      color: white;
+      padding: 1rem 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .logout-btn {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+
+    .logout-btn:hover {
+      background: rgba(255,255,255,0.3);
+      transform: translateY(-1px);
+    }
+
+    /* Main Container */
     .container {
-      max-width: 650px; margin: auto; padding: 20px;
-      background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
     }
-    h1, h2 { color: #1a4d2e; text-align: center; }
-    input, textarea, select {
-      width: 100%; padding: 10px; margin: 10px 0;
-      font-size: 1em; border: 1px solid #ccc; border-radius: 6px;
+
+    /* Hero Section */
+    .hero-section {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      text-align: center;
     }
-    button {
-      background: #1a4d2e; color: white; padding: 12px;
-      width: 100%; border: none; border-radius: 6px;
-      font-size: 1em; margin-top: 10px; cursor: pointer;
+
+    .hero-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #2d3436;
+      margin-bottom: 0.5rem;
     }
-    button:hover { background: #145032; }
-    .logout { background: #d9534f; }
-    .logout:hover { background: #c9302c; }
+
+    .hero-subtitle {
+      font-size: 1.1rem;
+      color: #636e72;
+      margin-bottom: 2rem;
+    }
+
+    /* Request Form */
+    .request-form {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .form-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #2d3436;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-label {
+      font-weight: 500;
+      color: #2d3436;
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .form-input {
+      padding: 1rem;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: #f8f9fa;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #ff6b35;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+    }
+
+    .form-textarea {
+      grid-column: 1 / -1;
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+
+    .btn {
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+      color: white;
+      box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+      transform: translateY(-1px);
+    }
+
+    /* Map Section */
+    .map-section {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .map-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #2d3436;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    #map {
+      height: 300px;
+      border-radius: 12px;
+      border: 2px solid #e9ecef;
+    }
+
+    /* Jobs Section */
+    .jobs-section {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #2d3436;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 0.5rem;
+      background: #f8f9fa;
+      padding: 0.25rem;
+      border-radius: 12px;
+    }
+
+    .filter-tab {
+      padding: 0.5rem 1rem;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      color: #6c757d;
+    }
+
+    .filter-tab.active {
+      background: white;
+      color: #ff6b35;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
     .job-card {
-      background: #fefefe; border: 1px solid #ccc;
-      border-radius: 6px; padding: 12px; margin: 10px 0;
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
     }
-    .job-card p { margin: 6px 0; }
-    #map { height: 250px; margin: 10px 0; border-radius: 10px; }
-    .small-btn {
-      padding: 6px 10px; font-size: 0.9em; margin-right: 6px;
-      border-radius: 5px; cursor: pointer;
+
+    .job-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      border-color: #ff6b35;
     }
+
+    .job-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    }
+
+    .job-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .job-id {
+      font-size: 0.8rem;
+      color: #6c757d;
+      background: #e9ecef;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+    }
+
+    .job-status {
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-accepted {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+
+    .status-completed {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .job-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .job-detail {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #495057;
+    }
+
+    .job-detail i {
+      color: #ff6b35;
+      width: 16px;
+    }
+
+    .job-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    .order-progress {
+      margin: 1rem 0;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #28a745, #20c997);
+      transition: width 0.3s ease;
+    }
+
+    .progress-steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      font-size: 0.8rem;
+      color: #6c757d;
+    }
+
+    .step i {
+      font-size: 1.2rem;
+      margin-bottom: 0.25rem;
+      padding: 0.5rem;
+      border-radius: 50%;
+      background: #e9ecef;
+      color: #6c757d;
+    }
+
+    .step.completed i {
+      background: #28a745;
+      color: white;
+    }
+
+    .step.completed {
+      color: #28a745;
+      font-weight: bold;
+    }
+
+    .tracking-info {
+      background: #f8f9fa;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+
+    .tracking-status h4 {
+      margin: 0 0 1rem 0;
+      color: #333;
+    }
+
+    .tracking-details {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .detail-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .detail-item i {
+      color: #007bff;
+      width: 16px;
+    }
+
+    /* Custom Map Icons */
+    .custom-marker {
+      background: none !important;
+      border: none !important;
+    }
+
+    .marker-content {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      border: 2px solid white;
+    }
+
+    .customer-marker .marker-content {
+      background: #28a745;
+    }
+
+    .worker-marker .marker-content {
+      background: #007bff;
+      animation: pulse 2s infinite;
+    }
+
+    .restaurant-marker .marker-content {
+      background: #ff6b35;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+      }
+    }
+
+
+    /* Address Input Enhancement */
+    .address-input {
+      transition: all 0.3s ease;
+    }
+
+    .address-input:focus {
+      outline: none;
+      border-color: #007bff !important;
+      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25) !important;
+    }
+
+
+    .btn-small {
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      border-radius: 8px;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #ff6b35;
+      color: #ff6b35;
+    }
+
+    .btn-outline:hover {
+      background: #ff6b35;
+      color: white;
+    }
+
+    /* Notifications */
+    .notifications-section {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .notification-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 12px;
+      margin-bottom: 0.5rem;
+      border-left: 4px solid #ff6b35;
+    }
+
+    .notification-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+    }
+
+    .notification-content {
+      flex: 1;
+    }
+
+    .notification-title {
+      font-weight: 600;
+      color: #2d3436;
+      margin-bottom: 0.25rem;
+    }
+
+    .notification-time {
+      font-size: 0.8rem;
+      color: #6c757d;
+    }
+
+    /* Chat Modal */
     .modal {
-      display: none; position: fixed; z-index: 999;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6); justify-content: center; align-items: center;
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
     }
+
     .modal-content {
-      background: white; padding: 20px;
-      max-width: 500px; width: 90%; border-radius: 10px;
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .modal-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #2d3436;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #6c757d;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
+
+    .close-btn:hover {
+      background: #f8f9fa;
+      color: #2d3436;
+    }
+
+    .chat-messages {
+      height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e9ecef;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      background: #f8f9fa;
+    }
+
+    .message {
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      border-radius: 12px;
+      max-width: 80%;
+    }
+
+    .message.sent {
+      background: #ff6b35;
+      color: white;
+      margin-left: auto;
+    }
+
+    .message.received {
+      background: white;
+      color: #2d3436;
+      border: 1px solid #e9ecef;
+    }
+
+    .message-sender {
+      font-weight: 600;
+      font-size: 0.8rem;
+      margin-bottom: 0.25rem;
+      opacity: 0.8;
+    }
+
+    .message-text {
+      font-size: 0.9rem;
+    }
+
+    .chat-input {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .chat-input input {
+      flex: 1;
+      padding: 0.75rem;
+      border: 1px solid #e9ecef;
+      border-radius: 12px;
+      font-size: 0.9rem;
+    }
+
+    .chat-input button {
+      padding: 0.75rem 1.5rem;
+      background: #ff6b35;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* Loading States */
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #6c757d;
+    }
+
+    .loading i {
+      font-size: 2rem;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .job-details {
+        grid-template-columns: 1fr;
+      }
+
+      .section-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+      }
+
+      .filter-tabs {
+        justify-content: center;
+      }
+
+      .hero-title {
+        font-size: 2rem;
+      }
+
+      .form-actions {
+        flex-direction: column;
+      }
+    }
+
+    /* Personal Service Section */
+    .personal-service-section {
+      margin-bottom: 2rem;
+    }
+
+    .service-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 20px;
+      padding: 2rem;
+      color: white;
+      box-shadow: 0 8px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    .service-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .service-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .service-description {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .service-features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .feature i {
+      font-size: 1.2rem;
+      color: #ffd700;
+    }
+
+    .service-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .service-actions .btn {
+      min-width: 180px;
+    }
+
+    /* Restaurant Search */
+    .restaurant-search {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .search-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .search-bar {
+      position: relative;
+      margin-bottom: 1.5rem;
+    }
+
+    .search-bar i {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #6c757d;
+      font-size: 1.1rem;
+    }
+
+    .search-bar input {
+      width: 100%;
+      padding: 1rem 1rem 1rem 3rem;
+      border: 2px solid #e9ecef;
+      border-radius: 25px;
+      font-size: 1rem;
+      background: #f8f9fa;
+      transition: all 0.3s ease;
+    }
+
+    .search-bar input:focus {
+      outline: none;
+      border-color: #ff6b35;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+    }
+
+    .search-filters {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .filter-btn {
+      padding: 0.5rem 1rem;
+      border: 2px solid #e9ecef;
+      background: white;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      color: #6c757d;
+    }
+
+    .filter-btn:hover {
+      border-color: #ff6b35;
+      color: #ff6b35;
+    }
+
+    .filter-btn.active {
+      background: #ff6b35;
+      border-color: #ff6b35;
+      color: white;
+    }
+
+    /* Restaurants Section */
+    .restaurants-section {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .restaurants-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .restaurant-card {
+      background: white;
+      border: 1px solid #e9ecef;
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .restaurant-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+      border-color: #ff6b35;
+    }
+
+    .restaurant-image {
+      height: 200px;
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 3rem;
+      position: relative;
+    }
+
+    .restaurant-image::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.1);
+    }
+
+    .restaurant-info {
+      padding: 1.5rem;
+    }
+
+    .restaurant-name {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #2d3436;
+      margin-bottom: 0.5rem;
+    }
+
+    .restaurant-cuisine {
+      color: #6c757d;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .restaurant-rating {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .stars {
+      color: #ffc107;
+    }
+
+    .rating-text {
+      font-size: 0.9rem;
+      color: #6c757d;
+    }
+
+    .restaurant-details {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .delivery-time {
+      font-size: 0.9rem;
+      color: #6c757d;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .delivery-fee {
+      font-size: 0.9rem;
+      color: #28a745;
+      font-weight: 500;
+    }
+
+    .restaurant-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn-restaurant {
+      flex: 1;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-order {
+      background: #ff6b35;
+      color: white;
+    }
+
+    .btn-order:hover {
+      background: #e55a2b;
+      transform: translateY(-1px);
+    }
+
+    .btn-menu {
+      background: #f8f9fa;
+      color: #6c757d;
+      border: 1px solid #e9ecef;
+    }
+
+    .btn-menu:hover {
+      background: #e9ecef;
+      color: #495057;
+    }
+
+    /* Menu Modal */
+    .menu-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    .menu-content {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      max-width: 800px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .menu-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .menu-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #2d3436;
+    }
+
+    .menu-categories {
+      display: grid;
+      gap: 2rem;
+    }
+
+    .menu-category {
+      border-bottom: 1px solid #e9ecef;
+      padding-bottom: 1rem;
+    }
+
+    .category-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #2d3436;
+      margin-bottom: 1rem;
+    }
+
+    .menu-items {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .menu-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+
+    .menu-item:hover {
+      background: #e9ecef;
+    }
+
+    .item-info {
+      flex: 1;
+    }
+
+    .item-name {
+      font-weight: 600;
+      color: #2d3436;
+      margin-bottom: 0.25rem;
+    }
+
+    .item-description {
+      font-size: 0.9rem;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+    }
+
+    .item-price {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #ff6b35;
+    }
+
+    .item-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .quantity-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: white;
+      border-radius: 8px;
+      padding: 0.25rem;
+    }
+
+    .quantity-btn {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: #ff6b35;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+
+    .quantity-btn:hover {
+      background: #e55a2b;
+    }
+
+    .quantity-display {
+      min-width: 30px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .add-to-cart {
+      padding: 0.5rem 1rem;
+      background: #ff6b35;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .add-to-cart:hover {
+      background: #e55a2b;
+    }
+
+    .add-to-cart:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+
+    /* Hire Worker Modal */
+    .hire-worker-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .worker-selection h4,
+    .service-details h4 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #2d3436;
+      margin-bottom: 1rem;
+    }
+
+    .workers-list {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .worker-card {
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .worker-card:hover {
+      border-color: #ff6b35;
+      background: #f8f9fa;
+    }
+
+    .worker-card.selected {
+      border-color: #ff6b35;
+      background: #fff3e0;
+    }
+
+    .worker-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .worker-avatar {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 1.2rem;
+    }
+
+    .worker-details h5 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2d3436;
+      margin-bottom: 0.25rem;
+    }
+
+    .worker-rating {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .worker-rating .stars {
+      color: #ffc107;
+    }
+
+    .worker-rating .rating-text {
+      font-size: 0.9rem;
+      color: #6c757d;
+    }
+
+    .worker-specialties {
+      font-size: 0.8rem;
+      color: #6c757d;
+    }
+
+    .service-details .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: center;
+      padding-top: 1rem;
+      border-top: 1px solid #e9ecef;
+    }
+
+    /* Cart Summary */
+    .cart-summary {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-top: 1px solid #e9ecef;
+      padding: 1rem;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+      z-index: 1000;
+      display: none;
+    }
+
+    .cart-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cart-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .cart-items {
+      font-weight: 600;
+      color: #2d3436;
+    }
+
+    .cart-total {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #ff6b35;
+    }
+
+    .checkout-btn {
+      padding: 1rem 2rem;
+      background: #ff6b35;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .checkout-btn:hover {
+      background: #e55a2b;
+      transform: translateY(-1px);
+    }
+
+    /* Empty States */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #6c757d;
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.5;
+    }
+
+    .empty-state h3 {
+      margin-bottom: 0.5rem;
+      color: #495057;
+    }
+
+    .empty-state p {
+      font-size: 0.9rem;
     }
   </style>
 </head>
 <body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">
+        <i class="fas fa-motorcycle"></i>
+        Bradley GigRunner
+      </div>
+      <div class="user-info">
+        <span id="userEmail">Loading...</span>
+        <button class="logout-btn" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i>
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
   <div class="container">
-    <h1>Customer Dashboard</h1>
-    <button class="logout" onclick="logout()">Logout</button>
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <h1 class="hero-title">Welcome to Bradley GigRunner</h1>
+      <p class="hero-subtitle">Hire a personal food concierge to order and deliver your meals, or order directly from restaurants</p>
+    </section>
 
-    <h2>Create Delivery Request</h2>
-    <input type="text" id="pickup" placeholder="Pickup Location" />
-    <input type="text" id="dropoff" placeholder="Dropoff Location" />
-    <input type="text" id="details" placeholder="What are you sending?" />
-    <input type="number" id="tip" placeholder="Tip for driver ($)" min="1" />
-    <div id="map"></div>
-    <button onclick="previewRoute()">📍 Preview Route</button>
-    <button onclick="submitRequest()">🚀 Submit Request</button>
+    <!-- Personal Service Section -->
+    <section class="personal-service-section">
+      <div class="service-card">
+        <div class="service-header">
+          <h2 class="service-title">
+            <i class="fas fa-user-tie"></i>
+            Personal Food Concierge Service
+          </h2>
+          <p class="service-description">Hire a personal worker to order, pick up, and deliver your food for you</p>
+        </div>
+        <div class="service-features">
+          <div class="feature">
+            <i class="fas fa-utensils"></i>
+            <span>Order from any restaurant</span>
+          </div>
+          <div class="feature">
+            <i class="fas fa-motorcycle"></i>
+            <span>Personal delivery service</span>
+          </div>
+          <div class="feature">
+            <i class="fas fa-comments"></i>
+            <span>Real-time communication</span>
+          </div>
+          <div class="feature">
+            <i class="fas fa-credit-card"></i>
+            <span>Secure payment system</span>
+          </div>
+        </div>
+        <div class="service-actions">
+          <button class="btn btn-primary" onclick="openHireWorkerModal()">
+            <i class="fas fa-plus"></i>
+            Hire a Worker
+          </button>
+          <button class="btn btn-secondary" onclick="viewHiredWorkers()">
+            <i class="fas fa-users"></i>
+            My Workers
+          </button>
+        </div>
+      </div>
+    </section>
 
-    <h2>My Delivery Requests</h2>
-    <select id="filterStatus" onchange="filterJobs()">
-      <option value="all">All</option>
-      <option value="pending">Pending</option>
-      <option value="accepted">Accepted</option>
-      <option value="completed">Completed</option>
-    </select>
-    <div id="jobList">Loading...</div>
+    <!-- Restaurant Search -->
+    <section class="restaurant-search">
+      <div class="search-container">
+        <div class="search-bar">
+          <i class="fas fa-search"></i>
+          <input type="text" id="restaurantSearch" placeholder="Search restaurants, cuisines, or dishes...">
+        </div>
+        <div class="search-filters">
+          <button class="filter-btn active" onclick="filterRestaurants('all')">All</button>
+          <button class="filter-btn" onclick="filterRestaurants('american')">American</button>
+          <button class="filter-btn" onclick="filterRestaurants('italian')">Italian</button>
+          <button class="filter-btn" onclick="filterRestaurants('mexican')">Mexican</button>
+          <button class="filter-btn" onclick="filterRestaurants('asian')">Asian</button>
+          <button class="filter-btn" onclick="filterRestaurants('fast')">Fast Food</button>
+        </div>
+      </div>
+    </section>
 
-    <h2>Notifications</h2>
-    <div id="notificationsBox">Loading...</div>
+    <!-- Featured Restaurants -->
+    <section class="restaurants-section">
+      <h2 class="section-title">
+        <i class="fas fa-utensils"></i>
+        Popular Restaurants
+      </h2>
+      <div id="restaurantsList" class="restaurants-grid">
+        <!-- Restaurants will be loaded here -->
+      </div>
+    </section>
+
+    <!-- Request Form -->
+    <section class="request-form">
+      <h2 class="form-title">
+        <i class="fas fa-plus-circle"></i>
+        Create Delivery Request
+      </h2>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="pickup">Pickup Location</label>
+          <input type="text" id="pickup" class="form-input address-input" placeholder="Enter pickup address">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="dropoff">Dropoff Location</label>
+          <input type="text" id="dropoff" class="form-input address-input" placeholder="Enter dropoff address">
+        </div>
+        <div class="form-group form-textarea">
+          <label class="form-label" for="details">Delivery Details</label>
+          <textarea id="details" class="form-input form-textarea" placeholder="Describe what needs to be delivered..."></textarea>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="previewRoute()">
+          <i class="fas fa-route"></i>
+          Preview Route
+        </button>
+        <button class="btn btn-primary" onclick="submitRequest()">
+          <i class="fas fa-paper-plane"></i>
+          Submit Request
+        </button>
+      </div>
+    </section>
+
+    <!-- Map Section -->
+    <section class="map-section">
+      <h2 class="map-title">
+        <i class="fas fa-map-marked-alt"></i>
+        Delivery Map
+      </h2>
+      <div id="map"></div>
+    </section>
+
+    <!-- Jobs Section -->
+    <section class="jobs-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <i class="fas fa-list"></i>
+          My Delivery Requests
+        </h2>
+        <div class="filter-tabs">
+          <button class="filter-tab active" onclick="filterJobs('all')">All</button>
+          <button class="filter-tab" onclick="filterJobs('pending')">Pending</button>
+          <button class="filter-tab" onclick="filterJobs('accepted')">Accepted</button>
+          <button class="filter-tab" onclick="filterJobs('completed')">Completed</button>
+        </div>
+      </div>
+      <div id="jobsList">
+        <div class="loading">
+          <i class="fas fa-spinner"></i>
+          <p>Loading your requests...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Notifications Section -->
+    <section class="notifications-section">
+      <h2 class="section-title">
+        <i class="fas fa-bell"></i>
+        Notifications
+      </h2>
+      <div id="notificationsList">
+        <div class="loading">
+          <i class="fas fa-spinner"></i>
+          <p>Loading notifications...</p>
+        </div>
+      </div>
+    </section>
   </div>
 
-  <!-- Driver Chat Modal -->
-  <div id="chatModal" class="modal" onclick="if(event.target==this) closeChat()">
+  <!-- Hire Worker Modal -->
+  <div id="hireWorkerModal" class="modal">
     <div class="modal-content">
-      <h3>Chat with Driver</h3>
-      <div id="chatMessages" style="height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 10px;"></div>
-      <input id="chatInput" placeholder="Type a message..." />
-      <button onclick="sendMessage()">Send</button>
+      <div class="modal-header">
+        <h3 class="modal-title">Hire a Personal Food Concierge</h3>
+        <button class="close-btn" onclick="closeHireWorkerModal()">&times;</button>
+      </div>
+      <div class="hire-worker-content">
+        <div class="worker-selection">
+          <h4>Available Workers</h4>
+          <div id="availableWorkers" class="workers-list">
+            <!-- Available workers will be loaded here -->
+          </div>
+        </div>
+        <div class="service-details">
+          <h4>Service Details</h4>
+          <div class="form-group">
+            <label class="form-label">Service Type</label>
+            <select id="serviceType" class="form-input">
+              <option value="one-time">One-time Order</option>
+              <option value="weekly">Weekly Service</option>
+              <option value="monthly">Monthly Service</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Budget Range</label>
+            <select id="budgetRange" class="form-input">
+              <option value="20-50">$20 - $50 per order</option>
+              <option value="50-100">$50 - $100 per order</option>
+              <option value="100-200">$100 - $200 per order</option>
+              <option value="200+">$200+ per order</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Special Instructions</label>
+            <textarea id="specialInstructions" class="form-input" placeholder="Any specific requirements or preferences..."></textarea>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" onclick="hireWorker()">
+            <i class="fas fa-handshake"></i>
+            Hire Selected Worker
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- PayPal / Export Buttons Modal -->
-  <div id="actionsModal" class="modal" onclick="if(event.target==this) closeModal()">
-    <div class="modal-content">
-      <h3>Actions</h3>
-      <div id="paypalContainer">Loading PayPal...</div>
-      <button onclick="downloadPDF()">📄 Export PDF</button>
-      <button onclick="closeModal()">Close</button>
+  <!-- Menu Modal -->
+  <div id="menuModal" class="menu-modal">
+    <div class="menu-content">
+      <div class="menu-header">
+        <h3 class="menu-title" id="menuTitle">Restaurant Menu</h3>
+        <button class="close-btn" onclick="closeMenu()">&times;</button>
+      </div>
+      <div id="menuCategories" class="menu-categories">
+        <!-- Menu items will be loaded here -->
+      </div>
     </div>
   </div>
-  <script src="https://www.paypal.com/sdk/js?client-id=sb&currency=USD"></script>
+
+  <!-- Chat Modal -->
+  <div id="chatModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Chat with Driver</h3>
+        <button class="close-btn" onclick="closeChat()">&times;</button>
+      </div>
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Type your message...">
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cart Summary -->
+  <div id="cartSummary" class="cart-summary">
+    <div class="cart-content">
+      <div class="cart-info">
+        <span class="cart-items" id="cartItems">0 items</span>
+        <span class="cart-total" id="cartTotal">$0.00</span>
+      </div>
+      <button class="checkout-btn" onclick="checkout()">
+        <i class="fas fa-shopping-cart"></i>
+        Checkout
+      </button>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import {
@@ -116,6 +1642,13 @@
     const db = getFirestore(app);
     let currentUserId = null;
     let activeChatJobId = null;
+    let map, carMarker;
+    let cart = {};
+    let currentRestaurant = null;
+    let selectedWorker = null;
+    let hiredWorkers = [];
+    let pickupAutocomplete = null;
+    let dropoffAutocomplete = null;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
@@ -124,12 +1657,963 @@
         alert("Access denied."); signOut(auth); return location.href = "login.html";
       }
       currentUserId = user.uid;
+      document.getElementById('userEmail').textContent = user.email;
       loadJobs();
       loadNotifications();
+      loadRestaurants();
+      loadHiredWorkers();
       initMap();
+      initAddressAutocomplete();
     });
 
-    let map, carMarker;
+    // Google Maps Places Autocomplete
+
+    function initAddressAutocomplete() {
+      console.log('Initializing address input enhancement...');
+
+      // Initialize pickup location input
+      const pickupInput = document.getElementById('pickup');
+      if (pickupInput) {
+        pickupInput.placeholder = 'Enter pickup address (e.g., 123 Main St, City, State)';
+        pickupInput.addEventListener('input', function() {
+          validateAddress(this);
+        });
+        console.log('Pickup input enhanced');
+      }
+
+      // Initialize dropoff location input
+      const dropoffInput = document.getElementById('dropoff');
+      if (dropoffInput) {
+        dropoffInput.placeholder = 'Enter delivery address (e.g., 456 Oak Ave, City, State)';
+        dropoffInput.addEventListener('input', function() {
+          validateAddress(this);
+        });
+        console.log('Dropoff input enhanced');
+      }
+    }
+
+    function validateAddress(input) {
+      const value = input.value.trim();
+      
+      // Basic address validation
+      if (value.length > 5) {
+        input.style.borderColor = '#28a745'; // Green for valid
+        input.style.backgroundColor = '#f8fff9';
+      } else if (value.length > 0) {
+        input.style.borderColor = '#ffc107'; // Yellow for partial
+        input.style.backgroundColor = '#fffbf0';
+      } else {
+        input.style.borderColor = '#ddd'; // Default
+        input.style.backgroundColor = 'white';
+      }
+    }
+
+    // Restaurant data
+    const restaurants = [
+      {
+        id: 'applebees',
+        name: 'Applebee\'s',
+        cuisine: 'American',
+        rating: 4.2,
+        deliveryTime: '25-35 min',
+        deliveryFee: '$2.99',
+        icon: 'fas fa-hamburger',
+        menu: {
+          'Appetizers': [
+            { name: 'Chicken Wonton Tacos', description: 'Sweet Asian chile marinated grilled chicken stuffed into crispy wonton shells, topped with signature coleslaw and cilantro', price: 10.99 },
+            { name: 'Spinach & Artichoke Dip', description: 'A creamy blend of spinach and artichokes, served with freshly made white corn tortilla chips', price: 8.99 },
+            { name: 'Boneless Wings', description: 'Crispy wings with your choice of sauce: Honey BBQ, Sweet Asian Chile, or Buffalo', price: 9.99 },
+            { name: 'Mozzarella Sticks', description: 'Golden fried mozzarella with marinara sauce', price: 7.99 },
+            { name: 'Loaded Potato Skins', description: 'Crispy potato skins loaded with cheese, bacon, and sour cream', price: 8.99 },
+            { name: 'Chicken Quesadilla', description: 'Grilled chicken, cheese, and peppers in a flour tortilla, served with sour cream and salsa', price: 9.99 },
+            { name: 'Brew Pub Pretzels & Beer Cheese Dip', description: 'Soft pretzels served with warm beer cheese dip', price: 8.99 },
+            { name: 'Buffalo Wings', description: 'Traditional bone-in wings with your choice of sauce', price: 9.99 },
+            { name: 'Chicken Nachos', description: 'Tortilla chips topped with grilled chicken, cheese, jalapeños, and sour cream', price: 10.99 },
+            { name: 'Crispy Onion Rings', description: 'Golden fried onion rings served with ranch dipping sauce', price: 6.99 }
+          ],
+          'Steaks & Ribs': [
+            { name: '12 oz. Ribeye', description: 'Rich, tender, and juicy USDA Select Ribeye Steak, served hot off the grill with your choice of two sides', price: 24.99 },
+            { name: 'Double-Glazed Baby Back Ribs', description: 'Full rack of ribs slow-cooked to fall-off-the-bone tenderness, slathered with your choice of Honey BBQ or Sweet Asian Chile sauce', price: 22.99 },
+            { name: '8 oz. Top Sirloin', description: 'USDA Select Sirloin Steak grilled to perfection with your choice of two sides', price: 19.99 },
+            { name: 'Bourbon Street Steak', description: '8 oz. sirloin topped with bourbon-glazed onions and mushrooms', price: 21.99 },
+            { name: 'Shrimp \'N Parmesan Sirloin', description: '8 oz. sirloin topped with shrimp and Parmesan cheese', price: 23.99 },
+            { name: 'Applebee\'s Riblets Platter', description: 'Half rack of ribs with your choice of sauce', price: 18.99 },
+            { name: '6 oz. Top Sirloin', description: 'Smaller portion of our signature sirloin with two sides', price: 16.99 }
+          ],
+          'Handcrafted Burgers': [
+            { name: 'Whisky Bacon Burger', description: 'An all-beef patty topped with Pepper Jack cheese, crispy onions, Applewood-smoked bacon, and Fireball Whisky-infused steak sauce', price: 15.99 },
+            { name: 'Classic Bacon Cheeseburger', description: 'Juicy all-beef patty topped with American cheese and Applewood-smoked bacon, served with lettuce, tomato, onion, and pickles', price: 13.99 },
+            { name: 'Bourbon Street Burger', description: 'All-beef patty with bourbon-glazed onions, Applewood-smoked bacon, and Swiss cheese', price: 14.99 },
+            { name: 'Quesadilla Burger', description: 'All-beef patty with cheese, peppers, and onions in a flour tortilla', price: 14.99 },
+            { name: 'Impossible® Cheeseburger', description: 'Plant-based patty with American cheese, lettuce, tomato, and pickles', price: 13.99 },
+            { name: 'Bacon Cheddar Burger', description: 'All-beef patty with cheddar cheese and Applewood-smoked bacon', price: 13.99 },
+            { name: 'Mushroom Swiss Burger', description: 'All-beef patty with Swiss cheese and sautéed mushrooms', price: 14.99 }
+          ],
+          'Chicken': [
+            { name: 'Fiesta Lime Chicken', description: 'Grilled chicken glazed with zesty lime sauce, drizzled with tangy Mexi-ranch, and smothered with a rich blend of cheddar cheeses on a bed of crispy tortilla strips', price: 16.99 },
+            { name: 'Bourbon Street Chicken & Shrimp', description: 'Cajun-seasoned chicken and blackened shrimp in buttery garlic and parsley, served sizzling with sautéed mushrooms & onions and garlic mashed potatoes', price: 18.99 },
+            { name: 'Crispy Chicken Tenders', description: 'Hand-breaded chicken tenders served with your choice of dipping sauce and fries', price: 14.99 },
+            { name: 'Grilled Chicken Breast', description: 'Seasoned grilled chicken breast with your choice of two sides', price: 15.99 },
+            { name: 'Honey Pepper Chicken Tenders', description: 'Crispy chicken tenders glazed with honey pepper sauce', price: 15.99 },
+            { name: 'Chicken Tenders Platter', description: 'Large portion of chicken tenders with fries and coleslaw', price: 16.99 },
+            { name: 'Grilled Chicken Caesar', description: 'Grilled chicken breast served over Caesar salad', price: 14.99 }
+          ],
+          'Pasta': [
+            { name: 'Three-Cheese Chicken Penne', description: 'Asiago, Parmesan, and white cheddar cheeses mixed with penne pasta in a rich Parmesan cream sauce, topped with grilled chicken breast and bruschetta tomatoes', price: 16.99 },
+            { name: 'Classic Broccoli Chicken Alfredo', description: 'Juicy grilled chicken served warm on a bed of fettuccine pasta tossed with broccoli and rich Alfredo sauce, topped with Parmesan cheese', price: 15.99 },
+            { name: 'Cajun Shrimp Pasta', description: 'Blackened shrimp and penne pasta in a spicy Cajun cream sauce with bell peppers and onions', price: 17.99 },
+            { name: 'Four-Cheese Mac & Cheese with Honey Pepper Chicken Tenders', description: 'Creamy four-cheese mac and cheese topped with honey pepper chicken tenders', price: 16.99 },
+            { name: 'Classic Blackened Shrimp Alfredo', description: 'Blackened shrimp served over fettuccine with rich Alfredo sauce', price: 17.99 },
+            { name: 'Chicken Fettuccine Alfredo', description: 'Grilled chicken over fettuccine with creamy Alfredo sauce', price: 15.99 }
+          ],
+          'Seafood': [
+            { name: 'Blackened Cajun Salmon', description: '6 oz. blackened salmon fillet grilled to perfection, served with your choice of two sides', price: 19.99 },
+            { name: 'Double Crunch Shrimp', description: 'A generous portion of crispy shrimp served with cocktail sauce, coleslaw, and fries', price: 16.99 },
+            { name: 'Hand-Battered Fish & Chips', description: 'Beer-battered cod with crispy fries and tartar sauce', price: 14.99 },
+            { name: 'Blackened Shrimp Caesar Salad', description: 'Blackened shrimp over crisp romaine with Caesar dressing', price: 16.99 },
+            { name: 'Shrimp Scampi', description: 'Shrimp sautéed in garlic butter over pasta', price: 17.99 }
+          ],
+          'Salads': [
+            { name: 'Grilled Chicken Caesar Salad', description: 'Crisp romaine tossed in garlic Caesar dressing, topped with grilled chicken, croutons, and shaved Parmesan', price: 13.99 },
+            { name: 'Oriental Chicken Salad', description: 'Fresh Asian greens tossed in Oriental vinaigrette, topped with crispy breaded chicken tenders, almonds, and crispy noodles', price: 14.99 },
+            { name: 'Strawberry Balsamic Chicken Salad', description: 'Mixed greens with grilled chicken, strawberries, and balsamic vinaigrette', price: 14.99 },
+            { name: 'Crispy Chicken Tender Salad', description: 'Mixed greens topped with crispy chicken tenders and your choice of dressing', price: 13.99 },
+            { name: 'Grilled Chicken Salad', description: 'Mixed greens with grilled chicken, tomatoes, cucumbers, and your choice of dressing', price: 12.99 },
+            { name: 'Blackened Shrimp Caesar Salad', description: 'Blackened shrimp over crisp romaine with Caesar dressing and croutons', price: 15.99 }
+          ],
+          'Sandwiches & More': [
+            { name: 'Bacon Ranch Grilled Chicken Sandwich', description: 'Grilled chicken breast with bacon, ranch dressing, lettuce, and tomato on a brioche bun', price: 13.99 },
+            { name: 'Clubhouse Grille', description: 'Turkey, ham, bacon, Swiss cheese, lettuce, tomato, and mayo on grilled sourdough', price: 14.99 },
+            { name: 'The Prime Rib Dipper', description: 'Sliced prime rib with au jus and horseradish sauce on a hoagie roll', price: 15.99 },
+            { name: 'Chicken Fajita Rollup', description: 'Grilled chicken, peppers, onions, and cheese in a flour tortilla', price: 13.99 },
+            { name: 'Grilled Chicken Sandwich', description: 'Grilled chicken breast with lettuce, tomato, and mayo on a brioche bun', price: 12.99 }
+          ],
+          'Sides': [
+            { name: 'French Fries', description: 'Golden crispy fries', price: 3.99 },
+            { name: 'Sweet Potato Fries', description: 'Crispy sweet potato fries with cinnamon sugar', price: 4.99 },
+            { name: 'Garlic Mashed Potatoes', description: 'Creamy mashed potatoes with roasted garlic', price: 4.99 },
+            { name: 'Steamed Broccoli', description: 'Fresh steamed broccoli florets', price: 3.99 },
+            { name: 'Coleslaw', description: 'Creamy coleslaw with cabbage and carrots', price: 3.99 },
+            { name: 'Onion Rings', description: 'Crispy golden onion rings', price: 4.99 },
+            { name: 'Rice Pilaf', description: 'Seasoned rice with vegetables', price: 3.99 }
+          ],
+          'Desserts': [
+            { name: 'Triple Chocolate Meltdown', description: 'Warm chocolate cake with hot fudge and vanilla ice cream', price: 6.99 },
+            { name: 'Sizzlin\' Butter Pecan Blondie', description: 'Warm blondie with butter pecan ice cream and caramel sauce', price: 6.99 },
+            { name: 'Blue Ribbon Brownie', description: 'Warm brownie with vanilla ice cream and chocolate sauce', price: 5.99 },
+            { name: 'New York Cheesecake', description: 'Classic New York style cheesecake with strawberry topping', price: 5.99 },
+            { name: 'Chocolate Chip Cookie Sundae', description: 'Warm chocolate chip cookie topped with vanilla ice cream, hot fudge, and whipped cream', price: 5.99 },
+            { name: 'Sugar Dusted Donut Dippers', description: 'Warm donut holes with vanilla ice cream and chocolate sauce', price: 5.99 },
+            { name: 'Brownie Bite', description: 'Warm brownie bite with vanilla ice cream', price: 4.99 }
+          ],
+          'Beverages': [
+            { name: 'Fountain Sodas', description: 'Coca-Cola, Diet Coke, Sprite, Dr. Pepper, and more', price: 2.99 },
+            { name: 'Iced Tea', description: 'Fresh brewed iced tea, sweet or unsweet', price: 2.99 },
+            { name: 'Lemonade', description: 'Fresh squeezed lemonade', price: 3.99 },
+            { name: 'Flavored Iced Teas', description: 'Peach, raspberry, or mango iced tea', price: 3.99 },
+            { name: 'Coffee', description: 'Fresh brewed coffee', price: 2.99 },
+            { name: 'Hot Tea', description: 'Selection of hot teas', price: 2.99 },
+            { name: 'Milk', description: 'Whole, 2%, or chocolate milk', price: 2.99 },
+            { name: 'Juice', description: 'Orange, apple, or cranberry juice', price: 3.99 }
+          ]
+        }
+      },
+      {
+        id: 'olivegarden',
+        name: 'Olive Garden',
+        cuisine: 'Italian',
+        rating: 4.1,
+        deliveryTime: '30-40 min',
+        deliveryFee: '$3.99',
+        icon: 'fas fa-pizza-slice',
+        menu: {
+          'Pasta': [
+            { name: 'Fettuccine Alfredo', description: 'Creamy alfredo sauce with fettuccine', price: 16.99 },
+            { name: 'Spaghetti & Meatballs', description: 'Classic spaghetti with meatballs', price: 15.99 },
+            { name: 'Chicken Parmigiana', description: 'Breaded chicken with marinara and cheese', price: 18.99 }
+          ],
+          'Salads': [
+            { name: 'Caesar Salad', description: 'Romaine lettuce with caesar dressing', price: 8.99 },
+            { name: 'Garden Salad', description: 'Mixed greens with vegetables', price: 7.99 }
+          ]
+        }
+      },
+      {
+        id: 'chipotle',
+        name: 'Chipotle',
+        cuisine: 'Mexican',
+        rating: 4.3,
+        deliveryTime: '15-25 min',
+        deliveryFee: '$1.99',
+        icon: 'fas fa-pepper-hot',
+        menu: {
+          'Bowls': [
+            { name: 'Chicken Bowl', description: 'Grilled chicken with rice, beans, and toppings', price: 9.99 },
+            { name: 'Steak Bowl', description: 'Grilled steak with rice, beans, and toppings', price: 10.99 },
+            { name: 'Veggie Bowl', description: 'Vegetarian bowl with sofritas', price: 8.99 }
+          ],
+          'Tacos': [
+            { name: 'Chicken Tacos', description: '3 soft tacos with grilled chicken', price: 8.99 },
+            { name: 'Carnitas Tacos', description: '3 soft tacos with carnitas', price: 9.99 }
+          ]
+        }
+      },
+      {
+        id: 'pandaexpress',
+        name: 'Panda Express',
+        cuisine: 'Asian',
+        rating: 4.0,
+        deliveryTime: '20-30 min',
+        deliveryFee: '$2.49',
+        icon: 'fas fa-drumstick-bite',
+        menu: {
+          'Entrees': [
+            { name: 'Orange Chicken', description: 'Crispy chicken with orange sauce', price: 8.99 },
+            { name: 'Kung Pao Chicken', description: 'Spicy chicken with vegetables', price: 8.99 },
+            { name: 'Beef & Broccoli', description: 'Tender beef with fresh broccoli', price: 9.99 }
+          ],
+          'Sides': [
+            { name: 'Fried Rice', description: 'Steamed rice with vegetables', price: 3.99 },
+            { name: 'Chow Mein', description: 'Stir-fried noodles with vegetables', price: 3.99 }
+          ]
+        }
+      },
+      {
+        id: 'mcdonalds',
+        name: 'McDonald\'s',
+        cuisine: 'Fast Food',
+        rating: 3.8,
+        deliveryTime: '10-20 min',
+        deliveryFee: '$1.99',
+        icon: 'fas fa-hamburger',
+        menu: {
+          'Burgers': [
+            { name: 'Big Mac', description: 'Two all-beef patties with special sauce', price: 5.99 },
+            { name: 'Quarter Pounder', description: 'Quarter pound beef patty with cheese', price: 6.99 },
+            { name: 'McChicken', description: 'Crispy chicken sandwich', price: 4.99 }
+          ],
+          'Sides': [
+            { name: 'French Fries', description: 'Golden crispy fries', price: 2.99 },
+            { name: 'Nuggets (10pc)', description: 'Crispy chicken nuggets', price: 4.99 }
+          ]
+        }
+      }
+    ];
+
+    function loadRestaurants() {
+      const restaurantsList = document.getElementById('restaurantsList');
+      restaurantsList.innerHTML = '';
+      
+      restaurants.forEach(restaurant => {
+        const restaurantCard = createRestaurantCard(restaurant);
+        restaurantsList.appendChild(restaurantCard);
+      });
+    }
+
+    function createRestaurantCard(restaurant) {
+      const card = document.createElement('div');
+      card.className = 'restaurant-card';
+      
+      const stars = '★'.repeat(Math.floor(restaurant.rating)) + '☆'.repeat(5 - Math.floor(restaurant.rating));
+      
+      card.innerHTML = `
+        <div class="restaurant-image">
+          <i class="${restaurant.icon}"></i>
+        </div>
+        <div class="restaurant-info">
+          <div class="restaurant-name">${restaurant.name}</div>
+          <div class="restaurant-cuisine">${restaurant.cuisine}</div>
+          <div class="restaurant-rating">
+            <span class="stars">${stars}</span>
+            <span class="rating-text">${restaurant.rating}</span>
+          </div>
+          <div class="restaurant-details">
+            <div class="delivery-time">
+              <i class="fas fa-clock"></i>
+              ${restaurant.deliveryTime}
+            </div>
+            <div class="delivery-fee">
+              <i class="fas fa-truck"></i>
+              ${restaurant.deliveryFee}
+            </div>
+          </div>
+          <div class="restaurant-actions">
+            <button class="btn-restaurant btn-menu" onclick="openMenu('${restaurant.id}')">
+              <i class="fas fa-book-open"></i>
+              Menu
+            </button>
+            <button class="btn-restaurant btn-order" onclick="quickOrder('${restaurant.id}')">
+              <i class="fas fa-shopping-cart"></i>
+              Order Now
+            </button>
+          </div>
+        </div>
+      `;
+      
+      return card;
+    }
+
+    window.openMenu = (restaurantId) => {
+      const restaurant = restaurants.find(r => r.id === restaurantId);
+      if (!restaurant) return;
+      
+      currentRestaurant = restaurant;
+      document.getElementById('menuTitle').textContent = `${restaurant.name} Menu`;
+      
+      const menuCategories = document.getElementById('menuCategories');
+      menuCategories.innerHTML = '';
+      
+      Object.keys(restaurant.menu).forEach(category => {
+        const categoryDiv = document.createElement('div');
+        categoryDiv.className = 'menu-category';
+        
+        categoryDiv.innerHTML = `
+          <h3 class="category-title">${category}</h3>
+          <div class="menu-items">
+            ${restaurant.menu[category].map(item => `
+              <div class="menu-item">
+                <div class="item-info">
+                  <div class="item-name">${item.name}</div>
+                  <div class="item-description">${item.description}</div>
+                  <div class="item-price">$${item.price.toFixed(2)}</div>
+                </div>
+                <div class="item-actions">
+                  <div class="quantity-controls">
+                    <button class="quantity-btn" onclick="updateQuantity('${restaurantId}', '${item.name}', -1)">-</button>
+                    <span class="quantity-display" id="qty-${restaurantId}-${item.name.replace(/\s+/g, '')}">0</span>
+                    <button class="quantity-btn" onclick="updateQuantity('${restaurantId}', '${item.name}', 1)">+</button>
+                  </div>
+                  <button class="add-to-cart" onclick="addToCart('${restaurantId}', '${item.name}', ${item.price})">
+                    Add to Cart
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        
+        menuCategories.appendChild(categoryDiv);
+      });
+      
+      document.getElementById('menuModal').style.display = 'flex';
+    };
+
+    window.closeMenu = () => {
+      document.getElementById('menuModal').style.display = 'none';
+      currentRestaurant = null;
+    };
+
+    window.updateQuantity = (restaurantId, itemName, change) => {
+      const key = `${restaurantId}-${itemName}`;
+      if (!cart[key]) {
+        cart[key] = { quantity: 0, price: 0, restaurantId, itemName };
+      }
+      
+      cart[key].quantity = Math.max(0, cart[key].quantity + change);
+      
+      const qtyDisplay = document.getElementById(`qty-${restaurantId}-${itemName.replace(/\s+/g, '')}`);
+      if (qtyDisplay) {
+        qtyDisplay.textContent = cart[key].quantity;
+      }
+      
+      updateCartSummary();
+    };
+
+    window.addToCart = (restaurantId, itemName, price) => {
+      const key = `${restaurantId}-${itemName}`;
+      if (!cart[key]) {
+        cart[key] = { quantity: 0, price, restaurantId, itemName };
+      }
+      
+      cart[key].quantity += 1;
+      cart[key].price = price;
+      
+      const qtyDisplay = document.getElementById(`qty-${restaurantId}-${itemName.replace(/\s+/g, '')}`);
+      if (qtyDisplay) {
+        qtyDisplay.textContent = cart[key].quantity;
+      }
+      
+      updateCartSummary();
+    };
+
+    function updateCartSummary() {
+      const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
+      const totalPrice = Object.values(cart).reduce((sum, item) => sum + (item.quantity * item.price), 0);
+      
+      document.getElementById('cartItems').textContent = `${totalItems} items`;
+      document.getElementById('cartTotal').textContent = `$${totalPrice.toFixed(2)}`;
+      
+      const cartSummary = document.getElementById('cartSummary');
+      if (totalItems > 0) {
+        cartSummary.style.display = 'block';
+      } else {
+        cartSummary.style.display = 'none';
+      }
+    }
+
+    window.quickOrder = (restaurantId) => {
+      const restaurant = restaurants.find(r => r.id === restaurantId);
+      if (!restaurant) return;
+      
+      // For quick order, we'll just open the menu
+      openMenu(restaurantId);
+    };
+
+    window.checkout = async () => {
+      if (Object.keys(cart).length === 0) {
+        alert('Your cart is empty!');
+        return;
+      }
+      
+      const totalPrice = Object.values(cart).reduce((sum, item) => sum + (item.quantity * item.price), 0);
+      const serviceFee = selectedWorker?.serviceFee || 5.00; // Use worker's service fee or default
+      const totalWithFee = totalPrice + serviceFee;
+      const orderItems = Object.values(cart).filter(item => item.quantity > 0);
+      
+      // Process payment first
+      const paymentResult = await processPayment(totalPrice, serviceFee, totalWithFee);
+      if (!paymentResult.success) {
+        alert('Payment failed. Please try again.');
+        return;
+      }
+      
+      try {
+        // Create a food order request with payment confirmation
+        await addDoc(collection(db, "requests"), {
+          type: 'food_order',
+          restaurant: currentRestaurant?.name || 'Multiple Restaurants',
+          items: orderItems,
+          totalPrice,
+          serviceFee,
+          totalWithFee,
+          status: "pending",
+          userId: currentUserId,
+          timestamp: serverTimestamp(),
+          createdAt: new Date(),
+          paymentProcessed: true,
+          paymentId: paymentResult.paymentId,
+          paymentMethod: paymentResult.paymentMethod,
+          foodPaid: true, // Food is already paid for
+          workerPayout: serviceFee // Worker gets this amount
+        });
+        
+        alert('Order placed successfully! Food is paid for. A worker will pick up and deliver your order.');
+        cart = {};
+        updateCartSummary();
+        closeMenu();
+        loadJobs();
+      } catch (error) {
+        console.error("Error placing order:", error);
+        alert("Failed to place order. Please try again.");
+      }
+    };
+
+    async function processPayment(foodTotal, serviceFee, totalWithFee) {
+      return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 class="modal-title">Payment Processing</h3>
+              <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div style="padding: 1rem;">
+              <h4>Order Summary:</h4>
+              <div style="margin: 1rem 0; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                <p><strong>Food Total:</strong> $${foodTotal.toFixed(2)}</p>
+                <p><strong>Service Fee:</strong> $${serviceFee.toFixed(2)}</p>
+                <hr style="margin: 0.5rem 0;">
+                <p><strong>Total Amount:</strong> $${totalWithFee.toFixed(2)}</p>
+              </div>
+              <div style="background: #d4edda; color: #155724; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                <h5><i class="fas fa-info-circle"></i> How This Works:</h5>
+                <p style="margin: 0.5rem 0; font-size: 0.9rem;">
+                  • <strong>You order directly</strong> on the restaurant's website<br>
+                  • <strong>You pay the restaurant</strong> for the food<br>
+                  • <strong>Worker picks up</strong> your pre-paid order<br>
+                  • <strong>Worker delivers</strong> and gets service fee
+                </p>
+              </div>
+              <div style="display: grid; gap: 1rem; margin: 1rem 0;">
+                <button class="btn btn-primary" onclick="processDirectOrder()" style="width: 100%; padding: 1rem;">
+                  <i class="fas fa-external-link-alt"></i>
+                  Order on Restaurant Website - $${foodTotal.toFixed(2)}
+                </button>
+                <button class="btn btn-secondary" onclick="processServiceFeePayment()" style="width: 100%; padding: 1rem;">
+                  <i class="fas fa-hand-holding-usd"></i>
+                  Pay Service Fee to Worker - $${serviceFee.toFixed(2)}
+                </button>
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                  <h6><i class="fas fa-lightbulb"></i> Recommended Process:</h6>
+                  <ol style="margin: 0.5rem 0; padding-left: 1.2rem; font-size: 0.9rem;">
+                    <li>Click "Order on Restaurant Website" to place your food order</li>
+                    <li>Pay the restaurant directly ($${foodTotal.toFixed(2)})</li>
+                    <li>Get your order confirmation number</li>
+                    <li>Pay the worker service fee ($${serviceFee.toFixed(2)})</li>
+                    <li>Worker picks up your pre-paid order and delivers it</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        window.processDirectOrder = () => {
+          modal.remove();
+          // Open restaurant website for direct ordering
+          const restaurantUrl = getRestaurantOrderUrl(currentRestaurant?.name || 'Applebee\'s');
+          window.open(restaurantUrl, '_blank');
+          
+          // Show confirmation modal for order details
+          showOrderConfirmationModal(foodTotal, serviceFee, totalWithFee, resolve);
+        };
+        
+        window.processServiceFeePayment = async () => {
+          modal.remove();
+          // Show service fee payment options
+          const result = await showServiceFeePaymentModal(serviceFee);
+          resolve(result);
+        };
+        
+        modal.querySelector('.close-btn').onclick = () => {
+          modal.remove();
+          resolve({ success: false });
+        };
+      });
+    }
+
+    async function simulateStripePayment(amount) {
+      // Simulate Stripe payment processing
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          resolve({
+            success: true,
+            paymentId: 'stripe_' + Date.now(),
+            paymentMethod: 'stripe',
+            message: 'Payment processed successfully with Stripe'
+          });
+        }, 2000);
+      });
+    }
+
+    function getRestaurantOrderUrl(restaurantName) {
+      const urls = {
+        'Applebee\'s': 'https://www.applebees.com/en/order-online',
+        'McDonald\'s': 'https://www.mcdonalds.com/us/en-us/order.html',
+        'Subway': 'https://order.subway.com/',
+        'Pizza Hut': 'https://www.pizzahut.com/',
+        'Domino\'s': 'https://www.dominos.com/',
+        'KFC': 'https://www.kfc.com/order-online',
+        'Taco Bell': 'https://www.tacobell.com/order',
+        'Burger King': 'https://www.burgerking.com/order',
+        'Wendy\'s': 'https://www.wendys.com/order',
+        'Chick-fil-A': 'https://www.chick-fil-a.com/order'
+      };
+      return urls[restaurantName] || 'https://www.google.com/search?q=' + encodeURIComponent(restaurantName + ' online ordering');
+    }
+
+    function showOrderConfirmationModal(foodTotal, serviceFee, totalWithFee, resolve) {
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.style.display = 'flex';
+      modal.innerHTML = `
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title">Order Confirmation</h3>
+            <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+          </div>
+          <div style="padding: 1rem;">
+            <div style="background: #d4edda; color: #155724; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+              <h5><i class="fas fa-check-circle"></i> Restaurant Website Opened!</h5>
+              <p style="margin: 0.5rem 0;">Please complete your order on the restaurant's website.</p>
+            </div>
+            <div style="margin: 1rem 0;">
+              <label for="orderNumber" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Order Confirmation Number:</label>
+              <input type="text" id="orderNumber" placeholder="Enter your order confirmation number" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;">
+            </div>
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+              <h6>Next Steps:</h6>
+              <ol style="margin: 0.5rem 0; padding-left: 1.2rem; font-size: 0.9rem;">
+                <li>Complete your order on the restaurant website</li>
+                <li>Enter your order confirmation number above</li>
+                <li>Pay the worker service fee ($${serviceFee.toFixed(2)})</li>
+                <li>Worker will pick up your pre-paid order</li>
+              </ol>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+              <button class="btn btn-primary" onclick="confirmOrderWithNumber()" style="flex: 1;">
+                <i class="fas fa-check"></i>
+                Confirm Order
+              </button>
+              <button class="btn btn-secondary" onclick="cancelOrder()" style="flex: 1;">
+                <i class="fas fa-times"></i>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      window.confirmOrderWithNumber = () => {
+        const orderNumber = document.getElementById('orderNumber').value.trim();
+        if (!orderNumber) {
+          alert('Please enter your order confirmation number');
+          return;
+        }
+        modal.remove();
+        resolve({
+          success: true,
+          paymentId: 'restaurant_' + Date.now(),
+          paymentMethod: 'restaurant_direct',
+          orderNumber: orderNumber,
+          message: 'Order confirmed with restaurant. Worker will pick up your pre-paid order.'
+        });
+      };
+      
+      window.cancelOrder = () => {
+        modal.remove();
+        resolve({ success: false });
+      };
+      
+      modal.querySelector('.close-btn').onclick = () => {
+        modal.remove();
+        resolve({ success: false });
+      };
+    }
+
+    async function showServiceFeePaymentModal(serviceFee) {
+      return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 class="modal-title">Pay Service Fee</h3>
+              <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div style="padding: 1rem;">
+              <h4>Service Fee: $${serviceFee.toFixed(2)}</h4>
+              <p style="color: #6c757d; font-size: 0.9rem; margin-bottom: 1rem;">
+                This is the fee for the worker who will pick up and deliver your order.
+              </p>
+              <div style="display: grid; gap: 1rem; margin: 1rem 0;">
+                <button class="btn btn-primary" onclick="payServiceFee('stripe')" style="width: 100%; padding: 1rem;">
+                  <i class="fab fa-stripe"></i>
+                  Pay with Stripe - $${serviceFee.toFixed(2)}
+                </button>
+                <button class="btn btn-secondary" onclick="payServiceFee('paypal')" style="width: 100%; padding: 1rem;">
+                  <i class="fab fa-paypal"></i>
+                  Pay with PayPal - $${serviceFee.toFixed(2)}
+                </button>
+                <button class="btn btn-secondary" onclick="payServiceFee('venmo')" style="width: 100%; padding: 1rem;">
+                  <i class="fab fa-cc-paypal"></i>
+                  Pay with Venmo - $${serviceFee.toFixed(2)}
+                </button>
+                <button class="btn btn-secondary" onclick="payServiceFee('cash')" style="width: 100%; padding: 1rem;">
+                  <i class="fas fa-money-bill"></i>
+                  Pay Cash - $${serviceFee.toFixed(2)}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        window.payServiceFee = (method) => {
+          modal.remove();
+          resolve({
+            success: true,
+            paymentId: method + '_' + Date.now(),
+            paymentMethod: method,
+            message: `Service fee paid via ${method}. Worker will be notified.`
+          });
+        };
+        
+        modal.querySelector('.close-btn').onclick = () => {
+          modal.remove();
+          resolve({ success: false });
+        };
+      });
+    }
+
+    async function showPaymentConfirmation(foodTotal, serviceFee, totalWithFee) {
+      return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 class="modal-title">Order Confirmation</h3>
+              <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div style="padding: 1rem;">
+              <h4>Order Summary:</h4>
+              <div style="margin: 1rem 0; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                <p><strong>Food Total:</strong> $${foodTotal.toFixed(2)}</p>
+                <p><strong>Service Fee:</strong> $${serviceFee.toFixed(2)}</p>
+                <hr style="margin: 0.5rem 0;">
+                <p><strong>Total Amount:</strong> $${totalWithFee.toFixed(2)}</p>
+              </div>
+              <p style="color: #6c757d; font-size: 0.9rem;">
+                <i class="fas fa-info-circle"></i>
+                Your worker will pay for the food at the restaurant. You'll pay the worker directly for the total amount.
+              </p>
+              <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button class="btn btn-primary" onclick="confirmPayment()" style="flex: 1;">
+                  <i class="fas fa-check"></i>
+                  Confirm Order
+                </button>
+                <button class="btn btn-secondary" onclick="cancelPayment()" style="flex: 1;">
+                  <i class="fas fa-times"></i>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        window.confirmPayment = () => {
+          modal.remove();
+          resolve(true);
+        };
+        
+        window.cancelPayment = () => {
+          modal.remove();
+          resolve(false);
+        };
+        
+        modal.querySelector('.close-btn').onclick = () => {
+          modal.remove();
+          resolve(false);
+        };
+      });
+    }
+
+    window.filterRestaurants = (cuisine) => {
+      // Update active filter button
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      const restaurantsList = document.getElementById('restaurantsList');
+      restaurantsList.innerHTML = '';
+      
+      const filteredRestaurants = cuisine === 'all' ? restaurants : restaurants.filter(r => r.cuisine.toLowerCase() === cuisine);
+      
+      filteredRestaurants.forEach(restaurant => {
+        const restaurantCard = createRestaurantCard(restaurant);
+        restaurantsList.appendChild(restaurantCard);
+      });
+    };
+
+    // Personal Service Functions
+    const availableWorkers = [
+      {
+        id: 'worker1',
+        name: 'Sarah Johnson',
+        rating: 4.8,
+        specialties: 'Fine Dining, Italian, Asian Cuisine',
+        experience: '3 years',
+        hourlyRate: 25,
+        serviceFee: 8.00,
+        avatar: 'SJ'
+      },
+      {
+        id: 'worker2',
+        name: 'Mike Chen',
+        rating: 4.9,
+        specialties: 'Fast Food, American, Mexican',
+        experience: '5 years',
+        hourlyRate: 20,
+        serviceFee: 5.00,
+        avatar: 'MC'
+      },
+      {
+        id: 'worker3',
+        name: 'Emily Rodriguez',
+        rating: 4.7,
+        specialties: 'Healthy Options, Mediterranean, Seafood',
+        experience: '2 years',
+        hourlyRate: 22,
+        serviceFee: 6.50,
+        avatar: 'ER'
+      },
+      {
+        id: 'worker4',
+        name: 'David Kim',
+        rating: 4.6,
+        specialties: 'Korean, Japanese, Sushi',
+        experience: '4 years',
+        hourlyRate: 28,
+        serviceFee: 4.00,
+        avatar: 'DK'
+      }
+    ];
+
+    window.openHireWorkerModal = () => {
+      document.getElementById('hireWorkerModal').style.display = 'flex';
+      loadAvailableWorkers();
+    };
+
+    window.closeHireWorkerModal = () => {
+      document.getElementById('hireWorkerModal').style.display = 'none';
+      selectedWorker = null;
+    };
+
+    function loadAvailableWorkers() {
+      const workersList = document.getElementById('availableWorkers');
+      workersList.innerHTML = '';
+      
+      availableWorkers.forEach(worker => {
+        const workerCard = document.createElement('div');
+        workerCard.className = 'worker-card';
+        workerCard.onclick = () => selectWorker(worker.id);
+        
+        const stars = '★'.repeat(Math.floor(worker.rating)) + '☆'.repeat(5 - Math.floor(worker.rating));
+        
+        workerCard.innerHTML = `
+          <div class="worker-info">
+            <div class="worker-avatar">${worker.avatar}</div>
+            <div class="worker-details">
+              <h5>${worker.name}</h5>
+              <div class="worker-rating">
+                <span class="stars">${stars}</span>
+                <span class="rating-text">${worker.rating}</span>
+              </div>
+              <div class="worker-specialties">${worker.specialties}</div>
+              <div class="worker-specialties">${worker.experience} • $${worker.hourlyRate}/hour</div>
+              <div class="worker-service-fee" style="color: #28a745; font-weight: bold; font-size: 1.1rem; margin-top: 0.5rem;">Service Fee: $${worker.serviceFee.toFixed(2)}</div>
+            </div>
+          </div>
+        `;
+        
+        workersList.appendChild(workerCard);
+      });
+    }
+
+    function selectWorker(workerId) {
+      selectedWorker = availableWorkers.find(w => w.id === workerId);
+      
+      // Update UI
+      document.querySelectorAll('.worker-card').forEach(card => {
+        card.classList.remove('selected');
+      });
+      event.currentTarget.classList.add('selected');
+    }
+
+    window.hireWorker = async () => {
+      if (!selectedWorker) {
+        alert('Please select a worker first.');
+        return;
+      }
+
+      const serviceType = document.getElementById('serviceType').value;
+      const budgetRange = document.getElementById('budgetRange').value;
+      const specialInstructions = document.getElementById('specialInstructions').value;
+
+      // Get worker's service fee
+      const workerServiceFee = selectedWorker.serviceFee || 5.00;
+
+      try {
+        // Create a worker hire request
+        await addDoc(collection(db, "workerHires"), {
+          customerId: currentUserId,
+          workerId: selectedWorker.id,
+          workerName: selectedWorker.name,
+          serviceType,
+          budgetRange,
+          specialInstructions,
+          serviceFee: workerServiceFee,
+          status: "pending",
+          timestamp: serverTimestamp(),
+          createdAt: new Date()
+        });
+
+        alert(`Successfully hired ${selectedWorker.name}! Service fee: $${workerServiceFee.toFixed(2)}. They will contact you soon to discuss your food ordering needs.`);
+        closeHireWorkerModal();
+        loadHiredWorkers();
+      } catch (error) {
+        console.error("Error hiring worker:", error);
+        alert("Failed to hire worker. Please try again.");
+      }
+    };
+
+    function loadHiredWorkers() {
+      const q = query(collection(db, "workerHires"), where("customerId", "==", currentUserId), orderBy("timestamp", "desc"));
+
+      onSnapshot(q, (snapshot) => {
+        hiredWorkers = [];
+        snapshot.forEach((doc) => {
+          hiredWorkers.push({ id: doc.id, ...doc.data() });
+        });
+        updateHiredWorkersDisplay();
+      });
+    }
+
+    function updateHiredWorkersDisplay() {
+      // This would update a "My Workers" section if we add it to the UI
+      console.log('Hired workers:', hiredWorkers);
+    }
+
+    window.viewHiredWorkers = () => {
+      if (hiredWorkers.length === 0) {
+        alert('You haven\'t hired any workers yet. Click "Hire a Worker" to get started!');
+        return;
+      }
+      
+      let message = 'Your Hired Workers:\n\n';
+      hiredWorkers.forEach(hire => {
+        message += `• ${hire.workerName} (${hire.serviceType})\n`;
+        message += `  Status: ${hire.status}\n`;
+        message += `  Budget: ${hire.budgetRange}\n\n`;
+      });
+      alert(message);
+    };
+
+    // Enhanced order submission for personal service
+    window.submitPersonalOrder = async (workerId) => {
+      const pickup = document.getElementById("pickup").value.trim();
+      const dropoff = document.getElementById("dropoff").value.trim();
+      const details = document.getElementById("details").value.trim();
+
+      if (!pickup || !dropoff) {
+        alert("Please fill in both pickup and dropoff locations.");
+        return;
+      }
+
+      try {
+        await addDoc(collection(db, "requests"), {
+          pickup,
+          dropoff,
+          details,
+          status: "pending",
+          userId: currentUserId,
+          type: "personal_service",
+          assignedWorker: workerId,
+          timestamp: serverTimestamp(),
+          createdAt: new Date()
+        });
+
+        alert("Personal service request submitted successfully! Your assigned worker will handle the order.");
+        document.getElementById("pickup").value = "";
+        document.getElementById("dropoff").value = "";
+        document.getElementById("details").value = "";
+        loadJobs();
+      } catch (error) {
+        console.error("Error submitting personal service request:", error);
+        alert("Failed to submit request. Please try again.");
+      }
+    };
 
     function initMap() {
       map = L.map("map").setView([34.0007, -81.0348], 13);
@@ -149,147 +2633,459 @@
       const pickup = document.getElementById("pickup").value.trim();
       const dropoff = document.getElementById("dropoff").value.trim();
       const details = document.getElementById("details").value.trim();
-      const tip = parseFloat(document.getElementById("tip").value);
-      if (!pickup || !dropoff || !details || isNaN(tip) || tip < 1) return alert("All fields required, tip at least $1.");
-      await addDoc(collection(db, "requests"), {
-        pickup, dropoff, details, tip,
-        status: "pending", paid: false, userId: currentUserId,
-        timestamp: serverTimestamp()
-      });
-      ["pickup", "dropoff", "details", "tip"].forEach(id => document.getElementById(id).value = "");
-      alert("Request submitted!");
-    };
 
-    let allJobs = [];
+      if (!pickup || !dropoff) {
+        alert("Please fill in both pickup and dropoff locations.");
+        return;
+      }
 
-    function loadJobs() {
-      const q = query(collection(db, "requests"), where("userId", "==", currentUserId), orderBy("timestamp", "desc"));
-      onSnapshot(q, snapshot => {
-        allJobs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderJobs();
-      });
-    }
-
-    function renderJobs() {
-      const filter = document.getElementById("filterStatus").value;
-      const box = document.getElementById("jobList");
-      const filtered = allJobs.filter(j => filter === "all" || j.status === filter);
-      box.innerHTML = filtered.map(d => `
-        <div class="job-card">
-          <p><strong>Pickup:</strong> ${d.pickup}</p>
-          <p><strong>Dropoff:</strong> ${d.dropoff}</p>
-          <p><strong>Status:</strong> ${d.status}</p>
-          <p><strong>Paid:</strong> ${d.paid ? "✅" : "❌"}</p>
-          <button class="small-btn" onclick="trackDriver('${d.id}')">🚗 Track Driver</button>
-          <button class="small-btn" onclick="openChat('${d.id}')">💬 Chat</button>
-          <button class="small-btn" onclick="openActions('${d.id}', ${d.paid})">💳 Actions</button>
-        </div>
-      `).join("") || "<p>No deliveries.</p>";
-    }
-
-    window.filterJobs = () => renderJobs();
-
-    window.openChat = (jobId) => {
-      activeChatJobId = jobId;
-      document.getElementById("chatModal").style.display = "flex";
-      const box = document.getElementById("chatMessages");
-      box.innerHTML = "Loading...";
-      const q = query(collection(db, `requests/${jobId}/messages`), orderBy("timestamp"));
-      onSnapshot(q, snap => {
-        box.innerHTML = "";
-        snap.forEach(m => {
-          const msg = m.data();
-          const who = msg.userId === currentUserId ? "You" : "Driver";
-          box.innerHTML += `<p><strong>${who}:</strong> ${msg.text}</p>`;
+      try {
+        await addDoc(collection(db, "requests"), {
+          pickup,
+          dropoff,
+          details,
+          status: "pending",
+          userId: currentUserId,
+          timestamp: serverTimestamp(),
+          createdAt: new Date()
         });
-        box.scrollTop = box.scrollHeight;
-      });
-    };
 
-    window.sendMessage = async () => {
-      const text = document.getElementById("chatInput").value.trim();
-      if (!text || !activeChatJobId) return;
-      await addDoc(collection(db, `requests/${activeChatJobId}/messages`), {
-        text, userId: currentUserId, timestamp: new Date()
-      });
-      document.getElementById("chatInput").value = "";
-    };
-
-    window.closeChat = () => document.getElementById("chatModal").style.display = "none";
-
-    function loadNotifications() {
-      const q = query(collection(db, `users/${currentUserId}/notifications`), orderBy("timestamp", "desc"));
-      const box = document.getElementById("notificationsBox");
-      onSnapshot(q, snap => {
-        box.innerHTML = snap.empty ? "<p>No notifications.</p>" :
-        snap.docs.map(d => `<div class="job-card"><p>${d.data().message}</p></div>`).join("");
-      });
-    }
-
-    window.logout = () => signOut(auth).then(() => location.href = "login.html");
-
-    window.trackDriver = async (jobId) => {
-      const docSnap = await getDoc(doc(db, "requests", jobId));
-      const driverId = docSnap.data().driverId;
-      if (!driverId) return alert("Driver not assigned.");
-      const locRef = doc(db, `drivers/${driverId}/location/current`);
-      onSnapshot(locRef, snap => {
-        if (!snap.exists()) return;
-        const { lat, lng } = snap.data();
-        if (!carMarker) {
-          carMarker = L.marker([lat, lng], {
-            icon: L.icon({
-              iconUrl: "https://cdn-icons-png.flaticon.com/512/854/854878.png",
-              iconSize: [40, 40], iconAnchor: [20, 20]
-            })
-          }).addTo(map);
-        } else carMarker.setLatLng([lat, lng]);
-        map.setView([lat, lng], 15);
-      });
-    };
-
-    let currentExportJob = null;
-
-    window.openActions = (jobId, paid) => {
-      currentExportJob = allJobs.find(j => j.id === jobId);
-      document.getElementById("actionsModal").style.display = "flex";
-      if (!paid) {
-        paypal.Buttons({
-          createOrder: (data, actions) => actions.order.create({
-            purchase_units: [{ amount: { value: (currentExportJob.tip + 5).toFixed(2) } }]
-          }),
-          onApprove: async (data, actions) => {
-            await actions.order.capture();
-            await updateDoc(doc(db, "requests", jobId), { paid: true });
-            alert("Payment completed!");
-            document.getElementById("actionsModal").style.display = "none";
-          }
-        }).render("#paypalContainer");
-      } else {
-        document.getElementById("paypalContainer").innerHTML = "<p>Already paid.</p>";
+        alert("Request submitted successfully!");
+        document.getElementById("pickup").value = "";
+        document.getElementById("dropoff").value = "";
+        document.getElementById("details").value = "";
+        loadJobs();
+      } catch (error) {
+        console.error("Error submitting request:", error);
+        alert("Failed to submit request. Please try again.");
       }
     };
 
-    window.closeModal = () => {
-      document.getElementById("actionsModal").style.display = "none";
-      document.getElementById("paypalContainer").innerHTML = "Loading PayPal...";
+    function loadJobs() {
+      const jobsList = document.getElementById("jobsList");
+      const q = query(collection(db, "requests"), where("userId", "==", currentUserId), orderBy("timestamp", "desc"));
+
+      onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+          jobsList.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-inbox"></i>
+              <h3>No delivery requests yet</h3>
+              <p>Create your first delivery request above to get started!</p>
+            </div>
+          `;
+          return;
+        }
+
+        jobsList.innerHTML = "";
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const jobCard = createJobCard(doc.id, data);
+          jobsList.appendChild(jobCard);
+        });
+      });
+    }
+
+    function createJobCard(jobId, data) {
+      const card = document.createElement("div");
+      card.className = "job-card";
+      
+      const statusClass = `status-${data.status}`;
+      const statusText = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+      
+      // Calculate progress and ETA
+      const progress = calculateOrderProgress(data);
+      const eta = calculateETA(data);
+      
+      card.innerHTML = `
+        <div class="job-header">
+          <span class="job-id">#${jobId.slice(-8)}</span>
+          <span class="job-status ${statusClass}">${statusText}</span>
+        </div>
+        <div class="job-details">
+          <div class="job-detail">
+            <i class="fas fa-map-marker-alt"></i>
+            <span><strong>From:</strong> ${data.pickup || data.restaurant || 'Restaurant'}</span>
+          </div>
+          <div class="job-detail">
+            <i class="fas fa-flag-checkered"></i>
+            <span><strong>To:</strong> ${data.dropoff || 'Your Location'}</span>
+          </div>
+          ${data.assignedWorker ? `
+            <div class="job-detail">
+              <i class="fas fa-user"></i>
+              <span><strong>Worker:</strong> ${data.workerName || 'Assigned'}</span>
+            </div>
+          ` : ''}
+          ${eta ? `
+            <div class="job-detail">
+              <i class="fas fa-clock"></i>
+              <span><strong>ETA:</strong> ${eta}</span>
+            </div>
+          ` : ''}
+          <div class="job-detail" style="grid-column: 1 / -1;">
+            <i class="fas fa-info-circle"></i>
+            <span><strong>Details:</strong> ${data.details || 'No additional details'}</span>
+          </div>
+        </div>
+        ${progress ? `
+          <div class="order-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${progress.percentage}%"></div>
+            </div>
+            <div class="progress-steps">
+              <div class="step ${progress.steps.order ? 'completed' : 'pending'}">
+                <i class="fas fa-shopping-cart"></i>
+                <span>Ordered</span>
+              </div>
+              <div class="step ${progress.steps.accepted ? 'completed' : 'pending'}">
+                <i class="fas fa-check"></i>
+                <span>Accepted</span>
+              </div>
+              <div class="step ${progress.steps.picked ? 'completed' : 'pending'}">
+                <i class="fas fa-hand-paper"></i>
+                <span>Picked Up</span>
+              </div>
+              <div class="step ${progress.steps.delivered ? 'completed' : 'pending'}">
+                <i class="fas fa-home"></i>
+                <span>Delivered</span>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+        <div class="job-actions">
+          <button class="btn btn-small btn-outline" onclick="openChat('${jobId}')">
+            <i class="fas fa-comments"></i>
+            Chat
+          </button>
+          ${data.status === 'accepted' || data.status === 'picked_up' ? `
+            <button class="btn btn-small btn-primary" onclick="trackOrder('${jobId}')">
+              <i class="fas fa-map-marker-alt"></i>
+              Track
+            </button>
+          ` : ''}
+          ${data.status === 'pending' ? `
+            <button class="btn btn-small btn-outline" onclick="cancelRequest('${jobId}')">
+              <i class="fas fa-times"></i>
+              Cancel
+            </button>
+          ` : ''}
+        </div>
+      `;
+      
+      return card;
+    }
+
+    function calculateOrderProgress(data) {
+      const steps = {
+        order: data.status !== 'cancelled',
+        accepted: ['accepted', 'picked_up', 'delivered'].includes(data.status),
+        picked: ['picked_up', 'delivered'].includes(data.status),
+        delivered: data.status === 'delivered'
+      };
+      
+      const completedSteps = Object.values(steps).filter(Boolean).length;
+      const percentage = (completedSteps / 4) * 100;
+      
+      return { steps, percentage };
+    }
+
+    function calculateETA(data) {
+      if (data.status === 'delivered') return 'Delivered';
+      if (data.status === 'cancelled') return 'Cancelled';
+      
+      const now = new Date();
+      const createdAt = data.createdAt?.toDate() || now;
+      const timeElapsed = (now - createdAt) / (1000 * 60); // minutes
+      
+      if (data.status === 'pending') return 'Waiting for worker...';
+      if (data.status === 'accepted') return '~15-20 minutes';
+      if (data.status === 'picked_up') return '~5-10 minutes';
+      
+      return null;
+    }
+
+    window.trackOrder = (orderId) => {
+      showOrderTrackingModal(orderId);
     };
 
-    window.downloadPDF = () => {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      const job = currentExportJob;
-      doc.setFontSize(14);
-      doc.text("📄 Delivery Receipt", 10, 10);
-      doc.setFontSize(12);
-      doc.text(`Pickup: ${job.pickup}`, 10, 20);
-      doc.text(`Dropoff: ${job.dropoff}`, 10, 30);
-      doc.text(`Details: ${job.details}`, 10, 40);
-      doc.text(`Status: ${job.status}`, 10, 50);
-      doc.text(`Paid: ${job.paid ? "Yes" : "No"}`, 10, 60);
-      doc.text(`Tip: $${job.tip.toFixed(2)}`, 10, 70);
-      doc.save("receipt.pdf");
+    function showOrderTrackingModal(orderId) {
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.style.display = 'flex';
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+          <div class="modal-header">
+            <h3 class="modal-title">Track Your Order</h3>
+            <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div id="trackingMap" style="height: 300px; width: 100%; border-radius: 8px; margin-bottom: 1rem;"></div>
+            <div class="tracking-info">
+              <div class="tracking-status">
+                <h4>Order Status: <span id="trackingStatus">Loading...</span></h4>
+              </div>
+              <div class="tracking-details">
+                <div class="detail-item">
+                  <i class="fas fa-clock"></i>
+                  <span id="trackingETA">Calculating ETA...</span>
+                </div>
+                <div class="detail-item">
+                  <i class="fas fa-user"></i>
+                  <span id="trackingWorker">Loading worker info...</span>
+                </div>
+                <div class="detail-item">
+                  <i class="fas fa-phone"></i>
+                  <span id="trackingContact">Contact worker via chat</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      
+      // Initialize tracking map
+      initTrackingMap(orderId);
+      
+      // Listen for order updates
+      const unsubscribe = onSnapshot(doc(db, "requests", orderId), (doc) => {
+        if (doc.exists()) {
+          updateTrackingInfo(doc.data());
+        }
+      });
+      
+      // Clean up when modal closes
+      modal.querySelector('.close-btn').onclick = () => {
+        modal.remove();
+        unsubscribe();
+      };
+    }
+
+    function initTrackingMap(orderId) {
+      // Initialize map for tracking
+      const trackingMap = L.map('trackingMap').setView([40.7128, -74.0060], 13);
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(trackingMap);
+      
+      // Create custom icons
+      const customerIcon = L.divIcon({
+        className: 'custom-marker customer-marker',
+        html: '<div class="marker-content"><i class="fas fa-home"></i></div>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+
+      const workerIcon = L.divIcon({
+        className: 'custom-marker worker-marker',
+        html: '<div class="marker-content"><i class="fas fa-car"></i></div>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+
+      const restaurantIcon = L.divIcon({
+        className: 'custom-marker restaurant-marker',
+        html: '<div class="marker-content"><i class="fas fa-utensils"></i></div>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+
+      let customerMarker, workerMarker, restaurantMarker;
+      
+      // Add customer location marker
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+          const { latitude, longitude } = position.coords;
+          trackingMap.setView([latitude, longitude], 13);
+          
+          customerMarker = L.marker([latitude, longitude], { icon: customerIcon })
+            .addTo(trackingMap)
+            .bindPopup('Your Location')
+            .openPopup();
+        });
+      }
+
+      // Listen for worker location updates
+      const unsubscribe = onSnapshot(doc(db, "requests", orderId), (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          
+          // Update worker location if available
+          if (data.workerLocation) {
+            const { lat, lng } = data.workerLocation;
+            
+            if (workerMarker) {
+              workerMarker.setLatLng([lat, lng]);
+            } else {
+              workerMarker = L.marker([lat, lng], { icon: workerIcon })
+                .addTo(trackingMap)
+                .bindPopup(`Worker: ${data.workerName || 'Delivery Driver'}`);
+            }
+          }
+
+          // Add restaurant marker if not already added
+          if (data.restaurant && !restaurantMarker) {
+            // For demo purposes, use a nearby location
+            const restaurantLat = 40.7128 + (Math.random() - 0.5) * 0.01;
+            const restaurantLng = -74.0060 + (Math.random() - 0.5) * 0.01;
+            
+            restaurantMarker = L.marker([restaurantLat, restaurantLng], { icon: restaurantIcon })
+              .addTo(trackingMap)
+              .bindPopup(`Restaurant: ${data.restaurant}`);
+          }
+
+          // Fit map to show all markers
+          if (customerMarker && workerMarker) {
+            const group = new L.featureGroup([customerMarker, workerMarker]);
+            trackingMap.fitBounds(group.getBounds().pad(0.1));
+          }
+        }
+      });
+
+      // Store unsubscribe function for cleanup
+      trackingMap.unsubscribe = unsubscribe;
+    }
+
+    function updateTrackingInfo(data) {
+      document.getElementById('trackingStatus').textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+      document.getElementById('trackingETA').textContent = calculateETA(data) || 'Calculating...';
+      document.getElementById('trackingWorker').textContent = data.workerName || 'Not assigned yet';
+    }
+
+    function loadNotifications() {
+      const notificationsList = document.getElementById("notificationsList");
+      const q = query(collection(db, "users", currentUserId, "notifications"), orderBy("timestamp", "desc"));
+
+      onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+          notificationsList.innerHTML = `
+            <div class="empty-state">
+              <i class="fas fa-bell-slash"></i>
+              <h3>No notifications</h3>
+              <p>You'll see updates about your deliveries here.</p>
+            </div>
+          `;
+          return;
+        }
+
+        notificationsList.innerHTML = "";
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const notification = document.createElement("div");
+          notification.className = "notification-item";
+          notification.innerHTML = `
+            <div class="notification-icon">
+              <i class="fas fa-bell"></i>
+            </div>
+            <div class="notification-content">
+              <div class="notification-title">${data.title}</div>
+              <div class="notification-time">${new Date(data.timestamp?.toDate()).toLocaleString()}</div>
+            </div>
+          `;
+          notificationsList.appendChild(notification);
+        });
+      });
+    }
+
+    window.filterJobs = (status) => {
+      // Update active tab
+      document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      // Filter logic would go here
+      // For now, just reload all jobs
+      loadJobs();
     };
+
+    window.openChat = (jobId) => {
+      activeChatJobId = jobId;
+      document.getElementById('chatModal').style.display = 'flex';
+      loadMessages(jobId);
+    };
+
+    window.closeChat = () => {
+      document.getElementById('chatModal').style.display = 'none';
+      activeChatJobId = null;
+    };
+
+    function loadMessages(jobId) {
+      const chatMessages = document.getElementById('chatMessages');
+      const messagesRef = collection(db, "requests", jobId, "messages");
+      
+      onSnapshot(messagesRef, (snapshot) => {
+        chatMessages.innerHTML = "";
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const message = document.createElement("div");
+          message.className = `message ${data.sender === 'customer' ? 'sent' : 'received'}`;
+          message.innerHTML = `
+            <div class="message-sender">${data.sender}</div>
+            <div class="message-text">${data.text}</div>
+          `;
+          chatMessages.appendChild(message);
+        });
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      });
+    }
+
+    window.sendMessage = async () => {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      
+      if (!text || !activeChatJobId) return;
+      
+      try {
+        await addDoc(collection(db, "requests", activeChatJobId, "messages"), {
+          sender: 'customer',
+          text,
+          timestamp: serverTimestamp()
+        });
+        input.value = "";
+      } catch (error) {
+        console.error("Error sending message:", error);
+        alert("Failed to send message. Please try again.");
+      }
+    };
+
+    window.cancelRequest = async (jobId) => {
+      if (!confirm("Are you sure you want to cancel this request?")) return;
+      
+      try {
+        await updateDoc(doc(db, "requests", jobId), {
+          status: "cancelled"
+        });
+        alert("Request cancelled successfully!");
+        loadJobs();
+      } catch (error) {
+        console.error("Error cancelling request:", error);
+        alert("Failed to cancel request. Please try again.");
+      }
+    };
+
+    window.logout = async () => {
+      try {
+        await signOut(auth);
+        location.href = "login.html";
+      } catch (error) {
+        console.error("Error signing out:", error);
+        alert("Failed to sign out. Please try again.");
+      }
+    };
+
+    // Handle Enter key in chat input
+    document.addEventListener('DOMContentLoaded', () => {
+      const chatInput = document.getElementById('chatInput');
+      if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            sendMessage();
+          }
+        });
+      }
+    });
   </script>
 </body>
 </html>
