@@ -7,7 +7,7 @@ A revolutionary personal food concierge service that connects customers with loc
 ### 🛒 Customer Features
 - **Personal Food Concierge**: Hire workers to order and deliver food for you
 - **Restaurant Browsing**: Browse restaurants by category with complete menus
-- **Real Restaurant Menus**: Full Applebee's menu with 60+ items across 11 categories
+- **Full Restaurant Menus**: Complete menus can be added for any restaurant with categories, items, and pricing
 - **Shopping Cart**: Add items to cart with quantity management
 - **Two-Step Payment System**: Pay restaurant directly + service fee to worker
 - **Order Tracking**: Real-time order status with progress bars and ETA
