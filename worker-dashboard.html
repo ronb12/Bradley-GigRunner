@@ -112,6 +112,28 @@
       transform: translateY(-1px);
     }
 
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #191919;
+      color: white;
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 9999;
+      transition: transform 0.3s ease;
+      pointer-events: none;
+      max-width: 90vw;
+      text-align: center;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { background: #1e7e34; }
+    .toast.error   { background: #d93025; }
+    .toast.info    { background: #0c5460; }
+
     /* Main Container */
     .container {
       max-width: 1200px;
@@ -685,6 +707,7 @@
   </style>
 </head>
 <body>
+  <div id="toast" class="toast"></div>
   <!-- Header -->
   <header class="header">
     <div class="header-content">
@@ -858,13 +881,21 @@
     const db = getFirestore(app);
     let currentWorkerId = null;
     let isOnline = false;
+
+    function showToast(msg, type = '') {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast' + (type ? ' ' + type : '');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 4000);
+    }
     let map, activeChatJobId = null;
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (!userDoc.exists() || !(userDoc.data().roles || []).includes("driver")) {
-        alert("Access denied. Driver access only."); 
+        showToast("Access denied. Driver access only.", "error"); 
         signOut(auth); 
         return location.href = "login.html";
       }
@@ -1067,7 +1098,7 @@
           const serviceFee = jobData.serviceFee || 5.00;
           const orderNumber = jobData.orderNumber || 'TBD';
           
-          alert(`Job accepted! Food is already paid for at the restaurant (Order #${orderNumber}). Just pick up and deliver. You'll earn $${serviceFee.toFixed(2)}.`);
+          showToast(`Job accepted! Pick up Order #${orderNumber}. You'll earn $${serviceFee.toFixed(2)}.`, 'success');
         } else if (jobData.paymentMethod) {
           // Customer has arranged payment - worker gets paid by customer
           await updateDoc(doc(db, "requests", jobId), {
@@ -1079,7 +1110,7 @@
           const totalAmount = jobData.totalWithFee || (jobData.totalPrice + jobData.serviceFee);
           const serviceFee = jobData.serviceFee || 5.00;
           
-          alert(`Job accepted! Customer will pay you $${totalAmount.toFixed(2)} (${jobData.paymentMethod}). You'll earn $${serviceFee.toFixed(2)} after paying for food.`);
+          showToast(`Job accepted! Collect $${totalAmount.toFixed(2)} from customer. You earn $${serviceFee.toFixed(2)}.`, 'success');
         } else {
           // No payment arranged - worker pays and gets reimbursed
           await updateDoc(doc(db, "requests", jobId), {
@@ -1088,14 +1119,14 @@
             acceptedAt: serverTimestamp()
           });
           
-          alert("Job accepted! You'll pay for the food at the restaurant and get reimbursed by the customer.");
+          showToast("Job accepted! Pay for food at restaurant — customer will reimburse you.", 'success');
         }
         
         loadAvailableJobs();
         loadMyJobs();
       } catch (error) {
         console.error("Error accepting job:", error);
-        alert("Failed to accept job. Please try again.");
+        showToast("Failed to accept job. Please try again.", "error");
       }
     };
 
@@ -1152,19 +1183,17 @@
     }
 
     window.declineJob = async (jobId) => {
-      if (!confirm("Are you sure you want to decline this job?")) return;
-      
       try {
         await updateDoc(doc(db, "requests", jobId), {
           status: "declined",
           declinedBy: currentWorkerId,
           declinedAt: serverTimestamp()
         });
-        alert("Job declined.");
+        showToast("Job declined.", "info");
         loadAvailableJobs();
       } catch (error) {
         console.error("Error declining job:", error);
-        alert("Failed to decline job. Please try again.");
+        showToast("Failed to decline job. Please try again.", "error");
       }
     };
 
@@ -1188,7 +1217,7 @@
       const newFee = parseFloat(document.getElementById('serviceFeeInput').value);
       
       if (isNaN(newFee) || newFee < 1 || newFee > 50) {
-        alert('Please enter a valid service fee between $1.00 and $50.00');
+        showToast('Please enter a service fee between $1.00 and $50.00', 'error');
         return;
       }
 
@@ -1202,11 +1231,11 @@
         currentServiceFee = newFee;
         document.getElementById('serviceFee').textContent = `$${newFee.toFixed(2)}`;
         
-        alert(`Service fee updated to $${newFee.toFixed(2)}`);
+        showToast(`Service fee updated to $${newFee.toFixed(2)}`, 'success');
         closeServiceFeeModal();
       } catch (error) {
         console.error("Error updating service fee:", error);
-        alert("Failed to update service fee. Please try again.");
+        showToast("Failed to update service fee. Please try again.", "error");
       }
     };
 
@@ -1232,21 +1261,20 @@
         await updateDoc(doc(db, "requests", jobId), updateData);
         
         if (newStatus === 'picked_up') {
-          alert("Order marked as picked up! Location sharing started.");
-          // Start location sharing for delivery
+          showToast("Order picked up! Location sharing started.", "success");
           startLocationSharing(jobId);
         } else if (newStatus === 'delivered') {
-          alert("Order marked as delivered! Location sharing stopped.");
-          // Stop location sharing
+          showToast("Order delivered! Great work!", "success");
           stopLocationSharing(jobId);
         } else {
-          alert(`Job status updated to ${newStatus.replace('_', ' ')}`);
+          const label = newStatus.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+          showToast(`Status updated: ${label}`, "success");
         }
-        
+
         loadMyJobs();
       } catch (error) {
         console.error("Error updating job status:", error);
-        alert("Failed to update job status. Please try again.");
+        showToast("Failed to update job status. Please try again.", "error");
       }
     };
 
@@ -1382,7 +1410,7 @@
         input.value = "";
       } catch (error) {
         console.error("Error sending message:", error);
-        alert("Failed to send message. Please try again.");
+        showToast("Failed to send message. Please try again.", "error");
       }
     };
 
@@ -1436,7 +1464,7 @@
         location.href = "login.html";
       } catch (error) {
         console.error("Error signing out:", error);
-        alert("Failed to sign out. Please try again.");
+        showToast("Failed to sign out. Please try again.", "error");
       }
     };
 

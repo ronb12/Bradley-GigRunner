@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Restaurant Dashboard - Bradley GigRunner</title>
   <link rel="icon" href="favicon.ico">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
@@ -272,7 +273,51 @@
     }
     
     .hidden { display: none; }
-    
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #191919;
+      color: white;
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 9999;
+      transition: transform 0.3s ease;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { background: #1e7e34; }
+    .toast.error   { background: #d93025; }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: #767676;
+    }
+
+    .analytics-chart {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      margin-top: 20px;
+    }
+
+    .analytics-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+    }
+
+    .analytics-row:last-child { border-bottom: none; }
+
     @media (max-width: 768px) {
       .nav-tabs {
         flex-direction: column;
@@ -304,6 +349,7 @@
     </div>
   </header>
 
+  <div id="toast" class="toast"></div>
   <div class="main-content">
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="showTab('orders')">Orders</button>
@@ -381,27 +427,35 @@
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-number" id="weeklyOrders">0</div>
-          <div class="stat-label">This Week</div>
+          <div class="stat-label">Orders This Week</div>
         </div>
         <div class="stat-card">
           <div class="stat-number" id="monthlyRevenue">$0</div>
-          <div class="stat-label">This Month</div>
+          <div class="stat-label">Revenue This Month</div>
         </div>
         <div class="stat-card">
-          <div class="stat-number" id="topItem">-</div>
-          <div class="stat-label">Top Item</div>
+          <div class="stat-number" id="completedOrders">0</div>
+          <div class="stat-label">Completed Orders</div>
         </div>
         <div class="stat-card">
-          <div class="stat-number" id="customerRating">0</div>
-          <div class="stat-label">Avg Rating</div>
+          <div class="stat-number" id="cancelledOrders">0</div>
+          <div class="stat-label">Cancelled Orders</div>
         </div>
+      </div>
+      <div class="analytics-chart">
+        <h4 style="margin-bottom:16px;">Top Menu Items</h4>
+        <div id="topItemsList"><p style="color:#767676;font-size:14px;">No order data yet.</p></div>
+      </div>
+      <div class="analytics-chart" style="margin-top:16px;">
+        <h4 style="margin-bottom:16px;">Order Status Breakdown</h4>
+        <div id="statusBreakdown"></div>
       </div>
     </div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, updateDoc, doc, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import { firebaseConfig, COLLECTIONS, ORDER_STATUS, USER_ROLES } from "./firebase-config.js";
 
@@ -411,6 +465,15 @@
 
     let currentUser = null;
     let restaurantId = null;
+    let allOrders = [];
+
+    function showToast(msg, type = '') {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast' + (type ? ' ' + type : '');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
 
     onAuthStateChanged(auth, (user) => {
       if (!user) {
@@ -418,8 +481,7 @@
         return;
       }
       currentUser = user;
-      // In a real app, you'd get the restaurant ID from the user's profile
-      restaurantId = user.uid; // Using user ID as restaurant ID for demo
+      restaurantId = user.uid;
       loadOrders();
       loadMenuItems();
     });
@@ -427,19 +489,20 @@
     function loadOrders() {
       const ordersRef = collection(db, COLLECTIONS.ORDERS);
       const q = query(ordersRef, orderBy('timestamp', 'desc'));
-      
+
       onSnapshot(q, (snapshot) => {
-        const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderOrders(orders);
-        updateStats(orders);
+        allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderOrders(allOrders);
+        updateStats(allOrders);
+        updateAnalytics(allOrders);
       });
     }
 
     function renderOrders(orders) {
       const ordersList = document.getElementById('ordersList');
-      
+
       if (orders.length === 0) {
-        ordersList.innerHTML = '<p>No orders yet.</p>';
+        ordersList.innerHTML = '<div class="empty-state"><div style="font-size:48px;margin-bottom:12px;">📋</div><p>No orders yet.</p></div>';
         return;
       }
 
@@ -521,69 +584,141 @@
           status: newStatus,
           updatedAt: new Date()
         });
-        alert('Order status updated!');
+        const label = newStatus.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        showToast(`Order marked as: ${label}`, 'success');
       } catch (error) {
         console.error('Error updating order:', error);
-        alert('Error updating order status.');
+        showToast('Error updating order status.', 'error');
       }
     };
 
     function loadMenuItems() {
-      // In a real app, you'd load from the database
-      const sampleMenu = [
-        { id: '1', name: 'Margherita Pizza', description: 'Fresh mozzarella, tomato sauce, basil', price: 12.99, category: 'main' },
-        { id: '2', name: 'Pepperoni Pizza', description: 'Pepperoni, mozzarella, tomato sauce', price: 14.99, category: 'main' },
-        { id: '3', name: 'Caesar Salad', description: 'Romaine lettuce, croutons, parmesan', price: 8.99, category: 'appetizer' }
-      ];
-      
-      renderMenuItems(sampleMenu);
+      const menuRef = collection(db, COLLECTIONS.MENU_ITEMS);
+      const q = query(menuRef, where('restaurantId', '==', restaurantId));
+
+      onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+          document.getElementById('menuItems').innerHTML =
+            '<div class="empty-state"><div style="font-size:48px;margin-bottom:12px;">🍽️</div><p>No menu items yet. Add your first item below.</p></div>';
+          return;
+        }
+        const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderMenuItems(items);
+      });
     }
 
     function renderMenuItems(items) {
       const menuItems = document.getElementById('menuItems');
-      
+
       menuItems.innerHTML = items.map(item => `
         <div class="menu-item">
           <div class="item-info">
             <h4>${item.name}</h4>
             <div class="item-description">${item.description}</div>
+            <div style="font-size:12px;color:#999;margin-top:4px;text-transform:capitalize;">${item.category}</div>
           </div>
-          <div class="item-price">$${item.price.toFixed(2)}</div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="item-price">$${parseFloat(item.price).toFixed(2)}</div>
+            <button class="btn btn-danger" style="padding:4px 10px;font-size:12px;"
+              onclick="deleteMenuItem('${item.id}')">✕</button>
+          </div>
         </div>
       `).join('');
     }
 
     window.addMenuItem = async () => {
-      const name = document.getElementById('itemName').value;
-      const description = document.getElementById('itemDescription').value;
+      const name = document.getElementById('itemName').value.trim();
+      const description = document.getElementById('itemDescription').value.trim();
       const price = parseFloat(document.getElementById('itemPrice').value);
       const category = document.getElementById('itemCategory').value;
 
-      if (!name || !description || !price) {
-        alert('Please fill in all fields');
+      if (!name || !description || isNaN(price) || price <= 0) {
+        showToast('Please fill in all fields with valid values.', 'error');
         return;
       }
 
       try {
         await addDoc(collection(db, COLLECTIONS.MENU_ITEMS), {
           restaurantId: restaurantId,
-          name: name,
-          description: description,
-          price: price,
-          category: category,
+          name,
+          description,
+          price,
+          category,
           available: true,
           createdAt: new Date()
         });
-        
-        alert('Menu item added successfully!');
+        showToast(`"${name}" added to menu!`, 'success');
         document.getElementById('itemName').value = '';
         document.getElementById('itemDescription').value = '';
         document.getElementById('itemPrice').value = '';
       } catch (error) {
         console.error('Error adding menu item:', error);
-        alert('Error adding menu item.');
+        showToast('Error adding menu item.', 'error');
       }
     };
+
+    window.deleteMenuItem = async (itemId) => {
+      try {
+        await deleteDoc(doc(db, COLLECTIONS.MENU_ITEMS, itemId));
+        showToast('Item removed from menu.', 'success');
+      } catch (error) {
+        console.error('Error deleting menu item:', error);
+        showToast('Error removing item.', 'error');
+      }
+    };
+
+    function updateAnalytics(orders) {
+      const now = new Date();
+      const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+      const weeklyOrders = orders.filter(o => {
+        const d = new Date(o.timestamp?.seconds * 1000 || o.timestamp);
+        return d >= weekAgo;
+      });
+
+      const monthlyOrders = orders.filter(o => {
+        const d = new Date(o.timestamp?.seconds * 1000 || o.timestamp);
+        return d >= monthAgo;
+      });
+
+      const monthlyRevenue = monthlyOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+      const completed = orders.filter(o => o.status === 'delivered' || o.status === ORDER_STATUS.DELIVERED).length;
+      const cancelled = orders.filter(o => o.status === 'cancelled' || o.status === ORDER_STATUS.CANCELLED).length;
+
+      document.getElementById('weeklyOrders').textContent = weeklyOrders.length;
+      document.getElementById('monthlyRevenue').textContent = `$${monthlyRevenue.toFixed(2)}`;
+      document.getElementById('completedOrders').textContent = completed;
+      document.getElementById('cancelledOrders').textContent = cancelled;
+
+      // Top items count
+      const itemCounts = {};
+      orders.forEach(o => {
+        (o.items || []).forEach(item => {
+          itemCounts[item.name] = (itemCounts[item.name] || 0) + (item.quantity || 1);
+        });
+      });
+      const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const topListEl = document.getElementById('topItemsList');
+      if (sortedItems.length === 0) {
+        topListEl.innerHTML = '<p style="color:#767676;font-size:14px;">No order data yet.</p>';
+      } else {
+        topListEl.innerHTML = sortedItems.map(([name, count]) =>
+          `<div class="analytics-row"><span>${name}</span><strong>${count} ordered</strong></div>`
+        ).join('');
+      }
+
+      // Status breakdown
+      const statusCounts = {};
+      orders.forEach(o => { statusCounts[o.status] = (statusCounts[o.status] || 0) + 1; });
+      document.getElementById('statusBreakdown').innerHTML = Object.entries(statusCounts)
+        .map(([status, count]) =>
+          `<div class="analytics-row">
+            <span style="text-transform:capitalize;">${status.replace(/_/g,' ')}</span>
+            <strong>${count}</strong>
+          </div>`
+        ).join('') || '<p style="color:#767676;font-size:14px;">No data.</p>';
+    }
 
     window.showTab = (tabName) => {
       // Hide all tabs
