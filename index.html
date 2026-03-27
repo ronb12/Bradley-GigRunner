@@ -6,185 +6,577 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    
+
+    :root {
+      --red: #FF3008;
+      --red-dark: #cc2600;
+      --white: #FFFFFF;
+      --bg: #F6F6F6;
+      --dark: #191919;
+      --gray: #767676;
+      --border: #E8E8E8;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-      min-height: 100vh;
+      background: var(--white);
+      color: var(--dark);
+    }
+
+    /* ── NAV ── */
+    .nav {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 64px;
       display: flex;
-      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--red);
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .nav-logo i { font-size: 26px; }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-link {
+      padding: 10px 16px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--dark);
+      transition: background 0.15s;
+    }
+
+    .nav-link:hover { background: var(--bg); }
+
+    .nav-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-decoration: none;
+      border: none;
+    }
+
+    .nav-btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--dark);
+    }
+
+    .nav-btn-outline:hover { border-color: var(--dark); }
+
+    .nav-btn-red {
+      background: var(--red);
+      color: var(--white);
+    }
+
+    .nav-btn-red:hover { background: var(--red-dark); }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: var(--white);
+      padding: 80px 24px;
+      text-align: center;
+    }
+
+    .hero-inner {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .hero-eyebrow {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #FF6B35;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 {
+      font-size: clamp(36px, 6vw, 60px);
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: 20px;
+      letter-spacing: -1px;
+    }
+
+    .hero h1 span { color: var(--red); }
+
+    .hero p {
+      font-size: 18px;
+      color: rgba(255,255,255,0.75);
+      margin-bottom: 40px;
+      line-height: 1.6;
+    }
+
+    .hero-search {
+      background: var(--white);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      padding: 6px 6px 6px 20px;
+      gap: 12px;
+      max-width: 560px;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+
+    .hero-search i {
+      color: var(--gray);
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .hero-search input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 16px;
+      color: var(--dark);
+      background: transparent;
+    }
+
+    .hero-search input::placeholder { color: #aaa; }
+
+    .hero-search-btn {
+      background: var(--red);
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      padding: 14px 24px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    .hero-search-btn:hover { background: var(--red-dark); }
+
+    .hero-note {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* ── PROMO BANNER ── */
+    .promo-bar {
+      background: var(--red);
+      color: white;
+      text-align: center;
+      padding: 14px 24px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .promo-bar span { opacity: 0.85; margin: 0 12px; }
+
+    /* ── CATEGORIES ── */
+    .section {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 56px 24px;
+    }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 8px;
+    }
+
+    .section-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    .section-sub {
+      font-size: 16px;
+      color: var(--gray);
+      margin-bottom: 40px;
+    }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+    }
+
+    .category-card {
+      background: var(--bg);
+      border-radius: 16px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+      text-decoration: none;
+      color: var(--dark);
+      display: block;
+    }
+
+    .category-card:hover {
+      background: white;
+      border-color: var(--red);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(255,48,8,0.15);
+    }
+
+    .category-card .icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .category-card .name {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    /* ── HOW IT WORKS ── */
+    .how-section {
+      background: var(--bg);
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 32px;
+    }
+
+    .step-card {
+      background: white;
+      border-radius: 20px;
+      padding: 36px 28px;
+      position: relative;
+    }
+
+    .step-number {
+      width: 44px;
+      height: 44px;
+      background: var(--red);
+      color: white;
+      border-radius: 50%;
+      display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
-    }
-    
-    .hero-section {
-      text-align: center;
-      max-width: 800px;
-      padding: 40px 20px;
-    }
-    
-    .logo {
-      font-size: 72px;
-      margin-bottom: 20px;
-    }
-    
-    .app-name {
-      font-size: 48px;
-      font-weight: bold;
-      margin-bottom: 20px;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-    
-    .tagline {
-      font-size: 24px;
-      margin-bottom: 40px;
-      opacity: 0.9;
-    }
-    
-    .description {
       font-size: 18px;
-      margin-bottom: 50px;
+      font-weight: 800;
+      margin-bottom: 20px;
+    }
+
+    .step-card h3 {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .step-card p {
+      font-size: 14px;
+      color: var(--gray);
       line-height: 1.6;
-      opacity: 0.8;
     }
-    
-    .action-buttons {
-      display: flex;
-      gap: 20px;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-bottom: 40px;
-    }
-    
-    .btn {
-      padding: 15px 30px;
-      border: none;
-      border-radius: 50px;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: all 0.3s;
-      text-decoration: none;
-      display: inline-block;
-      min-width: 200px;
-    }
-    
-    .btn-primary {
-      background: white;
-      color: #ff6b35;
-    }
-    
-    .btn-primary:hover {
-      background: #f8f9fa;
-      transform: translateY(-2px);
-      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-    }
-    
-    .btn-secondary {
-      background: rgba(255,255,255,0.2);
-      color: white;
-      border: 2px solid white;
-    }
-    
-    .btn-secondary:hover {
-      background: rgba(255,255,255,0.3);
-      transform: translateY(-2px);
-    }
-    
-    .features {
+
+    /* ── ROLES ── */
+    .roles-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 30px;
-      margin-top: 60px;
-      max-width: 1000px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
     }
-    
-    .feature-card {
-      background: rgba(255,255,255,0.1);
-      padding: 30px;
-      border-radius: 15px;
-      text-align: center;
-      backdrop-filter: blur(10px);
+
+    .role-card {
+      border-radius: 20px;
+      padding: 40px 32px;
+      position: relative;
+      overflow: hidden;
     }
-    
-    .feature-icon {
+
+    .role-card.customer { background: #fff5f3; }
+    .role-card.driver   { background: #f0f9ff; }
+    .role-card.merchant { background: #f0fff4; }
+
+    .role-icon {
       font-size: 48px;
       margin-bottom: 20px;
+      display: block;
     }
-    
-    .feature-title {
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 15px;
+
+    .role-card h3 {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 10px;
     }
-    
-    .feature-description {
-      font-size: 16px;
-      opacity: 0.8;
-      line-height: 1.5;
+
+    .role-card p {
+      font-size: 15px;
+      color: var(--gray);
+      line-height: 1.6;
+      margin-bottom: 24px;
     }
-    
-    .footer {
-      margin-top: 60px;
+
+    .role-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+
+    .role-card.customer .role-cta { background: var(--red); color: white; }
+    .role-card.customer .role-cta:hover { background: var(--red-dark); }
+    .role-card.driver .role-cta   { background: #0ea5e9; color: white; }
+    .role-card.driver .role-cta:hover { background: #0284c7; }
+    .role-card.merchant .role-cta { background: #22c55e; color: white; }
+    .role-card.merchant .role-cta:hover { background: #16a34a; }
+
+    /* ── STATS ── */
+    .stats-section {
+      background: var(--dark);
+      color: white;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 48px;
       text-align: center;
-      opacity: 0.7;
     }
-    
-    @media (max-width: 768px) {
-      .app-name { font-size: 36px; }
-      .tagline { font-size: 20px; }
-      .action-buttons { flex-direction: column; align-items: center; }
-      .btn { min-width: 250px; }
+
+    .stat-number {
+      font-size: 48px;
+      font-weight: 900;
+      color: var(--red);
+      display: block;
+      letter-spacing: -1px;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      color: rgba(255,255,255,0.6);
+      margin-top: 4px;
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      background: var(--dark);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.5);
+      text-align: center;
+      padding: 32px 24px;
+      font-size: 13px;
+    }
+
+    .footer a { color: rgba(255,255,255,0.5); text-decoration: none; }
+    .footer a:hover { color: white; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      .nav-link { display: none; }
+      .hero-search { flex-direction: column; padding: 16px; }
+      .hero-search input { width: 100%; text-align: center; }
+      .hero-search-btn { width: 100%; }
     }
   </style>
 </head>
 <body>
-  <div class="hero-section">
-    <div class="logo">🍔</div>
-    <h1 class="app-name">Bradley GigRunner</h1>
-    <p class="tagline">Food delivery made simple</p>
-    <p class="description">
-      Connect customers with local restaurants and drivers for fast, reliable food delivery. 
-      Whether you're ordering food or delivering it, we've got you covered.
+
+  <!-- NAV -->
+  <nav class="nav">
+    <a href="index.html" class="nav-logo">
+      <i class="fas fa-motorcycle"></i>
+      GigRunner
+    </a>
+    <div class="nav-links">
+      <a href="#how" class="nav-link">How it works</a>
+      <a href="login.html" class="nav-btn nav-btn-outline">Log in</a>
+      <a href="signup.html" class="nav-btn nav-btn-red">Sign up</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner">
+      <p class="hero-eyebrow">Fast · Reliable · Affordable</p>
+      <h1>Deliver anything,<br><span>delivered fast</span></h1>
+      <p>Order from your favorite local restaurants and get food delivered to your door in minutes.</p>
+      <div class="hero-search">
+        <i class="fas fa-map-marker-alt"></i>
+        <input type="text" placeholder="Enter delivery address..." />
+        <button class="hero-search-btn" onclick="window.location.href='login.html'">
+          Find Food
+        </button>
+      </div>
+      <p class="hero-note">Sign in to order from local restaurants near you</p>
+    </div>
+  </section>
+
+  <!-- PROMO BAR -->
+  <div class="promo-bar">
+    Free delivery on your first order &nbsp;·&nbsp; Use code <strong>GIGRUNNER</strong> at checkout
+    <span>|</span>
+    Now delivering in your area!
+  </div>
+
+  <!-- CATEGORIES -->
+  <div class="section">
+    <p class="section-label">Browse by category</p>
+    <h2 class="section-title">What are you craving?</h2>
+    <p class="section-sub">Explore popular food categories near you</p>
+    <div class="category-grid">
+      <a href="login.html" class="category-card">
+        <span class="icon">🍔</span>
+        <span class="name">Burgers</span>
+      </a>
+      <a href="login.html" class="category-card">
+        <span class="icon">🍕</span>
+        <span class="name">Pizza</span>
+      </a>
+      <a href="login.html" class="category-card">
+        <span class="icon">🌮</span>
+        <span class="name">Mexican</span>
+      </a>
+      <a href="login.html" class="category-card">
+        <span class="icon">🍜</span>
+        <span class="name">Asian</span>
+      </a>
+      <a href="login.html" class="category-card">
+        <span class="icon">🥗</span>
+        <span class="name">Healthy</span>
+      </a>
+      <a href="login.html" class="category-card">
+        <span class="icon">🍗</span>
+        <span class="name">Chicken</span>
+      </a>
+      <a href="login.html" class="category-card">
+        <span class="icon">🥪</span>
+        <span class="name">Sandwiches</span>
+      </a>
+      <a href="login.html" class="category-card">
+        <span class="icon">🍦</span>
+        <span class="name">Desserts</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- HOW IT WORKS -->
+  <div class="how-section" id="how">
+    <div class="section">
+      <p class="section-label">Simple process</p>
+      <h2 class="section-title">How it works</h2>
+      <p class="section-sub">Order in three easy steps</p>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <h3>Choose a restaurant</h3>
+          <p>Browse nearby restaurants and menus. Filter by cuisine, rating, or delivery time.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <h3>Place your order</h3>
+          <p>Add items to your cart, customize your order, and checkout securely.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <h3>Track your delivery</h3>
+          <p>Watch your order in real-time on the map as your driver heads your way.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROLES -->
+  <div class="section">
+    <p class="section-label">Join our platform</p>
+    <h2 class="section-title">GigRunner for everyone</h2>
+    <p class="section-sub">Whether you eat, drive, or cook — there's a place for you</p>
+    <div class="roles-grid">
+      <div class="role-card customer">
+        <span class="role-icon">🛍️</span>
+        <h3>Order food</h3>
+        <p>Browse hundreds of local restaurants and get meals delivered fast, right to your door.</p>
+        <a href="signup.html" class="role-cta">Order now <i class="fas fa-arrow-right"></i></a>
+      </div>
+      <div class="role-card driver">
+        <span class="role-icon">🚗</span>
+        <h3>Deliver & earn</h3>
+        <p>Work your own hours, pick up orders, and earn money on your schedule.</p>
+        <a href="signup.html" class="role-cta">Start earning <i class="fas fa-arrow-right"></i></a>
+      </div>
+      <div class="role-card merchant">
+        <span class="role-icon">🏪</span>
+        <h3>Grow your restaurant</h3>
+        <p>Partner with GigRunner to reach more customers and manage your orders effortlessly.</p>
+        <a href="signup.html" class="role-cta">Partner with us <i class="fas fa-arrow-right"></i></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-section">
+    <div class="section">
+      <div class="stats-grid">
+        <div>
+          <span class="stat-number">500+</span>
+          <div class="stat-label">Local restaurants</div>
+        </div>
+        <div>
+          <span class="stat-number">30min</span>
+          <div class="stat-label">Average delivery time</div>
+        </div>
+        <div>
+          <span class="stat-number">10k+</span>
+          <div class="stat-label">Happy customers</div>
+        </div>
+        <div>
+          <span class="stat-number">4.8★</span>
+          <div class="stat-label">Average rating</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>&copy; 2024 Bradley Virtual Solutions, LLC. All rights reserved.
+    &nbsp;·&nbsp; <a href="#">Privacy Policy</a>
+    &nbsp;·&nbsp; <a href="#">Terms of Service</a>
     </p>
-    
-    <div class="action-buttons">
-      <a href="login.html" class="btn btn-primary">Get Started</a>
-      <a href="signup.html" class="btn btn-secondary">Sign Up</a>
-    </div>
-  </div>
-  
-  <div class="features">
-    <div class="feature-card">
-      <div class="feature-icon">👥</div>
-      <h3 class="feature-title">For Customers</h3>
-      <p class="feature-description">
-        Browse local restaurants, place orders, and track your delivery in real-time.
-      </p>
-    </div>
-    
-    <div class="feature-card">
-      <div class="feature-icon">🚗</div>
-      <h3 class="feature-title">For Drivers</h3>
-      <p class="feature-description">
-        Accept delivery requests, earn money, and work on your own schedule.
-      </p>
-    </div>
-    
-    <div class="feature-card">
-      <div class="feature-icon">🏪</div>
-      <h3 class="feature-title">For Restaurants</h3>
-      <p class="feature-description">
-        Manage your menu, process orders, and grow your business with delivery.
-      </p>
-    </div>
-  </div>
-  
-  <div class="footer">
-    <p>&copy; 2024 Bradley Virtual Solutions, LLC. All rights reserved.</p>
-  </div>
+  </footer>
+
 </body>
 </html>

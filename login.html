@@ -2,64 +2,253 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Bradley GigRunner</title>
+  <title>Sign in – Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="favicon.ico" />
   <link rel="manifest" href="manifest.json" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --red: #FF3008;
+      --red-dark: #cc2600;
+      --white: #FFFFFF;
+      --bg: #F6F6F6;
+      --dark: #191919;
+      --gray: #767676;
+      --border: #E8E8E8;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: #f9fafb;
-      padding: 20px;
-      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+    }
+
+    /* NAV */
+    .nav {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
       align-items: center;
-      height: 100vh;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: var(--red);
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    /* MAIN */
+    .page {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    .card {
+      background: var(--white);
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      padding: 44px 40px;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .card-header {
       text-align: center;
+      margin-bottom: 32px;
     }
-    .box {
+
+    .card-header .logo-icon {
+      width: 56px;
+      height: 56px;
+      background: var(--red);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      color: white;
+      font-size: 26px;
+    }
+
+    .card-header h1 {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 6px;
+    }
+
+    .card-header p {
+      font-size: 14px;
+      color: var(--gray);
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--dark);
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      color: var(--dark);
       background: white;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      max-width: 400px;
-      width: 100%;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
     }
-    h1 { color: #1a4d2e; margin-bottom: 20px; }
-    input {
-      width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      border: 1px solid #ccc;
-      border-radius: 6px;
+
+    .form-input:focus {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(255,48,8,0.1);
     }
-    button {
+
+    .form-input::placeholder { color: #aaa; }
+
+    .btn-submit {
       width: 100%;
-      padding: 12px;
-      background: #1a4d2e;
+      padding: 15px;
+      background: var(--red);
       color: white;
       border: none;
-      border-radius: 6px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
       cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      margin-top: 8px;
     }
-    button:hover { background: #145032; }
-    .footer { font-size: 0.9em; margin-top: 10px; }
-    .error-message { color: red; font-size: 0.9em; margin-top: 10px; }
+
+    .btn-submit:hover { background: var(--red-dark); }
+    .btn-submit:active { transform: scale(0.99); }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+      color: var(--gray);
+      font-size: 13px;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .footer-links {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 14px;
+      color: var(--gray);
+    }
+
+    .footer-links a {
+      color: var(--red);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .footer-links a:hover { text-decoration: underline; }
+
+    .back-link {
+      display: block;
+      text-align: center;
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--gray);
+      text-decoration: none;
+    }
+
+    .back-link:hover { color: var(--dark); }
+
+    .error-message {
+      color: #d93025;
+      font-size: 13px;
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: #fce8e6;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .error-message.show { display: block; }
+
+    .success-message {
+      color: #1e7e34;
+      font-size: 13px;
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: #d4edda;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .success-message.show { display: block; }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h1>Bradley GigRunner</h1>
-    <input type="email" id="email" placeholder="Email" autocomplete="email" />
-    <input type="password" id="password" placeholder="Password" autocomplete="current-password" />
-    <button id="loginBtn">Login</button>
-    <div class="footer">
-      Don't have an account? <a href="signup.html">Sign Up</a><br>
-      <a href="index.html" style="color: #666; text-decoration: none;">← Back to Home</a>
+
+  <nav class="nav">
+    <a href="index.html" class="nav-logo">
+      <i class="fas fa-motorcycle"></i>
+      GigRunner
+    </a>
+  </nav>
+
+  <div class="page">
+    <div class="card">
+      <div class="card-header">
+        <div class="logo-icon"><i class="fas fa-motorcycle"></i></div>
+        <h1>Welcome back</h1>
+        <p>Sign in to your GigRunner account</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">Email address</label>
+        <input class="form-input" type="email" id="email" placeholder="you@example.com" autocomplete="email" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+
+      <button class="btn-submit" id="loginBtn">Sign in</button>
+
+      <div id="errorMessage" class="error-message"></div>
+      <div id="successMessage" class="success-message"></div>
+
+      <div class="footer-links">
+        Don't have an account? <a href="signup.html">Sign up</a>
+      </div>
+      <a href="index.html" class="back-link">← Back to home</a>
     </div>
-    <div id="errorMessage" class="error-message"></div>
-    <div id="successMessage" class="error-message" style="color: #28a745; display: none;"></div>
   </div>
 
   <script type="module">
@@ -85,24 +274,31 @@
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
       const errorDiv = document.getElementById("errorMessage");
+      const successDiv = document.getElementById("successMessage");
+
+      errorDiv.classList.remove('show');
+      successDiv.classList.remove('show');
 
       if (!email || !password) {
         errorDiv.innerText = "Please enter both email and password.";
+        errorDiv.classList.add('show');
         return;
       }
+
+      const btn = document.getElementById('loginBtn');
+      btn.innerText = 'Signing in...';
+      btn.disabled = true;
 
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const uid = userCredential.user.uid;
         let userDoc = await getDoc(doc(db, "users", uid));
 
-        // If user document doesn't exist, create it
         if (!userDoc.exists()) {
-          console.log("User document not found, creating one...");
           await setDoc(doc(db, "users", uid), {
             uid: uid,
             email: email,
-            roles: ["customer"], // Default role
+            roles: ["customer"],
             createdAt: new Date(),
             profile: {
               name: email.split('@')[0],
@@ -115,48 +311,40 @@
 
         const data = userDoc.data();
         const roles = data.roles || [];
-        
-        // 🔐 Special case for master admin (you)
+
         if (email === "ronellbradley@gmail.com" || uid === "S3FdZasxMRWRnPTe2NiNtgcp9c93") {
           window.location.href = "role-selector.html";
           return;
         }
 
-        // Redirect based on roles
         if (roles.includes("admin")) {
           window.location.href = "admin.html";
         } else if (roles.length === 1) {
-          window.location.href = roles[0] + ".html"; // driver.html or customer.html
+          window.location.href = roles[0] + ".html";
         } else if (roles.includes("driver") && roles.includes("customer")) {
-          window.location.href = "role-selector.html"; // ask which side
+          window.location.href = "role-selector.html";
         } else {
-          // Default to customer dashboard if no specific role
           window.location.href = "customer-dashboard.html";
         }
 
       } catch (error) {
-        console.error("Login failed:", error.code || error.message);
+        btn.innerText = 'Sign in';
+        btn.disabled = false;
         let message = "Login failed. Please try again.";
-
         switch (error.code) {
-          case "auth/user-not-found":
-            message = "No account found with this email.";
-            break;
-          case "auth/wrong-password":
-            message = "Incorrect password. Please try again.";
-            break;
-          case "auth/too-many-requests":
-            message = "Too many failed attempts. Try again later.";
-            break;
-          case "auth/invalid-email":
-            message = "Invalid email address format.";
-            break;
+          case "auth/user-not-found": message = "No account found with this email."; break;
+          case "auth/wrong-password": message = "Incorrect password. Please try again."; break;
+          case "auth/too-many-requests": message = "Too many failed attempts. Try again later."; break;
+          case "auth/invalid-email": message = "Invalid email address format."; break;
         }
-
         errorDiv.innerText = message;
+        errorDiv.classList.add('show');
       }
     });
 
+    document.getElementById('password').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('loginBtn').click();
+    });
   </script>
 </body>
 </html>
