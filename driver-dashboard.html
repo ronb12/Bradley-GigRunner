@@ -13,12 +13,12 @@
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f7f7f7;
+      background: #F6F6F6;
       color: #333;
     }
     
     .header {
-      background: #ff6b35;
+      background: #FF3008;
       color: white;
       padding: 15px 20px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -82,7 +82,7 @@
     .stat-number {
       font-size: 32px;
       font-weight: bold;
-      color: #ff6b35;
+      color: #FF3008;
       margin-bottom: 5px;
     }
     
@@ -90,7 +90,27 @@
       color: #666;
       font-size: 14px;
     }
-    
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #191919;
+      color: white;
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 9999;
+      transition: transform 0.3s ease;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { background: #1e7e34; }
+    .toast.error   { background: #d93025; }
+    .toast.info    { background: #0c5460; }
+
     .map-container {
       background: white;
       border-radius: 10px;
@@ -129,7 +149,7 @@
     }
     
     .order-card.current {
-      border-left: 4px solid #ff6b35;
+      border-left: 4px solid #FF3008;
     }
     
     .order-header {
@@ -141,7 +161,7 @@
     
     .order-id {
       font-weight: bold;
-      color: #ff6b35;
+      color: #FF3008;
       font-size: 18px;
     }
     
@@ -159,7 +179,7 @@
     }
     
     .pickup-info, .delivery-info {
-      background: #f8f9fa;
+      background: #F6F6F6;
       padding: 15px;
       border-radius: 8px;
     }
@@ -215,7 +235,7 @@
     }
     
     .btn-primary {
-      background: #ff6b35;
+      background: #FF3008;
       color: white;
     }
     
@@ -269,7 +289,7 @@
       border-bottom: none;
       font-weight: bold;
       font-size: 18px;
-      color: #ff6b35;
+      color: #FF3008;
     }
     
     .sos-button {
@@ -306,6 +326,7 @@
   </style>
 </head>
 <body>
+  <div id="toast" class="toast"></div>
   <header class="header">
     <div class="header-content">
       <div class="logo">🚗 Driver Dashboard</div>
@@ -387,6 +408,14 @@
     const auth = getAuth(app);
 
     let currentUser = null;
+
+    function showToast(msg, type = '') {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast' + (type ? ' ' + type : '');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
     let map = null;
     let driverMarker = null;
     let isOnline = false;
@@ -521,7 +550,7 @@
 
     window.acceptOrder = async (orderId) => {
       if (!isOnline) {
-        alert('You must be online to accept orders');
+        showToast('You must be online to accept orders', 'error');
         return;
       }
 
@@ -531,10 +560,10 @@
           status: ORDER_STATUS.READY_FOR_PICKUP,
           acceptedAt: new Date()
         });
-        alert('Order accepted!');
+        showToast('Order accepted!', 'success');
       } catch (error) {
         console.error('Error accepting order:', error);
-        alert('Error accepting order.');
+        showToast('Error accepting order.', 'error');
       }
     };
 
@@ -544,10 +573,11 @@
           status: newStatus,
           updatedAt: new Date()
         });
-        alert('Order status updated!');
+        const label = newStatus.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+        showToast(`Order: ${label}`, 'success');
       } catch (error) {
         console.error('Error updating order:', error);
-        alert('Error updating order status.');
+        showToast('Error updating order status.', 'error');
       }
     };
 
@@ -570,19 +600,17 @@
       if (currentLocation) {
         map.setView(currentLocation, 15);
       } else {
-        alert('Location not available');
+        showToast('Location not available yet.', 'info');
       }
     };
 
     window.showAvailableOrders = () => {
-      // In a real app, you'd filter orders by distance
-      alert('Showing available orders in your area');
+      showToast('Loading available orders in your area...', 'info');
     };
 
     window.sendSOS = () => {
       if (confirm('Send emergency SOS alert to dispatch?')) {
-        alert('SOS alert sent to dispatch. Help is on the way!');
-        // In a real app, you'd send this to a dispatch system
+        showToast('SOS alert sent to dispatch. Help is on the way!', 'error');
       }
     };
 

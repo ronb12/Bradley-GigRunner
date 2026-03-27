@@ -9,17 +9,18 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://www.paypal.com/sdk/js?client-id=sb&currency=USD"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f7f7f7;
+      background: #F6F6F6;
       color: #333;
     }
     
     .header {
-      background: #ff6b35;
+      background: #FF3008;
       color: white;
       padding: 15px 20px;
       position: sticky;
@@ -140,9 +141,9 @@
     }
     
     .category-btn.active {
-      background: #ff6b35;
+      background: #FF3008;
       color: white;
-      border-color: #ff6b35;
+      border-color: #FF3008;
     }
     
     .restaurants-grid {
@@ -209,7 +210,7 @@
     }
     
     .delivery-fee {
-      color: #ff6b35;
+      color: #FF3008;
       font-weight: bold;
     }
     
@@ -268,7 +269,7 @@
     
     .item-price {
       font-weight: bold;
-      color: #ff6b35;
+      color: #FF3008;
     }
     
     .quantity-controls {
@@ -278,7 +279,7 @@
     }
     
     .qty-btn {
-      background: #ff6b35;
+      background: #FF3008;
       color: white;
       border: none;
       width: 30px;
@@ -288,7 +289,7 @@
     }
     
     .checkout-btn {
-      background: #ff6b35;
+      background: #FF3008;
       color: white;
       border: none;
       padding: 15px;
@@ -301,7 +302,53 @@
     }
     
     .hidden { display: none; }
-    
+
+    /* Cart modal visibility fix */
+    .cart-modal.show { display: flex; }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #191919;
+      color: white;
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 9999;
+      transition: transform 0.3s ease;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { background: #1e7e34; }
+    .toast.error   { background: #d93025; }
+
+    /* Order success banner */
+    .order-success {
+      display: none;
+      background: #d4edda;
+      color: #155724;
+      padding: 16px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-weight: 600;
+      align-items: center;
+      gap: 10px;
+    }
+    .order-success.show { display: flex; }
+
+    /* No-results message */
+    .no-results {
+      text-align: center;
+      padding: 48px 20px;
+      color: #767676;
+      font-size: 16px;
+    }
+
     @media (max-width: 768px) {
       .header-content {
         flex-direction: column;
@@ -337,7 +384,14 @@
     </div>
   </header>
 
+  <div id="toast" class="toast"></div>
+
   <div class="main-content">
+    <div id="orderSuccess" class="order-success">
+      <i class="fas fa-check-circle"></i>
+      <span id="orderSuccessMsg">Order placed successfully!</span>
+    </div>
+
     <div class="delivery-info">
       <div class="delivery-address">
         <span>📍</span>
@@ -403,12 +457,22 @@
     let cart = [];
     let restaurants = [];
     let currentCategory = 'all';
+    let searchQuery = '';
+
+    function showToast(msg, type = '') {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast' + (type ? ' ' + type : '');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
 
     // Sample restaurant data
     const sampleRestaurants = [
       {
         id: '1',
-        name: 'Mario\'s Pizza',
+        name: "Mario's Pizza",
+        cuisine: 'Italian',
         category: 'pizza',
         rating: 4.5,
         deliveryTime: '25-35 min',
@@ -423,6 +487,7 @@
       {
         id: '2',
         name: 'Burger Palace',
+        cuisine: 'American',
         category: 'burger',
         rating: 4.3,
         deliveryTime: '20-30 min',
@@ -437,6 +502,7 @@
       {
         id: '3',
         name: 'Dragon Garden',
+        cuisine: 'Chinese',
         category: 'asian',
         rating: 4.7,
         deliveryTime: '30-40 min',
@@ -446,6 +512,36 @@
           { id: '7', name: 'Chicken Fried Rice', price: 10.99, description: 'Stir-fried rice with chicken and vegetables' },
           { id: '8', name: 'Beef Lo Mein', price: 12.99, description: 'Noodles with beef and mixed vegetables' },
           { id: '9', name: 'Sweet and Sour Chicken', price: 11.99, description: 'Breaded chicken with sweet and sour sauce' }
+        ]
+      },
+      {
+        id: '4',
+        name: 'Taco Fiesta',
+        cuisine: 'Mexican',
+        category: 'mexican',
+        rating: 4.4,
+        deliveryTime: '20-30 min',
+        deliveryFee: 1.49,
+        image: '🌮',
+        menu: [
+          { id: '10', name: 'Street Tacos (3)', price: 9.99, description: 'Seasoned beef, salsa, cilantro, onion' },
+          { id: '11', name: 'Burrito Bowl', price: 11.99, description: 'Rice, beans, chicken, pico de gallo, guac' },
+          { id: '12', name: 'Nachos Supreme', price: 10.99, description: 'Chips, cheese, jalapeños, sour cream, salsa' }
+        ]
+      },
+      {
+        id: '5',
+        name: 'Sweet Tooth Bakery',
+        cuisine: 'Desserts',
+        category: 'dessert',
+        rating: 4.8,
+        deliveryTime: '15-25 min',
+        deliveryFee: 2.49,
+        image: '🍰',
+        menu: [
+          { id: '13', name: 'Chocolate Lava Cake', price: 6.99, description: 'Warm chocolate cake with molten center' },
+          { id: '14', name: 'Cheesecake Slice', price: 5.99, description: 'New York style with berry compote' },
+          { id: '15', name: 'Cookie Dozen', price: 12.99, description: 'Assorted fresh-baked cookies' }
         ]
       }
     ];
@@ -459,6 +555,12 @@
       loadRestaurants();
     });
 
+    // Wire up search input
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      searchQuery = e.target.value.toLowerCase().trim();
+      renderRestaurants();
+    });
+
     function loadRestaurants() {
       restaurants = sampleRestaurants;
       renderRestaurants();
@@ -466,10 +568,26 @@
 
     function renderRestaurants() {
       const grid = document.getElementById('restaurantsGrid');
-      const filtered = currentCategory === 'all' 
-        ? restaurants 
+      let filtered = currentCategory === 'all'
+        ? restaurants
         : restaurants.filter(r => r.category === currentCategory);
-      
+
+      if (searchQuery) {
+        filtered = filtered.filter(r =>
+          r.name.toLowerCase().includes(searchQuery) ||
+          r.cuisine.toLowerCase().includes(searchQuery) ||
+          r.menu.some(item => item.name.toLowerCase().includes(searchQuery))
+        );
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="no-results">
+          <div style="font-size:48px;margin-bottom:12px;">🔍</div>
+          <p>No restaurants found${searchQuery ? ' for "<strong>' + searchQuery + '</strong>"' : ''}.</p>
+        </div>`;
+        return;
+      }
+
       grid.innerHTML = filtered.map(restaurant => `
         <div class="restaurant-card" onclick="openRestaurant('${restaurant.id}')">
           <div class="restaurant-image">${restaurant.image}</div>
@@ -477,11 +595,11 @@
             <div class="restaurant-name">${restaurant.name}</div>
             <div class="restaurant-rating">
               <span class="stars">${'★'.repeat(Math.floor(restaurant.rating))}</span>
-              <span>${restaurant.rating}</span>
+              <span>${restaurant.rating} (${Math.floor(Math.random() * 500 + 50)}+)</span>
             </div>
-            <div class="restaurant-details">Chinese • $$</div>
+            <div class="restaurant-details">${restaurant.cuisine} • $$</div>
             <div class="delivery-info-card">
-              <span class="delivery-fee">$${restaurant.deliveryFee} delivery fee</span>
+              <span class="delivery-fee">$${restaurant.deliveryFee.toFixed(2)} delivery</span>
               <span class="delivery-time">${restaurant.deliveryTime}</span>
             </div>
           </div>
@@ -610,14 +728,19 @@
       };
       
       try {
-        await addDoc(collection(db, COLLECTIONS.ORDERS), order);
+        const docRef = await addDoc(collection(db, COLLECTIONS.ORDERS), order);
         cart = [];
         updateCartDisplay();
         document.getElementById('cartModal').classList.remove('show');
-        alert('Order placed successfully!');
+        const banner = document.getElementById('orderSuccess');
+        document.getElementById('orderSuccessMsg').textContent =
+          `Order #${docRef.id.substring(0, 8).toUpperCase()} placed! Estimated delivery: 25-35 min.`;
+        banner.classList.add('show');
+        setTimeout(() => banner.classList.remove('show'), 6000);
+        showToast('Order placed!', 'success');
       } catch (error) {
         console.error('Error placing order:', error);
-        alert('Error placing order. Please try again.');
+        showToast('Error placing order. Please try again.', 'error');
       }
     };
 
@@ -628,10 +751,19 @@
     };
 
     window.changeAddress = () => {
-      const newAddress = prompt('Enter your delivery address:');
-      if (newAddress) {
-        document.getElementById('deliveryAddress').textContent = newAddress;
-      }
+      const addrEl = document.getElementById('deliveryAddress');
+      const currentVal = addrEl.textContent;
+      addrEl.innerHTML = `<input id="addrInput" type="text" value="${currentVal === 'Enter your delivery address' ? '' : currentVal}"
+        placeholder="Street, City, State" style="border:1px solid #ccc;padding:6px 10px;border-radius:6px;font-size:14px;width:280px;"
+        onblur="confirmAddress()" onkeydown="if(event.key==='Enter')confirmAddress()" autofocus />`;
+      document.getElementById('addrInput').select();
+    };
+
+    window.confirmAddress = () => {
+      const input = document.getElementById('addrInput');
+      if (!input) return;
+      const val = input.value.trim() || 'Enter your delivery address';
+      document.getElementById('deliveryAddress').textContent = val;
     };
   </script>
 </body>
