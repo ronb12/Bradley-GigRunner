@@ -686,7 +686,21 @@
       <button class="category-btn" onclick="filterByCategory('burger')">🍔 Burgers</button>
       <button class="category-btn" onclick="filterByCategory('asian')">🍜 Asian</button>
       <button class="category-btn" onclick="filterByCategory('mexican')">🌮 Mexican</button>
-      <button class="category-btn" onclick="filterByCategory('dessert')">🍰 Dessert</button>
+      <button class="category-btn" onclick="filterByCategory('chicken')">🍗 Chicken</button>
+      <button class="category-btn" onclick="filterByCategory('healthy')">🥗 Healthy</button>
+      <button class="category-btn" onclick="filterByCategory('breakfast')">🥞 Breakfast</button>
+      <button class="category-btn" onclick="filterByCategory('sandwiches')">🥪 Sandwiches</button>
+    </div>
+
+    <div id="locationBar" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:12px 16px;background:white;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <span id="locationStatus" style="font-size:14px;color:#767676;">📍 Detecting your location…</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="font-size:13px;color:#767676;">Radius:</span>
+        <button class="tip-btn active" onclick="setRadius(5, this)">5 mi</button>
+        <button class="tip-btn" onclick="setRadius(10, this)">10 mi</button>
+        <button class="tip-btn" onclick="setRadius(15, this)">15 mi</button>
+        <button class="tip-btn" onclick="setRadius(999, this)">Any</button>
+      </div>
     </div>
 
     <div class="restaurants-grid" id="restaurantsGrid">
@@ -823,84 +837,25 @@
       document.getElementById(tab === 'order' ? 'tabOrder' : 'tabMyOrders').classList.add('active');
     };
 
-    // Sample restaurant data
-    const sampleRestaurants = [
-      {
-        id: '1',
-        name: "Mario's Pizza",
-        cuisine: 'Italian',
-        category: 'pizza',
-        rating: 4.5,
-        deliveryTime: '25-35 min',
-        deliveryFee: 4.99,
-        image: '🍕',
-        menu: [
-          { id: '1', name: 'Margherita Pizza', price: 12.99, description: 'Fresh mozzarella, tomato sauce, basil' },
-          { id: '2', name: 'Pepperoni Pizza', price: 14.99, description: 'Pepperoni, mozzarella, tomato sauce' },
-          { id: '3', name: 'Supreme Pizza', price: 16.99, description: 'Pepperoni, sausage, peppers, onions, mushrooms' }
-        ]
-      },
-      {
-        id: '2',
-        name: 'Burger Palace',
-        cuisine: 'American',
-        category: 'burger',
-        rating: 4.3,
-        deliveryTime: '20-30 min',
-        deliveryFee: 3.99,
-        image: '🍔',
-        menu: [
-          { id: '4', name: 'Classic Burger', price: 8.99, description: 'Beef patty, lettuce, tomato, onion' },
-          { id: '5', name: 'Cheeseburger', price: 9.99, description: 'Beef patty, cheese, lettuce, tomato' },
-          { id: '6', name: 'Bacon Burger', price: 11.99, description: 'Beef patty, bacon, cheese, lettuce, tomato' }
-        ]
-      },
-      {
-        id: '3',
-        name: 'Dragon Garden',
-        cuisine: 'Chinese',
-        category: 'asian',
-        rating: 4.7,
-        deliveryTime: '30-40 min',
-        deliveryFee: 5.99,
-        image: '🍜',
-        menu: [
-          { id: '7', name: 'Chicken Fried Rice', price: 10.99, description: 'Stir-fried rice with chicken and vegetables' },
-          { id: '8', name: 'Beef Lo Mein', price: 12.99, description: 'Noodles with beef and mixed vegetables' },
-          { id: '9', name: 'Sweet and Sour Chicken', price: 11.99, description: 'Breaded chicken with sweet and sour sauce' }
-        ]
-      },
-      {
-        id: '4',
-        name: 'Taco Fiesta',
-        cuisine: 'Mexican',
-        category: 'mexican',
-        rating: 4.4,
-        deliveryTime: '20-30 min',
-        deliveryFee: 3.99,
-        image: '🌮',
-        menu: [
-          { id: '10', name: 'Street Tacos (3)', price: 9.99, description: 'Seasoned beef, salsa, cilantro, onion' },
-          { id: '11', name: 'Burrito Bowl', price: 11.99, description: 'Rice, beans, chicken, pico de gallo, guac' },
-          { id: '12', name: 'Nachos Supreme', price: 10.99, description: 'Chips, cheese, jalapeños, sour cream, salsa' }
-        ]
-      },
-      {
-        id: '5',
-        name: 'Sweet Tooth Bakery',
-        cuisine: 'Desserts',
-        category: 'dessert',
-        rating: 4.8,
-        deliveryTime: '15-25 min',
-        deliveryFee: 3.99,
-        image: '🍰',
-        menu: [
-          { id: '13', name: 'Chocolate Lava Cake', price: 6.99, description: 'Warm chocolate cake with molten center' },
-          { id: '14', name: 'Cheesecake Slice', price: 5.99, description: 'New York style with berry compote' },
-          { id: '15', name: 'Cookie Dozen', price: 12.99, description: 'Assorted fresh-baked cookies' }
-        ]
-      }
-    ];
+    // ── Haversine distance (miles) ────────────────────────────────────────────
+    function distanceMiles(lat1, lng1, lat2, lng2) {
+      const R = 3958.8;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 +
+                Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+                Math.sin(dLng/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    let customerLat = null, customerLng = null, radiusMiles = 5;
+
+    window.setRadius = (miles, btn) => {
+      radiusMiles = miles;
+      document.querySelectorAll('#locationBar .tip-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderRestaurants();
+    };
 
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -908,6 +863,7 @@
         return;
       }
       currentUser = user;
+      getCustomerLocation();
       loadRestaurants();
       subscribeMyOrders();
       subscribeNotifications();
@@ -1210,13 +1166,38 @@
       showToast('Items added to cart!', 'success');
     };
 
+    function getCustomerLocation() {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          customerLat = pos.coords.latitude;
+          customerLng = pos.coords.longitude;
+          document.getElementById('locationStatus').textContent =
+            `📍 Showing restaurants within ${radiusMiles === 999 ? 'any distance' : radiusMiles + ' miles'}`;
+          renderRestaurants();
+        },
+        () => {
+          // Fallback to Columbia, SC city center
+          customerLat = 34.0007;
+          customerLng = -81.0348;
+          document.getElementById('locationStatus').textContent =
+            '📍 Columbia, SC (location access denied — using city center)';
+          renderRestaurants();
+        }
+      );
+    }
+
     function loadRestaurants() {
-      restaurants = sampleRestaurants;
-      renderRestaurants();
+      const q = query(collection(db, 'restaurants'), where('isOpen', '==', true));
+      onSnapshot(q, (snapshot) => {
+        restaurants = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderRestaurants();
+      });
     }
 
     function renderRestaurants() {
       const grid = document.getElementById('restaurantsGrid');
+
       let filtered = currentCategory === 'all'
         ? restaurants
         : restaurants.filter(r => r.category === currentCategory);
@@ -1225,35 +1206,51 @@
         filtered = filtered.filter(r =>
           r.name.toLowerCase().includes(searchQuery) ||
           r.cuisine.toLowerCase().includes(searchQuery) ||
-          r.menu.some(item => item.name.toLowerCase().includes(searchQuery))
+          (r.menu || []).some(item => item.name.toLowerCase().includes(searchQuery))
         );
       }
 
+      // Distance filter
+      if (customerLat !== null) {
+        filtered = filtered.map(r => ({
+          ...r,
+          distance: (r.lat && r.lng) ? distanceMiles(customerLat, customerLng, r.lat, r.lng) : 999
+        })).filter(r => r.distance <= radiusMiles)
+          .sort((a, b) => a.distance - b.distance);
+      }
+
       if (filtered.length === 0) {
+        const noLoc = customerLat === null;
         grid.innerHTML = `<div class="no-results">
-          <div style="font-size:48px;margin-bottom:12px;">🔍</div>
-          <p>No restaurants found${searchQuery ? ' for "<strong>' + searchQuery + '</strong>"' : ''}.</p>
+          <div style="font-size:48px;margin-bottom:12px;">${noLoc ? '📍' : '🔍'}</div>
+          <p>${noLoc ? 'Allow location access to see nearby restaurants.' :
+            searchQuery ? `No restaurants found for "<strong>${searchQuery}</strong>".` :
+            `No restaurants within ${radiusMiles} miles. Try a larger radius.`}</p>
         </div>`;
         return;
       }
 
-      grid.innerHTML = filtered.map(restaurant => `
+      grid.innerHTML = filtered.map(restaurant => {
+        const dist = restaurant.distance !== undefined && restaurant.distance < 900
+          ? `${restaurant.distance.toFixed(1)} mi away`
+          : '';
+        return `
         <div class="restaurant-card" onclick="openRestaurant('${restaurant.id}')">
-          <div class="restaurant-image">${restaurant.image}</div>
+          <div class="restaurant-image">${restaurant.image || '🍽️'}</div>
           <div class="restaurant-info">
             <div class="restaurant-name">${restaurant.name}</div>
             <div class="restaurant-rating">
-              <span class="stars">${'★'.repeat(Math.floor(restaurant.rating))}</span>
-              <span>${restaurant.rating} (${Math.floor(Math.random() * 500 + 50)}+)</span>
+              <span class="stars">${'★'.repeat(Math.floor(restaurant.rating || 4))}</span>
+              <span>${restaurant.rating || '4.0'} ${dist ? '· ' + dist : ''}</span>
             </div>
-            <div class="restaurant-details">${restaurant.cuisine} • $$</div>
+            <div class="restaurant-details">${restaurant.cuisine}</div>
             <div class="delivery-info-card">
-              <span class="delivery-fee">$${restaurant.deliveryFee.toFixed(2)} delivery</span>
-              <span class="delivery-time">${restaurant.deliveryTime}</span>
+              <span class="delivery-fee">$${(restaurant.deliveryFee || 3.99).toFixed(2)} delivery</span>
+              <span class="delivery-time">${restaurant.deliveryTime || '20-35 min'}</span>
             </div>
           </div>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
     }
 
     window.filterByCategory = (category) => {

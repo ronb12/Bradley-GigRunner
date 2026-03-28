@@ -355,6 +355,7 @@
       <button class="nav-tab active" onclick="showTab('orders')">Orders</button>
       <button class="nav-tab" onclick="showTab('menu')">Menu</button>
       <button class="nav-tab" onclick="showTab('analytics')">Analytics</button>
+      <button class="nav-tab" onclick="showTab('settings')">Settings</button>
     </div>
 
     <!-- Orders Tab -->
@@ -451,11 +452,52 @@
         <div id="statusBreakdown"></div>
       </div>
     </div>
+
+    <!-- Settings Tab -->
+    <div id="settingsTab" class="tab-content hidden">
+      <div class="add-item-form" style="max-width:600px;">
+        <h3 style="margin-bottom:20px;">Restaurant Profile</h3>
+        <div class="form-group">
+          <label>Restaurant Name</label>
+          <input type="text" id="settingName" placeholder="e.g. Mario's Pizza">
+        </div>
+        <div class="form-group">
+          <label>Cuisine Type</label>
+          <input type="text" id="settingCuisine" placeholder="e.g. Italian, Mexican, American">
+        </div>
+        <div class="form-group">
+          <label>Address</label>
+          <input type="text" id="settingAddress" placeholder="123 Main St, Columbia, SC 29201">
+        </div>
+        <div class="form-group">
+          <label>Delivery Fee ($)</label>
+          <input type="number" id="settingDeliveryFee" min="0" step="0.50" placeholder="3.99">
+        </div>
+        <div class="form-group">
+          <label>Estimated Delivery Time</label>
+          <input type="text" id="settingDeliveryTime" placeholder="20-35 min">
+        </div>
+        <div class="form-group">
+          <label>Restaurant Location</label>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="settingLat" placeholder="Latitude" style="width:140px;">
+            <input type="text" id="settingLng" placeholder="Longitude" style="width:140px;">
+            <button class="btn btn-secondary" onclick="detectRestaurantLocation()" style="padding:10px 16px;font-size:13px;">📍 Use My Location</button>
+          </div>
+          <small style="color:#767676;font-size:12px;margin-top:4px;display:block;">Your location is used to show your restaurant to nearby customers.</small>
+        </div>
+        <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+          <label style="margin:0;">Open for orders</label>
+          <input type="checkbox" id="settingIsOpen" checked style="width:20px;height:20px;cursor:pointer;">
+        </div>
+        <button class="btn btn-primary" onclick="saveRestaurantProfile()" style="width:100%;padding:14px;">Save Profile</button>
+      </div>
+    </div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, setDoc, getDoc, doc, query, where, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import { firebaseConfig, COLLECTIONS, ORDER_STATUS, USER_ROLES } from "./firebase-config.js";
 
@@ -484,6 +526,7 @@
       restaurantId = user.uid;
       loadOrders();
       loadMenuItems();
+      loadRestaurantProfile();
     });
 
     function loadOrders() {
@@ -719,6 +762,60 @@
           </div>`
         ).join('') || '<p style="color:#767676;font-size:14px;">No data.</p>';
     }
+
+    async function loadRestaurantProfile() {
+      try {
+        const snap = await getDoc(doc(db, 'restaurants', restaurantId));
+        if (snap.exists()) {
+          const d = snap.data();
+          document.getElementById('settingName').value = d.name || '';
+          document.getElementById('settingCuisine').value = d.cuisine || '';
+          document.getElementById('settingAddress').value = d.address || '';
+          document.getElementById('settingDeliveryFee').value = d.deliveryFee || '';
+          document.getElementById('settingDeliveryTime').value = d.deliveryTime || '';
+          document.getElementById('settingLat').value = d.lat || '';
+          document.getElementById('settingLng').value = d.lng || '';
+          document.getElementById('settingIsOpen').checked = d.isOpen !== false;
+        }
+      } catch (e) { console.error('loadRestaurantProfile', e); }
+    }
+
+    window.detectRestaurantLocation = () => {
+      if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          document.getElementById('settingLat').value = pos.coords.latitude.toFixed(6);
+          document.getElementById('settingLng').value = pos.coords.longitude.toFixed(6);
+          showToast('Location detected!', 'success');
+        },
+        () => showToast('Could not detect location.', 'error')
+      );
+    };
+
+    window.saveRestaurantProfile = async () => {
+      const name = document.getElementById('settingName').value.trim();
+      const cuisine = document.getElementById('settingCuisine').value.trim();
+      const address = document.getElementById('settingAddress').value.trim();
+      const deliveryFee = parseFloat(document.getElementById('settingDeliveryFee').value) || 3.99;
+      const deliveryTime = document.getElementById('settingDeliveryTime').value.trim() || '20-35 min';
+      const lat = parseFloat(document.getElementById('settingLat').value) || null;
+      const lng = parseFloat(document.getElementById('settingLng').value) || null;
+      const isOpen = document.getElementById('settingIsOpen').checked;
+
+      if (!name || !cuisine) { showToast('Name and cuisine are required.', 'error'); return; }
+      if (!lat || !lng) { showToast('Please add your location so customers can find you.', 'error'); return; }
+
+      try {
+        await setDoc(doc(db, 'restaurants', restaurantId), {
+          name, cuisine, address, deliveryFee, deliveryTime, lat, lng, isOpen,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        showToast('Profile saved! Customers can now find your restaurant.', 'success');
+      } catch (e) {
+        console.error('saveRestaurantProfile', e);
+        showToast('Error saving profile.', 'error');
+      }
+    };
 
     window.showTab = (tabName) => {
       // Hide all tabs
