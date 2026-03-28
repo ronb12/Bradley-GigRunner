@@ -326,6 +326,7 @@
     .toast.show { transform: translateX(-50%) translateY(0); }
     .toast.success { background: #1e7e34; }
     .toast.error   { background: #d93025; }
+    .toast.info    { background: #0c5460; }
 
     /* Order success banner */
     .order-success {
@@ -349,6 +350,240 @@
       font-size: 16px;
     }
 
+    /* ── Tab bar ── */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      background: white;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #767676;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .tab-btn.active { background: #FF3008; color: white; }
+    .tab-btn .badge {
+      position: absolute;
+      top: 4px; right: 8px;
+      background: #191919;
+      color: white;
+      border-radius: 10px;
+      font-size: 10px;
+      padding: 1px 5px;
+      min-width: 16px;
+    }
+    .tab-btn.active .badge { background: white; color: #FF3008; }
+
+    /* ── My Orders ── */
+    .orders-list { display: flex; flex-direction: column; gap: 16px; }
+
+    .order-card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      border-left: 4px solid #FF3008;
+    }
+
+    .order-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .order-id-label { font-weight: 800; font-size: 15px; }
+    .order-time { font-size: 12px; color: #767676; margin-top: 2px; }
+
+    .order-status-pill {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .pill-pending         { background: #fff3cd; color: #856404; }
+    .pill-pending_payment { background: #e2d9f3; color: #6f42c1; }
+    .pill-confirmed       { background: #d4edda; color: #155724; }
+    .pill-preparing       { background: #cce5ff; color: #004085; }
+    .pill-ready_for_pickup{ background: #d1ecf1; color: #0c5460; }
+    .pill-out_for_delivery{ background: #fde2e2; color: #721c24; }
+    .pill-delivered       { background: #d4edda; color: #155724; }
+    .pill-cancelled       { background: #f8d7da; color: #721c24; }
+
+    /* Progress timeline */
+    .order-progress {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 16px 0;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .progress-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 52px;
+      font-size: 10px;
+      color: #ccc;
+      text-align: center;
+    }
+    .progress-step.done  { color: #FF3008; }
+    .progress-step.active{ color: #FF3008; }
+    .step-dot {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: #e0e0e0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      margin-bottom: 4px;
+      position: relative;
+      z-index: 1;
+    }
+    .progress-step.done  .step-dot  { background: #FF3008; color: white; }
+    .progress-step.active .step-dot {
+      background: white;
+      border: 3px solid #FF3008;
+      color: #FF3008;
+      font-size: 10px;
+    }
+    .step-line {
+      flex: 1;
+      height: 2px;
+      background: #e0e0e0;
+      margin-top: -22px;
+      margin-bottom: 26px;
+    }
+    .step-line.done { background: #FF3008; }
+
+    .order-items-list { font-size: 13px; color: #555; margin: 8px 0; line-height: 1.7; }
+    .order-total { font-weight: 700; font-size: 15px; margin-top: 8px; }
+
+    .order-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .order-action-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-chat  { background: #191919; color: white; }
+    .btn-chat:hover { background: #333; }
+    .btn-track { background: #FF3008; color: white; }
+    .btn-track:hover { background: #cc2600; }
+    .btn-retry { background: #6f42c1; color: white; }
+    .btn-retry:hover { background: #5a35a0; }
+
+    /* ── Chat modal ── */
+    .chat-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .chat-modal.open { display: flex; }
+    .chat-panel {
+      background: white;
+      width: 100%;
+      max-width: 480px;
+      max-height: 70vh;
+      border-radius: 20px 20px 0 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+    }
+    .chat-header button {
+      background: none; border: none; font-size: 20px; cursor: pointer; color: #767676;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .msg { max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; }
+    .msg.sent     { background: #FF3008; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .msg.received { background: #f0f0f0; color: #191919; align-self: flex-start; border-bottom-left-radius: 4px; }
+    .msg-meta { font-size: 10px; opacity: 0.65; margin-top: 4px; }
+    .msg.sent .msg-meta { text-align: right; }
+    .no-msgs { text-align: center; color: #aaa; font-size: 13px; padding: 24px 0; }
+    .chat-input-row {
+      display: flex;
+      padding: 12px 16px;
+      gap: 8px;
+      border-top: 1px solid #e0e0e0;
+    }
+    .chat-input-row input {
+      flex: 1;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 24px;
+      padding: 10px 16px;
+      font-size: 14px;
+      outline: none;
+    }
+    .chat-input-row input:focus { border-color: #FF3008; }
+    .chat-send-btn {
+      background: #FF3008; color: white;
+      border: none; border-radius: 50%;
+      width: 40px; height: 40px;
+      font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Notification bell */
+    .notif-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      position: relative;
+    }
+    .notif-dot {
+      position: absolute;
+      top: -2px; right: -2px;
+      width: 8px; height: 8px;
+      background: #ffd700;
+      border-radius: 50%;
+      display: none;
+    }
+    .notif-dot.show { display: block; }
+
     @media (max-width: 768px) {
       .header-content {
         flex-direction: column;
@@ -369,29 +604,60 @@
 <body>
   <header class="header">
     <div class="header-content">
-      <div class="logo">🍔 Bradley GigRunner</div>
+      <div class="logo">🍔 GigRunner</div>
       <div class="search-bar">
         <span class="search-icon">🔍</span>
-        <input type="text" class="search-input" placeholder="Search for restaurants or food" id="searchInput">
+        <input type="text" class="search-input" placeholder="Search restaurants or food…" id="searchInput">
       </div>
       <div class="user-actions">
+        <button class="notif-btn" onclick="toggleNotifPanel()" title="Notifications">
+          🔔<span class="notif-dot" id="notifDot"></span>
+        </button>
         <button class="cart-btn" onclick="toggleCart()">
           🛒
           <span class="cart-count" id="cartCount">0</span>
         </button>
-        <button onclick="logout()">Logout</button>
+        <button onclick="logout()" style="color:white;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">Sign out</button>
       </div>
     </div>
   </header>
 
   <div id="toast" class="toast"></div>
 
+  <!-- Chat Modal -->
+  <div class="chat-modal" id="chatModal">
+    <div class="chat-panel">
+      <div class="chat-header">
+        <span id="chatTitle">Chat with Driver</span>
+        <button onclick="closeChat()">✕</button>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <p class="no-msgs">No messages yet. Start the conversation!</p>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Type a message…" onkeydown="if(event.key==='Enter')sendChatMessage()">
+        <button class="chat-send-btn" onclick="sendChatMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
   <div class="main-content">
     <div id="orderSuccess" class="order-success">
       <i class="fas fa-check-circle"></i>
-      <span id="orderSuccessMsg">Order placed successfully!</span>
+      <span id="orderSuccessMsg">Order placed! Redirecting to payment…</span>
     </div>
 
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabOrder" onclick="switchTab('order')">🍽️ Order Food</button>
+      <button class="tab-btn" id="tabMyOrders" onclick="switchTab('myorders')">
+        📦 My Orders
+        <span class="badge" id="activeOrderBadge" style="display:none;"></span>
+      </button>
+    </div>
+
+    <!-- ── ORDER FOOD TAB ── -->
+    <div id="panelOrder">
     <div class="delivery-info">
       <div class="delivery-address">
         <span>📍</span>
@@ -413,7 +679,19 @@
     <div class="restaurants-grid" id="restaurantsGrid">
       <!-- Restaurants will be loaded here -->
     </div>
-  </div>
+    </div><!-- end #panelOrder -->
+
+    <!-- ── MY ORDERS TAB ── -->
+    <div id="panelMyOrders" style="display:none;">
+      <div id="myOrdersList" class="orders-list">
+        <div class="no-results">
+          <div style="font-size:48px;margin-bottom:12px;">📦</div>
+          <p>No orders yet. Order something delicious!</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end .main-content -->
 
   <!-- Cart Modal -->
   <div class="cart-modal" id="cartModal">
@@ -443,29 +721,72 @@
     </div>
   </div>
 
+  <!-- Stripe.js -->
+  <script src="https://js.stripe.com/v3/"></script>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, updateDoc, doc, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, doc, query, where, onSnapshot, orderBy, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import { firebaseConfig, COLLECTIONS, ORDER_STATUS, USER_ROLES } from "./firebase-config.js";
+    import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-functions.js";
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging.js";
+    import { firebaseConfig, COLLECTIONS, ORDER_STATUS } from "./firebase-config.js";
+
+    // ── IMPORTANT: Replace with your actual Stripe publishable key ──────────
+    // Get it from: https://dashboard.stripe.com/apikeys
+    const STRIPE_PUBLISHABLE_KEY = "pk_test_YOUR_STRIPE_PUBLISHABLE_KEY";
+
+    // ── FCM VAPID Key: Get from Firebase Console → Project Settings →
+    // Cloud Messaging → Web Push certificates → Key pair
+    const FCM_VAPID_KEY = "YOUR_FCM_VAPID_KEY_FROM_FIREBASE_CONSOLE";
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const auth = getAuth(app);
+    const functions = getFunctions(app);
 
     let currentUser = null;
     let cart = [];
     let restaurants = [];
     let currentCategory = 'all';
     let searchQuery = '';
+    let activeChatOrderId = null;
+    let chatUnsubscribe = null;
+    let myOrdersUnsubscribe = null;
+    let notifUnsubscribe = null;
+    let unreadNotifCount = 0;
 
+    // ── Stripe ───────────────────────────────────────────────────────────────
+    const stripe = window.Stripe ? window.Stripe(STRIPE_PUBLISHABLE_KEY) : null;
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
     function showToast(msg, type = '') {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
       toast.className = 'toast' + (type ? ' ' + type : '');
       toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 3000);
+      setTimeout(() => toast.classList.remove('show'), 3500);
     }
+
+    function formatTime(ts) {
+      if (!ts) return '';
+      const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+      return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    }
+
+    function formatDate(ts) {
+      if (!ts) return '';
+      const d = ts.seconds ? new Date(ts.seconds * 1000) : new Date(ts);
+      return d.toLocaleDateString([], {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+    }
+
+    // ── Tab switching ────────────────────────────────────────────────────────
+    window.switchTab = (tab) => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('panelOrder').style.display = tab === 'order' ? '' : 'none';
+      document.getElementById('panelMyOrders').style.display = tab === 'myorders' ? '' : 'none';
+      document.getElementById(tab === 'order' ? 'tabOrder' : 'tabMyOrders').classList.add('active');
+    };
 
     // Sample restaurant data
     const sampleRestaurants = [
@@ -546,13 +867,17 @@
       }
     ];
 
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (!user) {
         window.location.href = 'login.html';
         return;
       }
       currentUser = user;
       loadRestaurants();
+      subscribeMyOrders();
+      subscribeNotifications();
+      await setupFCM();
+      handleURLParams();
     });
 
     // Wire up search input
@@ -560,6 +885,295 @@
       searchQuery = e.target.value.toLowerCase().trim();
       renderRestaurants();
     });
+
+    // ── Handle return from Stripe ─────────────────────────────────────────────
+    function handleURLParams() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('payment_success') === 'true') {
+        const orderId = params.get('order_id') || '';
+        const banner = document.getElementById('orderSuccess');
+        document.getElementById('orderSuccessMsg').textContent =
+          `Payment confirmed! Order #${orderId.substring(0, 8).toUpperCase()} is being processed.`;
+        banner.classList.add('show');
+        setTimeout(() => banner.classList.remove('show'), 8000);
+        showToast('Payment successful!', 'success');
+        switchTab('myorders');
+        // Clean URL
+        history.replaceState({}, '', window.location.pathname);
+      }
+      if (params.get('payment_cancelled') === 'true') {
+        showToast('Payment cancelled. Your cart is still saved.', 'error');
+        history.replaceState({}, '', window.location.pathname);
+      }
+    }
+
+    // ── FCM Push Notifications setup ──────────────────────────────────────────
+    async function setupFCM() {
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+
+      try {
+        const messaging = getMessaging(app);
+
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') return;
+
+        const registration = await navigator.serviceWorker.ready;
+        const token = await getToken(messaging, {
+          vapidKey: FCM_VAPID_KEY,
+          serviceWorkerRegistration: registration,
+        });
+
+        if (token) {
+          // Save token to Firestore so Cloud Functions can send to this device
+          await updateDoc(doc(db, COLLECTIONS.USERS, currentUser.uid), {
+            fcmToken: token,
+            fcmUpdatedAt: serverTimestamp(),
+          });
+        }
+
+        // Handle foreground messages
+        onMessage(messaging, (payload) => {
+          const {title, body} = payload.notification || {};
+          showToast(`${title}: ${body}`, 'success');
+
+          // Also bump unread badge
+          unreadNotifCount++;
+          document.getElementById('notifDot').classList.add('show');
+        });
+
+      } catch (err) {
+        console.warn('FCM setup skipped:', err.message);
+      }
+    }
+
+    // ── In-app notifications ──────────────────────────────────────────────────
+    function subscribeNotifications() {
+      const notifRef = collection(db, COLLECTIONS.USERS, currentUser.uid, 'notifications');
+      const q = query(notifRef, where('read', '==', false));
+      notifUnsubscribe = onSnapshot(q, (snap) => {
+        unreadNotifCount = snap.size;
+        document.getElementById('notifDot').classList.toggle('show', unreadNotifCount > 0);
+      });
+    }
+
+    window.toggleNotifPanel = () => {
+      // Mark all notifications as read when bell is clicked
+      if (unreadNotifCount > 0) {
+        const notifRef = collection(db, COLLECTIONS.USERS, currentUser.uid, 'notifications');
+        const q = query(notifRef, where('read', '==', false));
+        onSnapshot(q, (snap) => {
+          snap.docs.forEach(d => updateDoc(d.ref, {read: true}));
+        }, {once: true});
+      }
+      switchTab('myorders');
+    };
+
+    // ── My Orders (real-time) ─────────────────────────────────────────────────
+    function subscribeMyOrders() {
+      if (myOrdersUnsubscribe) myOrdersUnsubscribe();
+      const ordersRef = collection(db, COLLECTIONS.ORDERS);
+      const q = query(ordersRef, where('userId', '==', currentUser.uid), orderBy('timestamp', 'desc'));
+
+      myOrdersUnsubscribe = onSnapshot(q, (snap) => {
+        const orders = snap.docs.map(d => ({id: d.id, ...d.data()}));
+
+        // Update badge
+        const active = orders.filter(o =>
+          !['delivered', 'cancelled'].includes(o.status)
+        ).length;
+        const badge = document.getElementById('activeOrderBadge');
+        if (active > 0) {
+          badge.textContent = active;
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+
+        renderMyOrders(orders);
+      });
+    }
+
+    const STATUS_STEPS = ['confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery', 'delivered'];
+    const STATUS_LABELS = {
+      confirmed: 'Confirmed',
+      preparing: 'Preparing',
+      ready_for_pickup: 'Ready',
+      out_for_delivery: 'On the way',
+      delivered: 'Delivered',
+    };
+    const STATUS_ICONS = {
+      confirmed: '✅', preparing: '👨‍🍳', ready_for_pickup: '🛵',
+      out_for_delivery: '🚗', delivered: '🎉',
+    };
+
+    function buildProgressBar(status) {
+      const idx = STATUS_STEPS.indexOf(status);
+      return STATUS_STEPS.map((step, i) => {
+        const done = i < idx;
+        const active = i === idx;
+        const lineClass = done ? 'step-line done' : 'step-line';
+        const stepClass = done ? 'progress-step done' : (active ? 'progress-step active' : 'progress-step');
+        const line = i < STATUS_STEPS.length - 1 ? `<div class="${lineClass}"></div>` : '';
+        return `
+          <div class="${stepClass}">
+            <div class="step-dot">${done ? '✓' : (active ? STATUS_ICONS[step] || '●' : '')}</div>
+            <span>${STATUS_LABELS[step]}</span>
+          </div>
+          ${line}
+        `;
+      }).join('');
+    }
+
+    function renderMyOrders(orders) {
+      const list = document.getElementById('myOrdersList');
+      if (orders.length === 0) {
+        list.innerHTML = `<div class="no-results">
+          <div style="font-size:48px;margin-bottom:12px;">📦</div>
+          <p>No orders yet. Order something delicious!</p>
+        </div>`;
+        return;
+      }
+
+      list.innerHTML = orders.map(order => {
+        const statusClass = `pill-${order.status}`;
+        const statusLabel = order.status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const isCancelled = order.status === 'cancelled';
+        const isDelivered = order.status === 'delivered';
+        const isPendingPayment = order.status === 'pending_payment';
+        const hasDriver = !!order.driverId;
+
+        const itemsSummary = (order.items || []).slice(0, 3).map(i =>
+          `${i.name} ×${i.quantity}`).join(', ') +
+          (order.items?.length > 3 ? ` +${order.items.length - 3} more` : '');
+
+        const progressBar = (!isCancelled && !isPendingPayment)
+          ? `<div class="order-progress">${buildProgressBar(order.status)}</div>` : '';
+
+        const actions = [];
+        if (isPendingPayment) {
+          actions.push(`<button class="order-action-btn btn-retry" onclick="retryPayment('${order.id}')">💳 Complete Payment</button>`);
+        }
+        if (!isCancelled && !isPendingPayment) {
+          actions.push(`<button class="order-action-btn btn-chat" onclick="openChat('${order.id}')">💬 Chat</button>`);
+        }
+        if (isDelivered) {
+          actions.push(`<button class="order-action-btn btn-track" onclick="reorder('${order.id}')">🔁 Reorder</button>`);
+        }
+
+        return `
+          <div class="order-card" id="order-${order.id}">
+            <div class="order-card-header">
+              <div>
+                <div class="order-id-label">Order #${order.id.substring(0, 8).toUpperCase()}</div>
+                <div class="order-time">${formatDate(order.timestamp)}</div>
+              </div>
+              <span class="order-status-pill ${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="order-items-list">${itemsSummary}</div>
+            ${progressBar}
+            <div class="order-total">Total: $${(order.total || 0).toFixed(2)}</div>
+            ${actions.length ? `<div class="order-actions">${actions.join('')}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ── Customer Chat ─────────────────────────────────────────────────────────
+    window.openChat = (orderId) => {
+      activeChatOrderId = orderId;
+      const shortId = orderId.substring(0, 8).toUpperCase();
+      document.getElementById('chatTitle').textContent = `Chat – Order #${shortId}`;
+      document.getElementById('chatModal').classList.add('open');
+      listenChat(orderId);
+    };
+
+    window.closeChat = () => {
+      document.getElementById('chatModal').classList.remove('open');
+      activeChatOrderId = null;
+      if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
+    };
+
+    function listenChat(orderId) {
+      if (chatUnsubscribe) chatUnsubscribe();
+      const msgsRef = collection(db, COLLECTIONS.ORDERS, orderId, 'messages');
+      const q = query(msgsRef, orderBy('timestamp', 'asc'));
+
+      chatUnsubscribe = onSnapshot(q, (snap) => {
+        const container = document.getElementById('chatMessages');
+        if (snap.empty) {
+          container.innerHTML = '<p class="no-msgs">No messages yet. Start the conversation!</p>';
+          return;
+        }
+        container.innerHTML = snap.docs.map(d => {
+          const m = d.data();
+          const isMine = m.sender === 'customer';
+          const time = formatTime(m.timestamp);
+          const senderLabel = isMine ? 'You' : (m.senderName || 'Driver');
+          return `
+            <div class="msg ${isMine ? 'sent' : 'received'}">
+              ${m.text}
+              <div class="msg-meta">${senderLabel} · ${time}</div>
+            </div>
+          `;
+        }).join('');
+        container.scrollTop = container.scrollHeight;
+      });
+    }
+
+    window.sendChatMessage = async () => {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text || !activeChatOrderId) return;
+
+      input.value = '';
+      try {
+        await addDoc(collection(db, COLLECTIONS.ORDERS, activeChatOrderId, 'messages'), {
+          sender: 'customer',
+          senderName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Customer',
+          senderId: currentUser.uid,
+          text,
+          timestamp: serverTimestamp(),
+        });
+      } catch (err) {
+        showToast('Failed to send message.', 'error');
+        input.value = text;
+      }
+    };
+
+    // ── Stripe Checkout ───────────────────────────────────────────────────────
+    window.retryPayment = async (orderId) => {
+      const orderSnap = await getDoc(doc(db, COLLECTIONS.ORDERS, orderId));
+      if (!orderSnap.exists()) { showToast('Order not found.', 'error'); return; }
+      const order = orderSnap.data();
+      await redirectToStripe(orderId, order.items, order.deliveryFee, order.userId);
+    };
+
+    async function redirectToStripe(orderId, items, deliveryFee, userId) {
+      showToast('Redirecting to secure checkout…', 'info');
+      try {
+        const createSession = httpsCallable(functions, 'createCheckoutSession');
+        const result = await createSession({orderId, items, deliveryFee, userId});
+        const {url} = result.data;
+        if (url) {
+          window.location.href = url;
+        } else {
+          throw new Error('No checkout URL returned');
+        }
+      } catch (err) {
+        console.error('Stripe error:', err);
+        showToast('Payment service unavailable. Please try again.', 'error');
+      }
+    }
+
+    window.reorder = async (orderId) => {
+      const snap = await getDoc(doc(db, COLLECTIONS.ORDERS, orderId));
+      if (!snap.exists()) return;
+      const order = snap.data();
+      cart = (order.items || []).map(i => ({...i}));
+      updateCartDisplay();
+      switchTab('order');
+      showToast('Items added to cart!', 'success');
+    };
 
     function loadRestaurants() {
       restaurants = sampleRestaurants;
@@ -716,31 +1330,44 @@
 
     window.checkout = async () => {
       if (cart.length === 0) return;
-      
+
+      const deliveryFee = 2.99;
+      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const total = subtotal + deliveryFee;
+
+      // 1. Create order in Firestore with status "pending_payment"
+      //    (Cloud Function webhook changes it to "confirmed" after payment)
       const order = {
         userId: currentUser.uid,
         items: cart,
-        status: ORDER_STATUS.PENDING,
-        total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 2.99,
-        deliveryFee: 2.99,
+        status: 'pending_payment',
+        paymentStatus: 'unpaid',
+        total,
+        deliveryFee,
+        subtotal,
         timestamp: new Date(),
-        deliveryAddress: document.getElementById('deliveryAddress').textContent
+        deliveryAddress: document.getElementById('deliveryAddress').textContent,
+        restaurantId: cart[0]?.restaurantId || null,
       };
-      
+
+      const btn = document.querySelector('.checkout-btn');
+      if (btn) { btn.textContent = 'Processing…'; btn.disabled = true; }
+
       try {
         const docRef = await addDoc(collection(db, COLLECTIONS.ORDERS), order);
+        document.getElementById('cartModal').classList.remove('show');
+
+        // 2. Redirect to Stripe Checkout
+        await redirectToStripe(docRef.id, cart, deliveryFee, currentUser.uid);
+
+        // Clear cart only after redirect (user may cancel)
         cart = [];
         updateCartDisplay();
-        document.getElementById('cartModal').classList.remove('show');
-        const banner = document.getElementById('orderSuccess');
-        document.getElementById('orderSuccessMsg').textContent =
-          `Order #${docRef.id.substring(0, 8).toUpperCase()} placed! Estimated delivery: 25-35 min.`;
-        banner.classList.add('show');
-        setTimeout(() => banner.classList.remove('show'), 6000);
-        showToast('Order placed!', 'success');
-      } catch (error) {
-        console.error('Error placing order:', error);
-        showToast('Error placing order. Please try again.', 'error');
+      } catch (err) {
+        console.error('Checkout error:', err);
+        showToast('Checkout failed. Please try again.', 'error');
+      } finally {
+        if (btn) { btn.textContent = 'Checkout'; btn.disabled = false; }
       }
     };
 
