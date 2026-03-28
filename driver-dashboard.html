@@ -481,15 +481,25 @@
         <div class="stat-number" id="rating">4.8</div>
         <div class="stat-label">Rating</div>
       </div>
+      <div class="stat-card">
+        <div class="stat-number" id="acceptanceRate">—</div>
+        <div class="stat-label">Acceptance Rate</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="completionRate">—</div>
+        <div class="stat-label">Completion Rate</div>
+      </div>
     </div>
 
     <div class="map-container">
-      <h3>Live Map</h3>
+      <h3>Live Map &amp; Hotspots</h3>
       <div id="map"></div>
-      <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <div style="display: flex; gap: 10px; margin-top: 15px;flex-wrap:wrap;">
         <button class="btn btn-secondary" onclick="centerOnLocation()">📍 My Location</button>
         <button class="btn btn-secondary" onclick="showAvailableOrders()">🔍 Find Orders</button>
+        <button class="btn btn-secondary" onclick="toggleHotspots()">🔥 Hotspots</button>
       </div>
+      <div style="margin-top:10px;font-size:13px;color:#767676;">🔴 Red circles = high demand areas based on recent orders</div>
     </div>
 
     <div class="earnings-summary">
@@ -539,7 +549,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import {
       getFirestore, collection, addDoc, updateDoc, doc,
-      query, where, onSnapshot, orderBy, serverTimestamp, getDocs
+      query, where, onSnapshot, orderBy, serverTimestamp, getDocs, increment
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import { firebaseConfig, COLLECTIONS, ORDER_STATUS, USER_ROLES } from "./firebase-config.js";
@@ -573,22 +583,42 @@
       loadOrders();
       loadEarnings('today');
       subscribeDeliveredOrders();
+      updateDriverMetrics();
     });
 
     // ── Map ──────────────────────────────────────────────────────────────────
+    let _watchId = null;
+
     function initMap() {
       map = L.map('map').setView([34.0007, -81.0348], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
       }).addTo(map);
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((pos) => {
-          currentLocation = [pos.coords.latitude, pos.coords.longitude];
-          map.setView(currentLocation, 15);
-          driverMarker = L.marker(currentLocation, {
-            icon: L.divIcon({ className: 'driver-marker', html: '🚗', iconSize: [30, 30] })
-          }).addTo(map);
-        });
+        // watchPosition continuously broadcasts location while driving
+        _watchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            currentLocation = [pos.coords.latitude, pos.coords.longitude];
+            if (!driverMarker) {
+              map.setView(currentLocation, 15);
+              driverMarker = L.marker(currentLocation, {
+                icon: L.divIcon({ className: 'driver-marker', html: '🚗', iconSize: [30, 30] })
+              }).addTo(map);
+            } else {
+              driverMarker.setLatLng(currentLocation);
+            }
+            // Broadcast to Firestore so customers can see driver moving
+            if (currentUser && isOnline) {
+              updateDoc(doc(db, 'users', currentUser.uid), {
+                lat: pos.coords.latitude,
+                lng: pos.coords.longitude,
+                locationUpdatedAt: serverTimestamp()
+              }).catch(() => {});
+            }
+          },
+          null,
+          { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+        );
       }
     }
 
@@ -644,7 +674,8 @@
 
     function getOrderActions(order) {
       if (!order.driverId) {
-        return `<button class="btn btn-primary" onclick="acceptOrder('${order.id}')">Accept Order</button>`;
+        return `<button class="btn btn-primary" onclick="acceptOrder('${order.id}')">Accept Order</button>
+                <button class="btn btn-secondary" onclick="declineOrder('${order.id}')">Decline</button>`;
       } else if (order.driverId === currentUser.uid) {
         const chatBtn = `<button class="btn btn-secondary" onclick="openDriverChat('${order.id}')">💬 Chat</button>`;
         switch (order.status) {
@@ -822,12 +853,42 @@
           status: ORDER_STATUS.READY_FOR_PICKUP,
           acceptedAt: serverTimestamp()
         });
+        // Track acceptance for metrics
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          acceptedCount: increment(1)
+        }).catch(() => {});
         showToast('Order accepted!', 'success');
+        updateDriverMetrics();
       } catch (e) {
         console.error(e);
         showToast('Error accepting order.', 'error');
       }
     };
+
+    // Decline from available orders list (no confirm needed — just don't accept it)
+    window.declineOrder = async (orderId) => {
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        declinedCount: increment(1)
+      }).catch(() => {});
+      showToast('Order skipped.', 'info');
+      updateDriverMetrics();
+    };
+
+    async function updateDriverMetrics() {
+      try {
+        const snap = await getDocs(query(collection(db, 'users'), where('__name__', '==', currentUser.uid)));
+        if (snap.empty) return;
+        const d = snap.docs[0].data();
+        const accepted = d.acceptedCount || 0;
+        const declined = d.declinedCount || 0;
+        const completed = d.completedCount || 0;
+        const total = accepted + declined;
+        const acceptRate = total > 0 ? Math.round(accepted / total * 100) : 100;
+        const completeRate = accepted > 0 ? Math.round(completed / accepted * 100) : 100;
+        document.getElementById('acceptanceRate').textContent = `${acceptRate}%`;
+        document.getElementById('completionRate').textContent = `${completeRate}%`;
+      } catch(e) { console.error(e); }
+    }
 
     window.updateOrderStatus = async (orderId, newStatus) => {
       try {
@@ -835,6 +896,12 @@
           status: newStatus,
           updatedAt: serverTimestamp()
         });
+        if (newStatus === ORDER_STATUS.DELIVERED) {
+          await updateDoc(doc(db, 'users', currentUser.uid), {
+            completedCount: increment(1)
+          }).catch(() => {});
+          updateDriverMetrics();
+        }
         const label = newStatus.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
         showToast(`Status: ${label}`, 'success');
       } catch (e) {
@@ -858,6 +925,56 @@
     };
 
     window.showAvailableOrders = () => showToast('Scanning for orders in your area…', 'info');
+
+    let _hotspotsVisible = false;
+    let _hotspotLayers = [];
+
+    window.toggleHotspots = async () => {
+      if (_hotspotsVisible) {
+        _hotspotLayers.forEach(l => map.removeLayer(l));
+        _hotspotLayers = [];
+        _hotspotsVisible = false;
+        showToast('Hotspots hidden', 'info');
+        return;
+      }
+      // Show demand hotspots from seeded restaurant locations
+      const hotspots = [
+        { lat: 34.0001, lng: -81.0424, label: 'Downtown — High demand', intensity: 0.9 },
+        { lat: 34.0089, lng: -81.0358, label: 'Devine St — Busy', intensity: 0.7 },
+        { lat: 34.0756, lng: -81.1289, label: 'Harbison — Active', intensity: 0.6 },
+        { lat: 34.0075, lng: -80.9934, label: 'Forest Dr — Moderate', intensity: 0.5 },
+        { lat: 34.0934, lng: -80.9234, label: 'Two Notch — Picking up', intensity: 0.4 },
+      ];
+      // Also pull recent orders from Firestore for live hotspots
+      try {
+        const twoHrsAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+        const snap = await getDocs(query(
+          collection(db, COLLECTIONS.ORDERS),
+          where('timestamp', '>=', twoHrsAgo)
+        ));
+        snap.docs.forEach(d => {
+          const o = d.data();
+          if (o.restaurantLat && o.restaurantLng) {
+            hotspots.push({ lat: o.restaurantLat, lng: o.restaurantLng, label: 'Live order', intensity: 0.8 });
+          }
+        });
+      } catch(e) {}
+
+      hotspots.forEach(h => {
+        const circle = L.circle([h.lat, h.lng], {
+          radius: 600,
+          color: '#FF3008',
+          fillColor: '#FF3008',
+          fillOpacity: h.intensity * 0.35,
+          weight: 2,
+          opacity: h.intensity * 0.7
+        }).addTo(map).bindPopup(`🔥 ${h.label}`);
+        _hotspotLayers.push(circle);
+      });
+      _hotspotsVisible = true;
+      map.setView([34.0007, -81.0348], 12);
+      showToast(`${hotspots.length} hotspots loaded`, 'success');
+    };
 
     window.sendSOS = () => {
       showToast('SOS alert sent to dispatch. Help is on the way!', 'error');

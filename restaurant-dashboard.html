@@ -451,6 +451,25 @@
         <h4 style="margin-bottom:16px;">Order Status Breakdown</h4>
         <div id="statusBreakdown"></div>
       </div>
+      <div class="analytics-chart" style="margin-top:16px;">
+        <h4 style="margin-bottom:16px;">💰 Payouts</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+          <div style="background:#f6f6f6;border-radius:8px;padding:14px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;color:#1e7e34;" id="payoutEarned">$0.00</div>
+            <div style="font-size:12px;color:#767676;margin-top:4px;">Total Earned</div>
+          </div>
+          <div style="background:#f6f6f6;border-radius:8px;padding:14px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;color:#FF3008;" id="payoutPending">$0.00</div>
+            <div style="font-size:12px;color:#767676;margin-top:4px;">Pending Payout</div>
+          </div>
+          <div style="background:#f6f6f6;border-radius:8px;padding:14px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;color:#0c5460;" id="payoutPaid">$0.00</div>
+            <div style="font-size:12px;color:#767676;margin-top:4px;">Paid Out</div>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#767676;">Platform fee: 15% · Payouts processed weekly every Monday.</div>
+        <div id="payoutHistory" style="margin-top:12px;"></div>
+      </div>
     </div>
 
     <!-- Settings Tab -->
@@ -761,6 +780,32 @@
             <strong>${count}</strong>
           </div>`
         ).join('') || '<p style="color:#767676;font-size:14px;">No data.</p>';
+
+      // Payout tracking (platform takes 15%, restaurant keeps 85%)
+      const PLATFORM_FEE = 0.15;
+      const deliveredOrders = orders.filter(o => o.status === 'delivered' || o.status === 'DELIVERED');
+      const totalEarned = deliveredOrders.reduce((s, o) => s + ((o.subtotal || o.total || 0) * (1 - PLATFORM_FEE)), 0);
+      const paidOut = deliveredOrders.filter(o => o.paidOut).reduce((s, o) => s + ((o.subtotal || o.total || 0) * (1 - PLATFORM_FEE)), 0);
+      const pending = totalEarned - paidOut;
+
+      document.getElementById('payoutEarned').textContent = `$${totalEarned.toFixed(2)}`;
+      document.getElementById('payoutPending').textContent = `$${pending.toFixed(2)}`;
+      document.getElementById('payoutPaid').textContent = `$${paidOut.toFixed(2)}`;
+
+      // Recent payout history (last 5 delivered orders)
+      const recent = [...deliveredOrders].sort((a, b) => {
+        const ta = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : new Date(a.timestamp || 0);
+        const tb = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : new Date(b.timestamp || 0);
+        return tb - ta;
+      }).slice(0, 5);
+      document.getElementById('payoutHistory').innerHTML = recent.length ? recent.map(o => {
+        const amt = ((o.subtotal || o.total || 0) * (1 - PLATFORM_FEE)).toFixed(2);
+        const date = new Date(o.timestamp?.seconds ? o.timestamp.seconds * 1000 : o.timestamp || 0);
+        return `<div class="analytics-row">
+          <span>#${o.id.substring(0,8)} · ${date.toLocaleDateString()}</span>
+          <strong style="color:${o.paidOut ? '#1e7e34' : '#FF3008'}">$${amt} ${o.paidOut ? '✓ Paid' : '⏳ Pending'}</strong>
+        </div>`;
+      }).join('') : '';
     }
 
     async function loadRestaurantProfile() {
