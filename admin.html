@@ -54,6 +54,25 @@
     .dark-mode table { background: #1f1f1f; color: #fff; }
     .dark-mode th { background: #333; }
 
+    .peak-pay-section {
+      background: white; border-radius: 10px; padding: 20px; margin-top: 24px;
+      border: 2px solid #e0e0e0;
+    }
+    .peak-pay-section h4 { margin: 0 0 14px; font-size: 1rem; color: #1a4d2e; }
+    .peak-pay-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+    .peak-pay-row label { font-size: 0.9rem; color: #444; font-weight: 600; }
+    .peak-pay-row input[type=number] {
+      width: 100px; padding: 7px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem;
+    }
+    .peak-pay-toggle {
+      padding: 8px 20px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;
+      font-size: 0.9rem; transition: background 0.2s;
+    }
+    .peak-pay-toggle.start { background: #28a745; color: white; }
+    .peak-pay-toggle.stop  { background: #dc3545; color: white; }
+    .peak-pay-status { font-size: 0.85rem; color: #555; margin-top: 6px; }
+    .peak-pay-status.active-badge { color: #155724; font-weight: 700; }
+
     @media (max-width: 600px) {
       .tab-buttons { flex-direction: column; align-items: center; }
     }
@@ -69,6 +88,7 @@
     <button onclick="showTab('requests')">Requests</button>
     <button onclick="showTab('earnings')">Earnings</button>
     <button onclick="showTab('payouts')">💸 Payouts</button>
+    <button onclick="showTab('peakpay')">🔥 Peak Pay</button>
     <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
   </div>
 
@@ -85,6 +105,30 @@
       </thead>
       <tbody id="requestList"></tbody>
     </table>
+  </div>
+
+  <!-- Peak Pay Tab -->
+  <div id="peakpay" class="tab-content">
+    <h3>🔥 Peak Pay Control</h3>
+    <p style="color:#555;margin:8px 0 20px">Activate bonus pay during busy periods. Drivers see a banner and earn extra per delivery.</p>
+    <div style="background:white;border-radius:12px;padding:24px;max-width:420px;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
+      <div id="peakPayStatus" style="margin-bottom:16px;padding:12px;border-radius:8px;background:#f5f5f5;font-weight:600;text-align:center">
+        Loading...
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Bonus per delivery ($)</label>
+        <input type="number" id="peakPayBonus" value="2.00" min="0.50" max="20" step="0.50"
+          style="width:100%;padding:12px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button onclick="activatePeakPay()" style="background:#FF3008;color:white;border:none;padding:13px;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.95rem">
+          🔥 Activate
+        </button>
+        <button onclick="deactivatePeakPay()" style="background:#6c757d;color:white;border:none;padding:13px;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.95rem">
+          Stop Peak Pay
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Payouts Tab -->
@@ -129,7 +173,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import { getFirestore, collection, doc, updateDoc, onSnapshot, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import { getFirestore, collection, doc, updateDoc, setDoc, getDoc, onSnapshot, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
@@ -332,6 +376,45 @@
 
     loadRequests();
     loadPayouts();
+    loadPeakPayStatus();
+
+    function loadPeakPayStatus() {
+      onSnapshot(doc(db, 'config', 'peakPay'), (snap) => {
+        const el = document.getElementById('peakPayStatus');
+        if (!snap.exists() || !snap.data().active) {
+          el.style.background = '#f5f5f5';
+          el.style.color = '#555';
+          el.textContent = '⚫ Peak Pay is OFF';
+        } else {
+          const d = snap.data();
+          el.style.background = '#fff3cd';
+          el.style.color = '#856404';
+          el.textContent = `🔥 Peak Pay ACTIVE — +$${(d.bonusPerDelivery||2).toFixed(2)}/delivery`;
+        }
+      });
+    }
+
+    window.activatePeakPay = async () => {
+      const bonus = parseFloat(document.getElementById('peakPayBonus').value) || 2;
+      try {
+        await setDoc(doc(db, 'config', 'peakPay'), {
+          active: true,
+          bonusPerDelivery: bonus,
+          activatedAt: serverTimestamp(),
+          activatedBy: auth.currentUser?.email || 'admin'
+        });
+      } catch(e) { alert('Error: ' + e.message); }
+    };
+
+    window.deactivatePeakPay = async () => {
+      try {
+        await setDoc(doc(db, 'config', 'peakPay'), {
+          active: false,
+          deactivatedAt: serverTimestamp(),
+          deactivatedBy: auth.currentUser?.email || 'admin'
+        }, { merge: true });
+      } catch(e) { alert('Error: ' + e.message); }
+    };
   </script>
 </body>
 </html>

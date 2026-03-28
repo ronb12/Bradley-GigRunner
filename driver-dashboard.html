@@ -555,6 +555,45 @@
       font-size: 0.75rem; font-weight: 600; padding: 2px 8px;
       border-radius: 10px; margin-left: 6px;
     }
+    .nav-btn-sm {
+      background: #1976D2; color: white; border: none; padding: 8px 14px;
+      border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .unassign-btn {
+      background: #f5f5f5; color: #666; border: 1px solid #ddd; padding: 7px 12px;
+      border-radius: 8px; font-size: 0.82rem; cursor: pointer;
+    }
+    .report-btn {
+      background: #fff3cd; color: #856404; border: 1px solid #ffc107; padding: 7px 12px;
+      border-radius: 8px; font-size: 0.82rem; cursor: pointer; font-weight: 600;
+    }
+    .item-checklist { margin: 10px 0; }
+    .item-checklist label { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 0.85rem; color: #444; cursor: pointer; }
+    .item-checklist input[type=checkbox] { width: 16px; height: 16px; accent-color: #FF3008; }
+    /* Delivery photo & modals */
+    .driver-modal-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 3000;
+      align-items: center; justify-content: center;
+    }
+    .driver-modal-backdrop.open { display: flex; }
+    .driver-modal {
+      background: white; border-radius: 16px; padding: 24px;
+      width: min(420px, 94vw); box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .driver-modal h3 { margin-bottom: 14px; font-size: 1.05rem; }
+    .driver-modal select, .driver-modal textarea {
+      width: 100%; border: 1.5px solid #ddd; border-radius: 8px;
+      padding: 10px 12px; font-size: 0.9rem; margin-bottom: 12px;
+    }
+    .driver-modal select:focus, .driver-modal textarea:focus { outline: none; border-color: #FF3008; }
+    .driver-modal .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+    .driver-modal .modal-actions button { flex: 1; padding: 12px; border-radius: 8px; font-size: 0.9rem; font-weight: 700; cursor: pointer; border: none; }
+    .modal-cancel-btn { background: #f0f0f0; color: #555; }
+    .modal-confirm-btn { background: #FF3008; color: white; }
+    .modal-confirm-btn.green { background: #28a745; }
+    .skip-link { display: block; text-align: center; margin-top: 10px; font-size: 0.82rem; color: #888; cursor: pointer; text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -574,6 +613,61 @@
         <input type="text" id="chatInput" placeholder="Type a message…"
           onkeydown="if(event.key==='Enter')sendDriverMessage()">
         <button class="chat-send-btn" onclick="sendDriverMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delivery Photo Modal -->
+  <div class="driver-modal-backdrop" id="photoModal">
+    <div class="driver-modal">
+      <h3>📸 Proof of Delivery</h3>
+      <p style="font-size:0.85rem;color:#555;margin-bottom:14px;">Take or upload a photo to confirm delivery.</p>
+      <input type="file" accept="image/*" capture="environment" id="deliveryPhotoInput"
+        style="width:100%;margin-bottom:14px;font-size:0.85rem;">
+      <div class="modal-actions">
+        <button class="modal-cancel-btn" onclick="closePhotoModal()">Cancel</button>
+        <button class="modal-confirm-btn green" onclick="submitDeliveryPhoto()">Submit &amp; Mark Delivered</button>
+      </div>
+      <span class="skip-link" onclick="skipDeliveryPhoto()">Skip &amp; Mark Delivered</span>
+    </div>
+  </div>
+
+  <!-- Unassign Modal -->
+  <div class="driver-modal-backdrop" id="unassignModal">
+    <div class="driver-modal">
+      <h3>Unassign from Order</h3>
+      <p style="font-size:0.85rem;color:#555;margin-bottom:12px;">Please select a reason:</p>
+      <select id="unassignReason">
+        <option value="">— Select reason —</option>
+        <option value="Restaurant wait too long">Restaurant wait too long</option>
+        <option value="Can't find restaurant">Can't find restaurant</option>
+        <option value="Can't find customer">Can't find customer</option>
+        <option value="Vehicle issue">Vehicle issue</option>
+        <option value="Other">Other</option>
+      </select>
+      <div class="modal-actions">
+        <button class="modal-cancel-btn" onclick="closeUnassignModal()">Cancel</button>
+        <button class="modal-confirm-btn" onclick="confirmUnassign()">Confirm Unassign</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report Issue Modal -->
+  <div class="driver-modal-backdrop" id="reportModal">
+    <div class="driver-modal">
+      <h3>⚠️ Report an Issue</h3>
+      <select id="reportIssueType">
+        <option value="">— Select issue type —</option>
+        <option value="Order incorrect/missing items">Order incorrect/missing items</option>
+        <option value="Restaurant closed">Restaurant closed</option>
+        <option value="Customer not home">Customer not home</option>
+        <option value="Customer unreachable">Customer unreachable</option>
+        <option value="Other">Other</option>
+      </select>
+      <textarea id="reportNotes" rows="3" placeholder="Optional notes…"></textarea>
+      <div class="modal-actions">
+        <button class="modal-cancel-btn" onclick="closeReportModal()">Cancel</button>
+        <button class="modal-confirm-btn" onclick="submitIssueReport()">Submit Report</button>
       </div>
     </div>
   </div>
@@ -806,6 +900,7 @@
       subscribeDeliveredOrders();
       updateDriverMetrics();
       loadPayoutData();
+      subscribePeakPay();
     });
 
     // ── Map ──────────────────────────────────────────────────────────────────
@@ -850,7 +945,7 @@
       const myQ = query(
         collection(db, COLLECTIONS.ORDERS),
         where('driverId', '==', currentUser.uid),
-        where('status', 'in', [ORDER_STATUS.READY_FOR_PICKUP, ORDER_STATUS.OUT_FOR_DELIVERY])
+        where('status', 'in', [ORDER_STATUS.READY_FOR_PICKUP, 'arrived_at_store', ORDER_STATUS.OUT_FOR_DELIVERY])
       );
       onSnapshot(myQ, (snapshot) => {
         const orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -995,24 +1090,61 @@
         return;
       }
       ordersList.innerHTML = orders.map(order => {
-        const chatBtn = `<button class="btn btn-secondary" onclick="openDriverChat('${order.id}')">💬 Chat</button>`;
+        const oid = order.id;
+        const chatBtn = `<button class="btn btn-secondary" onclick="openDriverChat('${oid}')">💬 Chat</button>`;
+
+        // Navigation button — destination depends on status
+        const isPickupPhase = order.status === ORDER_STATUS.READY_FOR_PICKUP || order.status === 'arrived_at_store';
+        const navAddress = isPickupPhase
+          ? (order.restaurantAddress || order.restaurantName || '')
+          : (order.deliveryAddress || order.dropoff || '');
+        const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(navAddress)}`;
+        const navBtn = `<button class="nav-btn-sm" onclick="window.open('${navUrl}','_blank')">🗺️ Navigate</button>`;
+
+        // Primary action button
         let actionBtn = '';
         if (order.status === ORDER_STATUS.READY_FOR_PICKUP) {
-          actionBtn = `<button class="btn btn-success" onclick="updateOrderStatus('${order.id}','${ORDER_STATUS.OUT_FOR_DELIVERY}')">Picked Up</button>`;
+          actionBtn = `<button class="btn btn-secondary" onclick="updateOrderStatus('${oid}','arrived_at_store')">Arrived at Store</button>`;
+        } else if (order.status === 'arrived_at_store') {
+          actionBtn = `<button class="btn btn-success" onclick="updateOrderStatus('${oid}','${ORDER_STATUS.OUT_FOR_DELIVERY}')">Picked Up</button>`;
         } else if (order.status === ORDER_STATUS.OUT_FOR_DELIVERY) {
-          actionBtn = `<button class="btn btn-primary" onclick="updateOrderStatus('${order.id}','${ORDER_STATUS.DELIVERED}')">Mark Delivered</button>`;
+          actionBtn = `<button class="btn btn-primary" onclick="openPhotoModal('${oid}')">Mark Delivered</button>`;
         }
+
+        // Unassign & report buttons
+        const unassignBtn = `<button class="unassign-btn" onclick="openUnassignModal('${oid}')">Unassign</button>`;
+        const reportBtn = `<button class="report-btn" onclick="openReportModal('${oid}')">⚠️ Report Issue</button>`;
+
+        // Item checklist (shown during pickup phases)
+        let itemChecklist = '';
+        if (isPickupPhase && order.items && order.items.length > 0) {
+          const checkItems = order.items.map(item => {
+            const name = item.name || item;
+            const qty = item.quantity ? `x${item.quantity} ` : '';
+            return `<label><input type="checkbox">${qty}${name}</label>`;
+          }).join('');
+          itemChecklist = `<div class="item-checklist"><strong style="font-size:0.82rem;color:#555;text-transform:uppercase;letter-spacing:0.5px;">Verify Items</strong>${checkItems}</div>`;
+        }
+
+        // Status label
+        const statusLabels = {
+          [ORDER_STATUS.READY_FOR_PICKUP]: 'Ready for pickup',
+          'arrived_at_store': 'Arrived at store',
+          [ORDER_STATUS.OUT_FOR_DELIVERY]: 'En route to customer'
+        };
+        const statusLabel = statusLabels[order.status] || order.status;
+
         return `
         <div class="order-card current">
           <div class="order-header">
-            <div class="order-id">Order #${order.id.substring(0,8)}</div>
+            <div class="order-id">Order #${oid.substring(0,8)}</div>
             <div class="order-value">$${(order.deliveryFee || order.total || 0).toFixed(2)}</div>
           </div>
           <div class="order-details">
             <div class="pickup-info">
               <div class="info-label">Pickup</div>
               <div class="info-address">${order.restaurantName || order.restaurant || 'Restaurant'}</div>
-              <div class="info-time">${order.status === ORDER_STATUS.READY_FOR_PICKUP ? 'Ready for pickup' : 'En route'}</div>
+              <div class="info-time">${statusLabel}</div>
             </div>
             <div class="delivery-info">
               <div class="info-label">Deliver to</div>
@@ -1020,7 +1152,9 @@
               <div class="info-time">${(order.items || []).length} item(s)</div>
             </div>
           </div>
-          <div class="order-actions">${actionBtn}${chatBtn}</div>
+          ${itemChecklist}
+          <div class="order-actions" style="flex-wrap:wrap;">${actionBtn}${navBtn}${chatBtn}</div>
+          <div class="order-actions" style="margin-top:8px;flex-wrap:wrap;">${unassignBtn}${reportBtn}</div>
         </div>`;
       }).join('');
     }
@@ -1058,11 +1192,13 @@
         return true; // 'all'
       });
 
-      const totalFees = filtered.reduce((sum, o) => sum + (o.deliveryFee || 3.99) + (o.tip || 0), 0);
+      const baseFees = filtered.reduce((sum, o) => sum + (o.deliveryFee || 3.99) + (o.tip || 0), 0);
+      const peakBonus = (_peakPayBonus || 0) * filtered.length;
+      const totalFees = baseFees + peakBonus;
       const count = filtered.length;
       const avg = count > 0 ? totalFees / count : 0;
 
-      document.getElementById('earnDeliveryFees').textContent = `$${totalFees.toFixed(2)}`;
+      document.getElementById('earnDeliveryFees').textContent = `$${baseFees.toFixed(2)}${peakBonus > 0 ? ` + $${peakBonus.toFixed(2)} peak bonus` : ''}`;
       document.getElementById('earnDeliveryCount').textContent = count;
       document.getElementById('earnAvgPerDelivery').textContent = `$${avg.toFixed(2)}`;
       document.getElementById('totalEarnings').textContent = `$${totalFees.toFixed(2)}`;
@@ -1326,6 +1462,10 @@
         const completeRate = accepted > 0 ? Math.round(completed / accepted * 100) : 100;
         document.getElementById('acceptanceRate').textContent = `${acceptRate}%`;
         document.getElementById('completionRate').textContent = `${completeRate}%`;
+        // Real rating average
+        if (d.ratingAvg != null && d.ratingCount > 0) {
+          document.getElementById('rating').textContent = d.ratingAvg.toFixed(1);
+        }
       } catch(e) { console.error(e); }
     }
 
@@ -1421,6 +1561,182 @@
     };
 
     window.logout = () => signOut(auth).then(() => { window.location.href = 'login.html'; });
+
+    // ── Delivery Photo Modal ───────────────────────────────────────────────────
+    let _photoOrderId = null;
+
+    window.openPhotoModal = (orderId) => {
+      _photoOrderId = orderId;
+      document.getElementById('deliveryPhotoInput').value = '';
+      document.getElementById('photoModal').classList.add('open');
+    };
+
+    window.closePhotoModal = () => {
+      _photoOrderId = null;
+      document.getElementById('photoModal').classList.remove('open');
+    };
+
+    window.submitDeliveryPhoto = async () => {
+      if (!_photoOrderId) return;
+      const fileInput = document.getElementById('deliveryPhotoInput');
+      const file = fileInput.files && fileInput.files[0];
+      const orderId = _photoOrderId;
+      closePhotoModal();
+
+      let photoBase64 = null;
+      if (file) {
+        try {
+          photoBase64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const result = e.target.result;
+              // Only store if under 50KB (base64 string length ≈ 4/3 * bytes)
+              resolve(result.length <= 68267 ? result : null);
+            };
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(file);
+          });
+        } catch (_) { photoBase64 = null; }
+      }
+
+      try {
+        const updateData = {
+          status: ORDER_STATUS.DELIVERED,
+          updatedAt: serverTimestamp()
+        };
+        if (photoBase64) updateData.deliveryPhotoBase64 = photoBase64;
+        await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), updateData);
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          completedCount: increment(1)
+        }).catch(() => {});
+        updateDriverMetrics();
+        loadPayoutData();
+        showToast('Order marked delivered!', 'success');
+      } catch (e) {
+        console.error(e);
+        showToast('Error marking delivered.', 'error');
+      }
+    };
+
+    window.skipDeliveryPhoto = async () => {
+      if (!_photoOrderId) return;
+      const orderId = _photoOrderId;
+      closePhotoModal();
+      try {
+        await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
+          status: ORDER_STATUS.DELIVERED,
+          updatedAt: serverTimestamp()
+        });
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          completedCount: increment(1)
+        }).catch(() => {});
+        updateDriverMetrics();
+        loadPayoutData();
+        showToast('Order marked delivered!', 'success');
+      } catch (e) {
+        console.error(e);
+        showToast('Error marking delivered.', 'error');
+      }
+    };
+
+    // ── Unassign Modal ────────────────────────────────────────────────────────
+    let _unassignOrderId = null;
+
+    window.openUnassignModal = (orderId) => {
+      _unassignOrderId = orderId;
+      document.getElementById('unassignReason').value = '';
+      document.getElementById('unassignModal').classList.add('open');
+    };
+
+    window.closeUnassignModal = () => {
+      _unassignOrderId = null;
+      document.getElementById('unassignModal').classList.remove('open');
+    };
+
+    window.confirmUnassign = async () => {
+      const reason = document.getElementById('unassignReason').value;
+      if (!reason) { showToast('Please select a reason.', 'error'); return; }
+      if (!_unassignOrderId) return;
+      const orderId = _unassignOrderId;
+      closeUnassignModal();
+      try {
+        await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
+          driverId: null,
+          status: ORDER_STATUS.PENDING,
+          declinedBy: arrayUnion(currentUser.uid),
+          unassignReason: reason,
+          updatedAt: serverTimestamp()
+        });
+        showToast('Unassigned from order.', 'info');
+      } catch (e) {
+        console.error(e);
+        showToast('Error unassigning. Try again.', 'error');
+      }
+    };
+
+    // ── Report Issue Modal ────────────────────────────────────────────────────
+    let _reportOrderId = null;
+
+    window.openReportModal = (orderId) => {
+      _reportOrderId = orderId;
+      document.getElementById('reportIssueType').value = '';
+      document.getElementById('reportNotes').value = '';
+      document.getElementById('reportModal').classList.add('open');
+    };
+
+    window.closeReportModal = () => {
+      _reportOrderId = null;
+      document.getElementById('reportModal').classList.remove('open');
+    };
+
+    window.submitIssueReport = async () => {
+      const issueType = document.getElementById('reportIssueType').value;
+      if (!issueType) { showToast('Please select an issue type.', 'error'); return; }
+      if (!_reportOrderId) return;
+      const orderId = _reportOrderId;
+      const notes = document.getElementById('reportNotes').value.trim();
+      closeReportModal();
+      try {
+        await addDoc(collection(db, 'issueReports'), {
+          orderId,
+          driverId: currentUser.uid,
+          issueType,
+          notes,
+          timestamp: serverTimestamp()
+        });
+        showToast('Issue reported. Support will follow up.', 'info');
+      } catch (e) {
+        console.error(e);
+        showToast('Error submitting report. Try again.', 'error');
+      }
+    };
+
+    // ── Peak Pay ──────────────────────────────────────────────────────────────
+    let _peakPayBonus = 0;
+
+    function subscribePeakPay() {
+      onSnapshot(doc(db, 'config', 'peakPay'), (snap) => {
+        const existing = document.getElementById('peakPayBanner');
+        if (snap.exists() && snap.data().active) {
+          _peakPayBonus = snap.data().bonusPerDelivery || 0;
+          if (!existing) {
+            const banner = document.createElement('div');
+            banner.id = 'peakPayBanner';
+            banner.style.cssText = 'background:linear-gradient(90deg,#FF3008,#FF6705);color:white;text-align:center;padding:11px 16px;font-weight:700;font-size:0.95rem;letter-spacing:0.3px';
+            banner.textContent = `🔥 Peak Pay Active — Extra $${_peakPayBonus.toFixed(2)} per delivery!`;
+            document.body.insertBefore(banner, document.body.firstChild);
+          } else {
+            existing.textContent = `🔥 Peak Pay Active — Extra $${_peakPayBonus.toFixed(2)} per delivery!`;
+          }
+          // Refresh earnings to include bonus
+          loadEarnings(_earningsPeriod);
+        } else {
+          _peakPayBonus = 0;
+          if (existing) existing.remove();
+          loadEarnings(_earningsPeriod);
+        }
+      });
+    }
   </script>
 </body>
 </html>
