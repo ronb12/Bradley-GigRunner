@@ -309,7 +309,113 @@
     }
     
     .hidden { display: none; }
-    
+
+    /* ── Earnings detail ── */
+    .earnings-summary {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .earnings-summary h3 { margin-bottom: 16px; font-size: 16px; }
+    .earnings-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+    }
+    .earnings-row:last-child { border-bottom: none; font-weight: 700; font-size: 16px; }
+    .earnings-row .amount { font-weight: 600; }
+    .earnings-period-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+    .period-tab {
+      padding: 6px 14px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: white;
+      color: #767676;
+      transition: all 0.15s;
+    }
+    .period-tab.active { background: #FF3008; color: white; border-color: #FF3008; }
+
+    .order-history-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 13px;
+    }
+    .order-history-row:last-child { border-bottom: none; }
+    .earn-amount { font-weight: 700; color: #1e7e34; }
+
+    /* ── Driver Chat ── */
+    .chat-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 2000;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .chat-modal.open { display: flex; }
+    .chat-panel {
+      background: white;
+      width: 100%;
+      max-width: 480px;
+      max-height: 70vh;
+      border-radius: 20px 20px 0 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 700;
+    }
+    .chat-header button { background: none; border: none; font-size: 20px; cursor: pointer; color: #767676; }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .msg { max-width: 75%; padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; }
+    .msg.sent     { background: #FF3008; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .msg.received { background: #f0f0f0; color: #191919; align-self: flex-start; border-bottom-left-radius: 4px; }
+    .msg-meta { font-size: 10px; opacity: 0.65; margin-top: 4px; }
+    .msg.sent .msg-meta { text-align: right; }
+    .no-msgs { text-align: center; color: #aaa; font-size: 13px; padding: 24px 0; }
+    .chat-input-row {
+      display: flex; padding: 12px 16px; gap: 8px;
+      border-top: 1px solid #e0e0e0;
+    }
+    .chat-input-row input {
+      flex: 1; border: 1.5px solid #e0e0e0; border-radius: 24px;
+      padding: 10px 16px; font-size: 14px; outline: none;
+    }
+    .chat-input-row input:focus { border-color: #FF3008; }
+    .chat-send-btn {
+      background: #FF3008; color: white; border: none; border-radius: 50%;
+      width: 40px; height: 40px; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
     @media (max-width: 768px) {
       .order-details {
         grid-template-columns: 1fr;
@@ -327,6 +433,25 @@
 </head>
 <body>
   <div id="toast" class="toast"></div>
+
+  <!-- Driver Chat Modal -->
+  <div class="chat-modal" id="chatModal">
+    <div class="chat-panel">
+      <div class="chat-header">
+        <span id="chatTitle">Chat with Customer</span>
+        <button onclick="closeDriverChat()">✕</button>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <p class="no-msgs">No messages yet.</p>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Type a message…"
+          onkeydown="if(event.key==='Enter')sendDriverMessage()">
+        <button class="chat-send-btn" onclick="sendDriverMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
   <header class="header">
     <div class="header-content">
       <div class="logo">🚗 Driver Dashboard</div>
@@ -368,22 +493,35 @@
     </div>
 
     <div class="earnings-summary">
-      <h3>Today's Earnings Breakdown</h3>
-      <div class="earnings-row">
-        <span>Base Pay:</span>
-        <span id="basePay">$0.00</span>
+      <h3>Earnings Breakdown</h3>
+      <div class="earnings-period-tabs">
+        <button class="period-tab active" onclick="setEarningsPeriod('today', this)">Today</button>
+        <button class="period-tab" onclick="setEarningsPeriod('week', this)">This Week</button>
+        <button class="period-tab" onclick="setEarningsPeriod('month', this)">This Month</button>
+        <button class="period-tab" onclick="setEarningsPeriod('all', this)">All Time</button>
       </div>
       <div class="earnings-row">
-        <span>Tips:</span>
-        <span id="tips">$0.00</span>
+        <span>Delivery Fees:</span>
+        <span class="amount" id="earnDeliveryFees">$0.00</span>
       </div>
       <div class="earnings-row">
-        <span>Bonuses:</span>
-        <span id="bonuses">$0.00</span>
+        <span>Deliveries completed:</span>
+        <span class="amount" id="earnDeliveryCount">0</span>
       </div>
       <div class="earnings-row">
-        <span>Total:</span>
-        <span id="totalEarnings">$0.00</span>
+        <span>Avg. per delivery:</span>
+        <span class="amount" id="earnAvgPerDelivery">$0.00</span>
+      </div>
+      <div class="earnings-row">
+        <span id="earningsPeriodLabel">Total (Today):</span>
+        <span class="amount" id="totalEarnings">$0.00</span>
+      </div>
+    </div>
+
+    <div class="earnings-summary" id="orderHistoryPanel">
+      <h3>Recent Deliveries</h3>
+      <div id="orderHistoryList">
+        <p style="color:#767676;font-size:14px;">No completed deliveries yet.</p>
       </div>
     </div>
 
@@ -399,7 +537,10 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getFirestore, collection, addDoc, updateDoc, doc, query, where, onSnapshot, orderBy } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import {
+      getFirestore, collection, addDoc, updateDoc, doc,
+      query, where, onSnapshot, orderBy, serverTimestamp, getDocs
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import { firebaseConfig, COLLECTIONS, ORDER_STATUS, USER_ROLES } from "./firebase-config.js";
 
@@ -408,6 +549,13 @@
     const auth = getAuth(app);
 
     let currentUser = null;
+    let map = null;
+    let driverMarker = null;
+    let isOnline = false;
+    let currentLocation = null;
+    let _earningsPeriod = 'today';
+    let _chatOrderId = null;
+    let _chatUnsub = null;
 
     function showToast(msg, type = '') {
       const toast = document.getElementById('toast');
@@ -416,53 +564,42 @@
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 3500);
     }
-    let map = null;
-    let driverMarker = null;
-    let isOnline = false;
-    let currentLocation = null;
 
     onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        window.location.href = 'login.html';
-        return;
-      }
+      if (!user) { window.location.href = 'login.html'; return; }
       currentUser = user;
       document.getElementById('driverName').textContent = user.email;
       initMap();
       loadOrders();
-      updateEarnings();
+      loadEarnings('today');
+      subscribeDeliveredOrders();
     });
 
+    // ── Map ──────────────────────────────────────────────────────────────────
     function initMap() {
       map = L.map('map').setView([34.0007, -81.0348], 13);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
       }).addTo(map);
-
-      // Get current location
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((position) => {
-          currentLocation = [position.coords.latitude, position.coords.longitude];
+        navigator.geolocation.getCurrentPosition((pos) => {
+          currentLocation = [pos.coords.latitude, pos.coords.longitude];
           map.setView(currentLocation, 15);
-          
-          // Add driver marker
           driverMarker = L.marker(currentLocation, {
-            icon: L.divIcon({
-              className: 'driver-marker',
-              html: '🚗',
-              iconSize: [30, 30]
-            })
+            icon: L.divIcon({ className: 'driver-marker', html: '🚗', iconSize: [30, 30] })
           }).addTo(map);
         });
       }
     }
 
+    // ── Active orders ─────────────────────────────────────────────────────────
     function loadOrders() {
-      const ordersRef = collection(db, COLLECTIONS.ORDERS);
-      const q = query(ordersRef, where('status', 'in', [ORDER_STATUS.READY_FOR_PICKUP, ORDER_STATUS.OUT_FOR_DELIVERY]));
-      
+      const q = query(
+        collection(db, COLLECTIONS.ORDERS),
+        where('status', 'in', [ORDER_STATUS.READY_FOR_PICKUP, ORDER_STATUS.OUT_FOR_DELIVERY])
+      );
       onSnapshot(q, (snapshot) => {
-        const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         renderOrders(orders);
         updateStats(orders);
       });
@@ -470,44 +607,37 @@
 
     function renderOrders(orders) {
       const ordersList = document.getElementById('ordersList');
-      
       if (orders.length === 0) {
-        ordersList.innerHTML = '<p>No available orders at the moment.</p>';
+        ordersList.innerHTML = '<p style="color:#767676;font-size:14px;">No available orders at the moment.</p>';
         return;
       }
-
       ordersList.innerHTML = orders.map(order => `
         <div class="order-card ${order.driverId ? 'current' : 'available'}">
           <div class="order-header">
             <div class="order-id">Order #${order.id.substring(0, 8)}</div>
-            <div class="order-value">$${order.total.toFixed(2)}</div>
+            <div class="order-value">$${(order.total || 0).toFixed(2)}</div>
           </div>
-          
           <div class="order-details">
             <div class="pickup-info">
               <div class="info-label">Pickup</div>
-              <div class="info-address">${order.pickupAddress || 'Restaurant Location'}</div>
-              <div class="info-time">Ready in 10-15 min</div>
+              <div class="info-address">${order.restaurantName || order.pickupAddress || 'Restaurant'}</div>
+              <div class="info-time">Ready for pickup</div>
             </div>
             <div class="delivery-info">
-              <div class="info-label">Delivery</div>
-              <div class="info-address">${order.deliveryAddress || order.dropoff}</div>
-              <div class="info-time">2.5 miles away</div>
+              <div class="info-label">Deliver to</div>
+              <div class="info-address">${order.deliveryAddress || order.dropoff || 'Customer address'}</div>
+              <div class="info-time">${order.items ? order.items.length : 0} item(s)</div>
             </div>
           </div>
-          
           <div class="order-items">
-            ${order.items.map(item => `
+            ${(order.items || []).map(item => `
               <div class="order-item">
                 <span>${item.name} x${item.quantity}</span>
                 <span>$${(item.price * item.quantity).toFixed(2)}</span>
               </div>
             `).join('')}
           </div>
-          
-          <div class="order-actions">
-            ${getOrderActions(order)}
-          </div>
+          <div class="order-actions">${getOrderActions(order)}</div>
         </div>
       `).join('');
     }
@@ -516,53 +646,185 @@
       if (!order.driverId) {
         return `<button class="btn btn-primary" onclick="acceptOrder('${order.id}')">Accept Order</button>`;
       } else if (order.driverId === currentUser.uid) {
+        const chatBtn = `<button class="btn btn-secondary" onclick="openDriverChat('${order.id}')">💬 Chat</button>`;
         switch (order.status) {
           case ORDER_STATUS.READY_FOR_PICKUP:
-            return `<button class="btn btn-success" onclick="updateOrderStatus('${order.id}', '${ORDER_STATUS.OUT_FOR_DELIVERY}')">Picked Up</button>`;
+            return `<button class="btn btn-success" onclick="updateOrderStatus('${order.id}','${ORDER_STATUS.OUT_FOR_DELIVERY}')">Picked Up</button>${chatBtn}`;
           case ORDER_STATUS.OUT_FOR_DELIVERY:
-            return `<button class="btn btn-primary" onclick="updateOrderStatus('${order.id}', '${ORDER_STATUS.DELIVERED}')">Mark Delivered</button>`;
+            return `<button class="btn btn-primary" onclick="updateOrderStatus('${order.id}','${ORDER_STATUS.DELIVERED}')">Mark Delivered</button>${chatBtn}`;
           default:
-            return `<span style="color: #666;">Order in progress</span>`;
+            return `<span style="color:#666">Order in progress</span>${chatBtn}`;
         }
-      } else {
-        return `<span style="color: #666;">Assigned to another driver</span>`;
       }
+      return `<span style="color:#666">Assigned to another driver</span>`;
     }
 
     function updateStats(orders) {
-      const activeOrders = orders.filter(o => o.driverId === currentUser.uid).length;
-      document.getElementById('activeOrders').textContent = activeOrders;
+      const active = orders.filter(o => o.driverId === currentUser.uid).length;
+      document.getElementById('activeOrders').textContent = active;
     }
 
-    function updateEarnings() {
-      // In a real app, you'd calculate from actual order data
-      const basePay = 45.50;
-      const tips = 12.30;
-      const bonuses = 5.00;
-      const total = basePay + tips + bonuses;
-
-      document.getElementById('basePay').textContent = `$${basePay.toFixed(2)}`;
-      document.getElementById('tips').textContent = `$${tips.toFixed(2)}`;
-      document.getElementById('bonuses').textContent = `$${bonuses.toFixed(2)}`;
-      document.getElementById('totalEarnings').textContent = `$${total.toFixed(2)}`;
-      document.getElementById('todayEarnings').textContent = `$${total.toFixed(2)}`;
+    // ── Earnings ──────────────────────────────────────────────────────────────
+    function subscribeDeliveredOrders() {
+      const q = query(
+        collection(db, COLLECTIONS.ORDERS),
+        where('driverId', '==', currentUser.uid),
+        where('status', '==', ORDER_STATUS.DELIVERED)
+      );
+      onSnapshot(q, (snapshot) => {
+        const orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        applyEarningsFilter(orders, _earningsPeriod);
+        renderOrderHistory(orders);
+      });
     }
 
-    window.acceptOrder = async (orderId) => {
-      if (!isOnline) {
-        showToast('You must be online to accept orders', 'error');
+    function applyEarningsFilter(allOrders, period) {
+      const now = new Date();
+      const filtered = allOrders.filter(order => {
+        const ts = order.updatedAt?.toDate ? order.updatedAt.toDate() : new Date(order.updatedAt || 0);
+        if (period === 'today') {
+          return ts.toDateString() === now.toDateString();
+        } else if (period === 'week') {
+          const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
+          return ts >= weekAgo;
+        } else if (period === 'month') {
+          return ts.getMonth() === now.getMonth() && ts.getFullYear() === now.getFullYear();
+        }
+        return true; // 'all'
+      });
+
+      const totalFees = filtered.reduce((sum, o) => sum + (o.deliveryFee || o.driverEarning || (o.total * 0.8) || 0), 0);
+      const count = filtered.length;
+      const avg = count > 0 ? totalFees / count : 0;
+
+      document.getElementById('earnDeliveryFees').textContent = `$${totalFees.toFixed(2)}`;
+      document.getElementById('earnDeliveryCount').textContent = count;
+      document.getElementById('earnAvgPerDelivery').textContent = `$${avg.toFixed(2)}`;
+      document.getElementById('totalEarnings').textContent = `$${totalFees.toFixed(2)}`;
+      document.getElementById('todayEarnings').textContent = period === 'today'
+        ? `$${totalFees.toFixed(2)}`
+        : document.getElementById('todayEarnings').textContent;
+
+      const periodLabels = { today: 'Today', week: 'This Week', month: 'This Month', all: 'All Time' };
+      document.getElementById('earningsPeriodLabel').textContent = `Total (${periodLabels[period]}):`;
+      document.getElementById('completedOrders').textContent = allOrders.length;
+    }
+
+    async function loadEarnings(period) {
+      _earningsPeriod = period;
+      // Actual data comes via subscribeDeliveredOrders; just re-filter on period change
+      const q = query(
+        collection(db, COLLECTIONS.ORDERS),
+        where('driverId', '==', currentUser.uid),
+        where('status', '==', ORDER_STATUS.DELIVERED)
+      );
+      try {
+        const snap = await getDocs(q);
+        const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        applyEarningsFilter(orders, period);
+        renderOrderHistory(orders);
+      } catch (e) {
+        console.error('loadEarnings error', e);
+      }
+    }
+
+    function renderOrderHistory(orders) {
+      const list = document.getElementById('orderHistoryList');
+      if (!orders.length) {
+        list.innerHTML = '<p style="color:#767676;font-size:14px;">No completed deliveries yet.</p>';
         return;
       }
+      const sorted = [...orders].sort((a, b) => {
+        const ta = a.updatedAt?.toDate ? a.updatedAt.toDate() : new Date(a.updatedAt || 0);
+        const tb = b.updatedAt?.toDate ? b.updatedAt.toDate() : new Date(b.updatedAt || 0);
+        return tb - ta;
+      }).slice(0, 20);
 
+      list.innerHTML = sorted.map(o => {
+        const ts = o.updatedAt?.toDate ? o.updatedAt.toDate() : new Date(o.updatedAt || 0);
+        const earned = (o.deliveryFee || o.driverEarning || (o.total * 0.8) || 0).toFixed(2);
+        return `
+          <div class="order-history-row">
+            <div>
+              <div style="font-weight:600">#${o.id.substring(0,8)} · ${o.restaurantName || 'Order'}</div>
+              <div style="color:#767676">${ts.toLocaleDateString()} ${ts.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+            </div>
+            <div class="earn-amount">+$${earned}</div>
+          </div>`;
+      }).join('');
+    }
+
+    window.setEarningsPeriod = (period, btn) => {
+      _earningsPeriod = period;
+      document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      loadEarnings(period);
+    };
+
+    // ── Driver Chat ───────────────────────────────────────────────────────────
+    window.openDriverChat = (orderId) => {
+      _chatOrderId = orderId;
+      document.getElementById('chatTitle').textContent = `Chat · Order #${orderId.substring(0,8)}`;
+      document.getElementById('chatModal').classList.add('open');
+      if (_chatUnsub) _chatUnsub();
+      const msgsRef = collection(db, COLLECTIONS.ORDERS, orderId, 'messages');
+      const q = query(msgsRef, orderBy('timestamp', 'asc'));
+      _chatUnsub = onSnapshot(q, (snap) => {
+        const msgs = snap.docs.map(d => d.data());
+        const box = document.getElementById('chatMessages');
+        if (!msgs.length) {
+          box.innerHTML = '<p class="no-msgs">No messages yet.</p>';
+          return;
+        }
+        box.innerHTML = msgs.map(m => {
+          const side = m.sender === 'driver' ? 'sent' : 'received';
+          const ts = m.timestamp?.toDate ? m.timestamp.toDate() : new Date();
+          return `<div class="msg ${side}">
+            ${m.text}
+            <div class="msg-meta">${ts.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</div>
+          </div>`;
+        }).join('');
+        box.scrollTop = box.scrollHeight;
+      });
+    };
+
+    window.closeDriverChat = () => {
+      document.getElementById('chatModal').classList.remove('open');
+      if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
+      _chatOrderId = null;
+    };
+
+    window.sendDriverMessage = async () => {
+      if (!_chatOrderId) return;
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      try {
+        await addDoc(collection(db, COLLECTIONS.ORDERS, _chatOrderId, 'messages'), {
+          text,
+          sender: 'driver',
+          senderId: currentUser.uid,
+          timestamp: serverTimestamp()
+        });
+      } catch (e) {
+        console.error('sendDriverMessage error', e);
+        showToast('Failed to send message.', 'error');
+      }
+    };
+
+    // ── Order actions ─────────────────────────────────────────────────────────
+    window.acceptOrder = async (orderId) => {
+      if (!isOnline) { showToast('Go online to accept orders', 'error'); return; }
       try {
         await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
           driverId: currentUser.uid,
           status: ORDER_STATUS.READY_FOR_PICKUP,
-          acceptedAt: new Date()
+          acceptedAt: serverTimestamp()
         });
         showToast('Order accepted!', 'success');
-      } catch (error) {
-        console.error('Error accepting order:', error);
+      } catch (e) {
+        console.error(e);
         showToast('Error accepting order.', 'error');
       }
     };
@@ -571,54 +833,37 @@
       try {
         await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
           status: newStatus,
-          updatedAt: new Date()
+          updatedAt: serverTimestamp()
         });
         const label = newStatus.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
-        showToast(`Order: ${label}`, 'success');
-      } catch (error) {
-        console.error('Error updating order:', error);
-        showToast('Error updating order status.', 'error');
+        showToast(`Status: ${label}`, 'success');
+      } catch (e) {
+        console.error(e);
+        showToast('Error updating status.', 'error');
       }
     };
 
+    // ── UI ────────────────────────────────────────────────────────────────────
     window.toggleStatus = () => {
       isOnline = !isOnline;
-      const statusToggle = document.getElementById('statusToggle');
-      
-      if (isOnline) {
-        statusToggle.textContent = 'Online';
-        statusToggle.classList.remove('offline');
-        statusToggle.style.background = '#28a745';
-      } else {
-        statusToggle.textContent = 'Offline';
-        statusToggle.classList.add('offline');
-        statusToggle.style.background = '#dc3545';
-      }
+      const btn = document.getElementById('statusToggle');
+      btn.textContent = isOnline ? 'Online' : 'Offline';
+      btn.classList.toggle('offline', !isOnline);
+      btn.style.background = isOnline ? '#28a745' : '#dc3545';
     };
 
     window.centerOnLocation = () => {
-      if (currentLocation) {
-        map.setView(currentLocation, 15);
-      } else {
-        showToast('Location not available yet.', 'info');
-      }
+      if (currentLocation) map.setView(currentLocation, 15);
+      else showToast('Location not available yet.', 'info');
     };
 
-    window.showAvailableOrders = () => {
-      showToast('Loading available orders in your area...', 'info');
-    };
+    window.showAvailableOrders = () => showToast('Scanning for orders in your area…', 'info');
 
     window.sendSOS = () => {
-      if (confirm('Send emergency SOS alert to dispatch?')) {
-        showToast('SOS alert sent to dispatch. Help is on the way!', 'error');
-      }
+      showToast('SOS alert sent to dispatch. Help is on the way!', 'error');
     };
 
-    window.logout = () => {
-      signOut(auth).then(() => {
-        window.location.href = 'login.html';
-      });
-    };
+    window.logout = () => signOut(auth).then(() => { window.location.href = 'login.html'; });
   </script>
 </body>
 </html>
