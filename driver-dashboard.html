@@ -430,7 +430,58 @@
       }
     }
 
-    /* ── Order Offer Popup ──────────────────────────────────────────── */
+    .payout-section {
+      background: white; border-radius: 12px; padding: 20px;
+      margin: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .payout-balance {
+      text-align: center; padding: 20px 0 14px;
+    }
+    .payout-balance .balance-amount {
+      font-size: 2.4rem; font-weight: 800; color: #28a745;
+    }
+    .payout-balance .balance-label {
+      font-size: 0.85rem; color: #888; margin-top: 4px;
+    }
+    .payout-method-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 14px 0;
+    }
+    .method-btn {
+      border: 2px solid #e0e0e0; background: white; border-radius: 10px;
+      padding: 12px 8px; cursor: pointer; text-align: center;
+      font-size: 0.85rem; font-weight: 600; color: #444;
+      transition: all 0.15s;
+    }
+    .method-btn:hover { border-color: #FF3008; color: #FF3008; }
+    .method-btn.selected { border-color: #FF3008; background: #fff5f3; color: #FF3008; }
+    .method-btn .method-icon { font-size: 1.4rem; display: block; margin-bottom: 4px; }
+    .payout-handle-row {
+      display: flex; gap: 10px; margin: 12px 0;
+    }
+    .payout-handle-row input {
+      flex: 1; padding: 11px 14px; border: 1.5px solid #ddd; border-radius: 10px;
+      font-size: 0.95rem;
+    }
+    .payout-handle-row input:focus { outline: none; border-color: #FF3008; }
+    .payout-request-btn {
+      background: #28a745; color: white; border: none; padding: 13px 20px;
+      border-radius: 10px; font-weight: 700; font-size: 0.95rem; cursor: pointer;
+      white-space: nowrap; transition: background 0.15s;
+    }
+    .payout-request-btn:disabled { background: #aaa; cursor: not-allowed; }
+    .payout-history-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.9rem;
+    }
+    .payout-history-item:last-child { border-bottom: none; }
+    .payout-status-paid {
+      background: #e8f5e9; color: #2e7d32; padding: 3px 10px;
+      border-radius: 12px; font-size: 0.78rem; font-weight: 700;
+    }
+    .payout-status-pending {
+      background: #fff3cd; color: #856404; padding: 3px 10px;
+      border-radius: 12px; font-size: 0.78rem; font-weight: 700;
+    }
     .offer-backdrop {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.45); z-index: 9000;
@@ -610,8 +661,44 @@
       </div>
     </div>
 
+    <!-- Payout Section -->
+    <div class="payout-section">
+      <h3>💸 Request Payout</h3>
+      <div class="payout-balance">
+        <div class="balance-amount" id="unpaidBalance">$0.00</div>
+        <div class="balance-label">Available to cash out</div>
+      </div>
+
+      <div style="font-size:0.85rem;color:#555;margin-bottom:8px;font-weight:600">How would you like to be paid?</div>
+      <div class="payout-method-grid">
+        <button class="method-btn" onclick="selectPayMethod('venmo', this)">
+          <span class="method-icon">💙</span>Venmo
+        </button>
+        <button class="method-btn" onclick="selectPayMethod('cashapp', this)">
+          <span class="method-icon">💚</span>Cash App
+        </button>
+        <button class="method-btn" onclick="selectPayMethod('zelle', this)">
+          <span class="method-icon">💜</span>Zelle
+        </button>
+        <button class="method-btn" onclick="selectPayMethod('paypal', this)">
+          <span class="method-icon">🔵</span>PayPal
+        </button>
+      </div>
+
+      <div class="payout-handle-row">
+        <input type="text" id="payHandle" placeholder="@username or phone/email" />
+        <button class="payout-request-btn" id="requestPayoutBtn" onclick="requestPayout()">Request</button>
+      </div>
+      <div id="payoutMsg" style="font-size:0.82rem;color:#888;margin-top:4px"></div>
+
+      <div id="payoutHistory" style="margin-top:18px">
+        <div style="font-weight:600;font-size:0.9rem;margin-bottom:8px;color:#444">Recent Payouts</div>
+        <div id="payoutHistoryList"><p style="color:#aaa;font-size:0.85rem">No payouts yet.</p></div>
+      </div>
+    </div>
+
     <div class="orders-section">
-      <h3>Available Orders</h3>
+      <h3>Active Deliveries</h3>
       <div id="ordersList">
         <!-- Orders will be loaded here -->
       </div>
@@ -718,6 +805,7 @@
       loadEarnings('today');
       subscribeDeliveredOrders();
       updateDriverMetrics();
+      loadPayoutData();
     });
 
     // ── Map ──────────────────────────────────────────────────────────────────
@@ -1038,6 +1126,139 @@
       loadEarnings(period);
     };
 
+    // ── Payouts ───────────────────────────────────────────────────────────────
+    let _selectedPayMethod = null;
+
+    window.selectPayMethod = (method, btn) => {
+      _selectedPayMethod = method;
+      document.querySelectorAll('.method-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      const placeholders = {
+        venmo: '@yourvenmo',
+        cashapp: '$yourcashtag',
+        zelle: 'phone or email',
+        paypal: 'PayPal email'
+      };
+      document.getElementById('payHandle').placeholder = placeholders[method] || '@username';
+    };
+
+    async function loadPayoutData() {
+      // Total earned (all delivered orders)
+      const ordersSnap = await getDocs(query(
+        collection(db, COLLECTIONS.ORDERS),
+        where('driverId', '==', currentUser.uid),
+        where('status', '==', ORDER_STATUS.DELIVERED)
+      )).catch(() => null);
+      const totalEarned = ordersSnap
+        ? ordersSnap.docs.reduce((sum, d) => {
+            const o = d.data();
+            return sum + (o.deliveryFee || 3.99) + (o.tip || 0);
+          }, 0)
+        : 0;
+
+      // Total already paid out
+      const payoutsSnap = await getDocs(query(
+        collection(db, 'payoutRequests'),
+        where('driverId', '==', currentUser.uid),
+        where('status', '==', 'paid')
+      )).catch(() => null);
+      const totalPaidOut = payoutsSnap
+        ? payoutsSnap.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0)
+        : 0;
+
+      const unpaid = Math.max(0, totalEarned - totalPaidOut);
+      document.getElementById('unpaidBalance').textContent = `$${unpaid.toFixed(2)}`;
+      document.getElementById('unpaidBalance').dataset.amount = unpaid;
+
+      // Payout history (last 10)
+      const histSnap = await getDocs(query(
+        collection(db, 'payoutRequests'),
+        where('driverId', '==', currentUser.uid),
+        orderBy('requestedAt', 'desc')
+      )).catch(() => null);
+
+      const listEl = document.getElementById('payoutHistoryList');
+      if (!histSnap || histSnap.empty) {
+        listEl.innerHTML = '<p style="color:#aaa;font-size:0.85rem">No payouts yet.</p>';
+        return;
+      }
+      listEl.innerHTML = histSnap.docs.slice(0, 10).map(d => {
+        const p = d.data();
+        const ts = p.requestedAt?.toDate ? p.requestedAt.toDate() : new Date();
+        const statusEl = p.status === 'paid'
+          ? `<span class="payout-status-paid">✓ Paid</span>`
+          : `<span class="payout-status-pending">Pending</span>`;
+        return `<div class="payout-history-item">
+          <div>
+            <div style="font-weight:600">$${(p.amount||0).toFixed(2)} via ${p.payMethod}</div>
+            <div style="color:#888;font-size:0.8rem">${p.payHandle} · ${ts.toLocaleDateString()}</div>
+          </div>
+          ${statusEl}
+        </div>`;
+      }).join('');
+    }
+
+    window.requestPayout = async () => {
+      const handle = document.getElementById('payHandle').value.trim();
+      const amount = parseFloat(document.getElementById('unpaidBalance').dataset.amount || 0);
+      const msgEl = document.getElementById('payoutMsg');
+
+      if (!_selectedPayMethod) {
+        msgEl.style.color = '#dc3545';
+        msgEl.textContent = 'Please select a payment method first.';
+        return;
+      }
+      if (!handle) {
+        msgEl.style.color = '#dc3545';
+        msgEl.textContent = 'Please enter your payment handle.';
+        return;
+      }
+      if (amount < 1) {
+        msgEl.style.color = '#dc3545';
+        msgEl.textContent = 'Minimum payout is $1.00.';
+        return;
+      }
+
+      // Check no pending request already open
+      const existing = await getDocs(query(
+        collection(db, 'payoutRequests'),
+        where('driverId', '==', currentUser.uid),
+        where('status', '==', 'pending')
+      )).catch(() => null);
+      if (existing && !existing.empty) {
+        msgEl.style.color = '#856404';
+        msgEl.textContent = 'You already have a pending payout request.';
+        return;
+      }
+
+      const btn = document.getElementById('requestPayoutBtn');
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      try {
+        await addDoc(collection(db, 'payoutRequests'), {
+          driverId: currentUser.uid,
+          driverEmail: currentUser.email,
+          driverName: currentUser.displayName || currentUser.email,
+          amount,
+          payMethod: _selectedPayMethod,
+          payHandle: handle,
+          status: 'pending',
+          requestedAt: serverTimestamp()
+        });
+        msgEl.style.color = '#28a745';
+        msgEl.textContent = `✓ Request sent! You'll receive $${amount.toFixed(2)} via ${_selectedPayMethod} to ${handle}.`;
+        document.getElementById('payHandle').value = '';
+        loadPayoutData();
+      } catch (e) {
+        console.error(e);
+        msgEl.style.color = '#dc3545';
+        msgEl.textContent = 'Failed to submit request. Try again.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Request';
+      }
+    };
+
     // ── Driver Chat ───────────────────────────────────────────────────────────
     window.openDriverChat = (orderId) => {
       _chatOrderId = orderId;
@@ -1119,6 +1340,7 @@
             completedCount: increment(1)
           }).catch(() => {});
           updateDriverMetrics();
+          loadPayoutData();
         }
         const label = newStatus.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
         showToast(`Status: ${label}`, 'success');
