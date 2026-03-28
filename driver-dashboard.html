@@ -683,6 +683,11 @@
     </div>
   </header>
 
+  <!-- Peak Pay Banner -->
+  <div id="peakPayBanner" style="display:none;background:#FF3008;color:white;text-align:center;padding:12px 20px;font-size:1rem;font-weight:700;letter-spacing:0.3px;">
+    🔥 Peak Pay Active — Extra <span id="peakPayBannerAmount">/bin/bash.00</span> per delivery!
+  </div>
+
   <div class="main-content">
     <div class="stats-grid">
       <div class="stat-card">
@@ -741,6 +746,10 @@
       <div class="earnings-row">
         <span>Avg. per delivery:</span>
         <span class="amount" id="earnAvgPerDelivery">$0.00</span>
+      </div>
+      <div class="earnings-row" id="peakPayEarningsRow" style="display:none;">
+        <span>Peak Pay Bonus:</span>
+        <span class="amount" id="earnPeakPayBonus">$0.00</span>
       </div>
       <div class="earnings-row">
         <span id="earningsPeriodLabel">Total (Today):</span>
@@ -848,7 +857,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import {
       getFirestore, collection, addDoc, updateDoc, doc,
-      query, where, onSnapshot, orderBy, serverTimestamp, getDocs, increment, arrayUnion
+      query, where, onSnapshot, orderBy, serverTimestamp, getDocs, getDoc, increment, arrayUnion
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import { firebaseConfig, COLLECTIONS, ORDER_STATUS, USER_ROLES } from "./firebase-config.js";
