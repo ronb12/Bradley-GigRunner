@@ -693,7 +693,7 @@
         return true; // 'all'
       });
 
-      const totalFees = filtered.reduce((sum, o) => sum + (o.deliveryFee || o.driverEarning || (o.total * 0.8) || 0), 0);
+      const totalFees = filtered.reduce((sum, o) => sum + (o.deliveryFee || 3.99) + (o.tip || 0), 0);
       const count = filtered.length;
       const avg = count > 0 ? totalFees / count : 0;
 
@@ -742,7 +742,7 @@
 
       list.innerHTML = sorted.map(o => {
         const ts = o.updatedAt?.toDate ? o.updatedAt.toDate() : new Date(o.updatedAt || 0);
-        const earned = (o.deliveryFee || o.driverEarning || (o.total * 0.8) || 0).toFixed(2);
+        const earned = ((o.deliveryFee || 3.99) + (o.tip || 0)).toFixed(2);
         return `
           <div class="order-history-row">
             <div>

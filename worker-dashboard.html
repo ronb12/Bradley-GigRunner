@@ -764,7 +764,7 @@
         <div class="stat-icon">
           <i class="fas fa-cog"></i>
         </div>
-        <div class="stat-value" id="serviceFee">$5.00</div>
+        <div class="stat-value" id="serviceFee">$12.00</div>
         <div class="stat-label">Service Fee</div>
       </div>
     </div>
@@ -825,17 +825,17 @@
           <label for="serviceFeeInput">Service Fee per Delivery:</label>
           <div class="input-group">
             <span class="input-prefix">$</span>
-            <input type="number" id="serviceFeeInput" min="1" max="50" step="0.50" value="5.00">
+            <input type="number" id="serviceFeeInput" min="5" max="100" step="0.50" value="12.00">
           </div>
-          <small class="form-text">This is what customers will pay you for each delivery. Higher fees may reduce demand.</small>
+          <small class="form-text">This is what customers pay you per delivery. DoorDash dashers average $15–$25/hr — price yourself accordingly.</small>
         </div>
         <div class="form-group">
-          <label>Recommended Ranges:</label>
+          <label>Recommended Rates:</label>
           <div class="fee-suggestions">
-            <button class="fee-btn" onclick="setServiceFee(3.00)">$3.00 - Budget</button>
-            <button class="fee-btn" onclick="setServiceFee(5.00)">$5.00 - Standard</button>
-            <button class="fee-btn" onclick="setServiceFee(8.00)">$8.00 - Premium</button>
-            <button class="fee-btn" onclick="setServiceFee(10.00)">$10.00 - Luxury</button>
+            <button class="fee-btn" onclick="setServiceFee(8.00)">$8.00 - Entry</button>
+            <button class="fee-btn" onclick="setServiceFee(12.00)">$12.00 - Standard</button>
+            <button class="fee-btn" onclick="setServiceFee(15.00)">$15.00 - Premium</button>
+            <button class="fee-btn" onclick="setServiceFee(20.00)">$20.00 - Top Earner</button>
           </div>
         </div>
         <div class="modal-actions">
@@ -1198,7 +1198,7 @@
     };
 
     // Service Fee Management
-    let currentServiceFee = 5.00;
+    let currentServiceFee = 12.00;
 
     window.openServiceFeeModal = () => {
       document.getElementById('serviceFeeModal').style.display = 'flex';
@@ -1216,8 +1216,8 @@
     window.saveServiceFee = async () => {
       const newFee = parseFloat(document.getElementById('serviceFeeInput').value);
       
-      if (isNaN(newFee) || newFee < 1 || newFee > 50) {
-        showToast('Please enter a service fee between $1.00 and $50.00', 'error');
+      if (isNaN(newFee) || newFee < 5 || newFee > 100) {
+        showToast('Please enter a service fee between $5.00 and $100.00', 'error');
         return;
       }
 

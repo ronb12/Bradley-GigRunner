@@ -209,6 +209,19 @@
       font-size: 14px;
     }
     
+    .tip-btn {
+      padding: 6px 14px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 20px;
+      background: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #767676;
+      transition: all 0.15s;
+    }
+    .tip-btn.active { background: #FF3008; color: white; border-color: #FF3008; }
+
     .delivery-fee {
       color: #FF3008;
       font-weight: bold;
@@ -710,9 +723,28 @@
         </div>
         <div style="display: flex; justify-content: space-between; margin: 15px 0;">
           <span>Delivery Fee:</span>
-          <span id="deliveryFee">$2.99</span>
+          <span id="deliveryFee">$0.00</span>
         </div>
-        <div style="display: flex; justify-content: space-between; margin: 15px 0; font-weight: bold; font-size: 18px;">
+        <div style="margin: 15px 0;">
+          <div style="margin-bottom: 8px; font-weight: 600;">Tip your driver:</div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="tip-btn active" data-tip="0" onclick="selectTip(0, this)">No tip</button>
+            <button class="tip-btn" data-tip="15" onclick="selectTip(15, this)">15%</button>
+            <button class="tip-btn" data-tip="18" onclick="selectTip(18, this)">18%</button>
+            <button class="tip-btn" data-tip="20" onclick="selectTip(20, this)">20%</button>
+            <button class="tip-btn" data-tip="custom" onclick="selectTip('custom', this)">Custom</button>
+          </div>
+          <div id="customTipRow" style="display:none; margin-top: 8px;">
+            <input type="number" id="customTipInput" min="0" step="0.50" placeholder="Enter tip amount"
+              style="width:100%;border:1.5px solid #e0e0e0;border-radius:8px;padding:8px 12px;font-size:14px;"
+              oninput="updateCustomTip()">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin: 8px 0; color: #28a745;">
+          <span>Tip:</span>
+          <span id="tipAmount">$0.00</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin: 15px 0; font-weight: bold; font-size: 18px; border-top: 2px solid #f0f0f0; padding-top: 12px;">
           <span>Total:</span>
           <span id="total">$0.00</span>
         </div>
@@ -747,6 +779,9 @@
 
     let currentUser = null;
     let cart = [];
+    let selectedRestaurant = null;
+    let tipPercent = 0;
+    let customTipAmount = 0;
     let restaurants = [];
     let currentCategory = 'all';
     let searchQuery = '';
@@ -797,7 +832,7 @@
         category: 'pizza',
         rating: 4.5,
         deliveryTime: '25-35 min',
-        deliveryFee: 2.99,
+        deliveryFee: 4.99,
         image: '🍕',
         menu: [
           { id: '1', name: 'Margherita Pizza', price: 12.99, description: 'Fresh mozzarella, tomato sauce, basil' },
@@ -812,7 +847,7 @@
         category: 'burger',
         rating: 4.3,
         deliveryTime: '20-30 min',
-        deliveryFee: 1.99,
+        deliveryFee: 3.99,
         image: '🍔',
         menu: [
           { id: '4', name: 'Classic Burger', price: 8.99, description: 'Beef patty, lettuce, tomato, onion' },
@@ -827,7 +862,7 @@
         category: 'asian',
         rating: 4.7,
         deliveryTime: '30-40 min',
-        deliveryFee: 3.99,
+        deliveryFee: 5.99,
         image: '🍜',
         menu: [
           { id: '7', name: 'Chicken Fried Rice', price: 10.99, description: 'Stir-fried rice with chicken and vegetables' },
@@ -842,7 +877,7 @@
         category: 'mexican',
         rating: 4.4,
         deliveryTime: '20-30 min',
-        deliveryFee: 1.49,
+        deliveryFee: 3.99,
         image: '🌮',
         menu: [
           { id: '10', name: 'Street Tacos (3)', price: 9.99, description: 'Seasoned beef, salsa, cilantro, onion' },
@@ -857,7 +892,7 @@
         category: 'dessert',
         rating: 4.8,
         deliveryTime: '15-25 min',
-        deliveryFee: 2.49,
+        deliveryFee: 3.99,
         image: '🍰',
         menu: [
           { id: '13', name: 'Chocolate Lava Cake', price: 6.99, description: 'Warm chocolate cake with molten center' },
@@ -1148,11 +1183,11 @@
       await redirectToStripe(orderId, order.items, order.deliveryFee, order.userId);
     };
 
-    async function redirectToStripe(orderId, items, deliveryFee, userId) {
+    async function redirectToStripe(orderId, items, deliveryFee, userId, tip = 0) {
       showToast('Redirecting to secure checkout…', 'info');
       try {
         const createSession = httpsCallable(functions, 'createCheckoutSession');
-        const result = await createSession({orderId, items, deliveryFee, userId});
+        const result = await createSession({orderId, items, deliveryFee, tip, userId});
         const {url} = result.data;
         if (url) {
           window.location.href = url;
@@ -1266,18 +1301,32 @@
     }
 
     window.addToCart = (restaurantId, itemId, itemName, price) => {
+      selectedRestaurant = restaurants.find(r => r.id === restaurantId) || selectedRestaurant;
       const existingItem = cart.find(item => item.id === itemId);
       if (existingItem) {
         existingItem.quantity += 1;
       } else {
-        cart.push({
-          id: itemId,
-          name: itemName,
-          price: price,
-          quantity: 1,
-          restaurantId: restaurantId
-        });
+        cart.push({ id: itemId, name: itemName, price, quantity: 1, restaurantId });
       }
+      updateCartDisplay();
+    };
+
+    window.selectTip = (value, btn) => {
+      document.querySelectorAll('.tip-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('customTipRow').style.display = value === 'custom' ? 'block' : 'none';
+      if (value === 'custom') {
+        tipPercent = 0;
+      } else {
+        tipPercent = value;
+        customTipAmount = 0;
+        document.getElementById('customTipInput') && (document.getElementById('customTipInput').value = '');
+      }
+      updateCartDisplay();
+    };
+
+    window.updateCustomTip = () => {
+      customTipAmount = parseFloat(document.getElementById('customTipInput').value) || 0;
       updateCartDisplay();
     };
 
@@ -1310,10 +1359,13 @@
       `).join('');
       
       const subtotalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const deliveryFee = 2.99;
-      const totalAmount = subtotalAmount + deliveryFee;
-      
+      const deliveryFee = selectedRestaurant ? selectedRestaurant.deliveryFee : 3.99;
+      const tip = tipPercent > 0 ? subtotalAmount * (tipPercent / 100) : customTipAmount;
+      const totalAmount = subtotalAmount + deliveryFee + tip;
+
       subtotal.textContent = `$${subtotalAmount.toFixed(2)}`;
+      document.getElementById('deliveryFee').textContent = `$${deliveryFee.toFixed(2)}`;
+      document.getElementById('tipAmount').textContent = `$${tip.toFixed(2)}`;
       total.textContent = `$${totalAmount.toFixed(2)}`;
     }
 
@@ -1331,12 +1383,11 @@
     window.checkout = async () => {
       if (cart.length === 0) return;
 
-      const deliveryFee = 2.99;
+      const deliveryFee = selectedRestaurant ? selectedRestaurant.deliveryFee : 3.99;
       const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      const total = subtotal + deliveryFee;
+      const tip = tipPercent > 0 ? subtotal * (tipPercent / 100) : customTipAmount;
+      const total = subtotal + deliveryFee + tip;
 
-      // 1. Create order in Firestore with status "pending_payment"
-      //    (Cloud Function webhook changes it to "confirmed" after payment)
       const order = {
         userId: currentUser.uid,
         items: cart,
@@ -1344,7 +1395,9 @@
         paymentStatus: 'unpaid',
         total,
         deliveryFee,
+        tip: parseFloat(tip.toFixed(2)),
         subtotal,
+        restaurantName: selectedRestaurant?.name || null,
         timestamp: new Date(),
         deliveryAddress: document.getElementById('deliveryAddress').textContent,
         restaurantId: cart[0]?.restaurantId || null,
@@ -1358,7 +1411,7 @@
         document.getElementById('cartModal').classList.remove('show');
 
         // 2. Redirect to Stripe Checkout
-        await redirectToStripe(docRef.id, cart, deliveryFee, currentUser.uid);
+        await redirectToStripe(docRef.id, cart, deliveryFee, currentUser.uid, tip);
 
         // Clear cart only after redirect (user may cancel)
         cart = [];
