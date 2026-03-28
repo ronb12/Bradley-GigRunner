@@ -683,11 +683,6 @@
     </div>
   </header>
 
-  <!-- Peak Pay Banner -->
-  <div id="peakPayBanner" style="display:none;background:#FF3008;color:white;text-align:center;padding:12px 20px;font-size:1rem;font-weight:700;letter-spacing:0.3px;">
-    🔥 Peak Pay Active — Extra <span id="peakPayBannerAmount">/bin/bash.00</span> per delivery!
-  </div>
-
   <div class="main-content">
     <div class="stats-grid">
       <div class="stat-card">
@@ -1202,17 +1197,37 @@
       });
 
       const baseFees = filtered.reduce((sum, o) => sum + (o.deliveryFee || 3.99) + (o.tip || 0), 0);
-      const peakBonus = (_peakPayBonus || 0) * filtered.length;
-      const totalFees = baseFees + peakBonus;
-      const count = filtered.length;
-      const avg = count > 0 ? totalFees / count : 0;
 
-      document.getElementById('earnDeliveryFees').textContent = `$${baseFees.toFixed(2)}${peakBonus > 0 ? ` + $${peakBonus.toFixed(2)} peak bonus` : ''}`;
+      // Peak pay bonus: count deliveries completed after peak pay was activated
+      let peakBonus = 0;
+      if (_peakPayActive && _peakPayBonus > 0) {
+        filtered.forEach(o => {
+          const ts = o.updatedAt?.toDate ? o.updatedAt.toDate() : new Date(o.updatedAt || 0);
+          if (!_peakPayActivatedAt || ts >= _peakPayActivatedAt) {
+            peakBonus += _peakPayBonus;
+          }
+        });
+      }
+      const grandTotal = baseFees + peakBonus;
+      const count = filtered.length;
+      const avg = count > 0 ? grandTotal / count : 0;
+
+      document.getElementById('earnDeliveryFees').textContent = `$${baseFees.toFixed(2)}`;
       document.getElementById('earnDeliveryCount').textContent = count;
       document.getElementById('earnAvgPerDelivery').textContent = `$${avg.toFixed(2)}`;
-      document.getElementById('totalEarnings').textContent = `$${totalFees.toFixed(2)}`;
+
+      // Peak Pay bonus row
+      const peakRow = document.getElementById('peakPayEarningsRow');
+      if (peakBonus > 0) {
+        peakRow.style.display = '';
+        document.getElementById('earnPeakPayBonus').textContent = `+$${peakBonus.toFixed(2)}`;
+      } else {
+        peakRow.style.display = 'none';
+      }
+
+      document.getElementById('totalEarnings').textContent = `$${grandTotal.toFixed(2)}`;
       document.getElementById('todayEarnings').textContent = period === 'today'
-        ? `$${totalFees.toFixed(2)}`
+        ? `$${grandTotal.toFixed(2)}`
         : document.getElementById('todayEarnings').textContent;
 
       const periodLabels = { today: 'Today', week: 'This Week', month: 'This Month', all: 'All Time' };
@@ -1722,25 +1737,34 @@
 
     // ── Peak Pay ──────────────────────────────────────────────────────────────
     let _peakPayBonus = 0;
+    let _peakPayActive = false;
+    let _peakPayActivatedAt = null;
 
     function subscribePeakPay() {
       onSnapshot(doc(db, 'config', 'peakPay'), (snap) => {
-        const existing = document.getElementById('peakPayBanner');
+        let existing = document.getElementById('peakPayBanner');
         if (snap.exists() && snap.data().active) {
-          _peakPayBonus = snap.data().bonusPerDelivery || 0;
+          const d = snap.data();
+          _peakPayActive = true;
+          _peakPayBonus = d.bonusPerDelivery || 0;
+          _peakPayActivatedAt = d.activatedAt?.toDate ? d.activatedAt.toDate() : null;
+          const bannerText = `🔥 Peak Pay Active — Extra $${_peakPayBonus.toFixed(2)} per delivery!`;
           if (!existing) {
             const banner = document.createElement('div');
             banner.id = 'peakPayBanner';
             banner.style.cssText = 'background:linear-gradient(90deg,#FF3008,#FF6705);color:white;text-align:center;padding:11px 16px;font-weight:700;font-size:0.95rem;letter-spacing:0.3px';
-            banner.textContent = `🔥 Peak Pay Active — Extra $${_peakPayBonus.toFixed(2)} per delivery!`;
+            banner.textContent = bannerText;
             document.body.insertBefore(banner, document.body.firstChild);
           } else {
-            existing.textContent = `🔥 Peak Pay Active — Extra $${_peakPayBonus.toFixed(2)} per delivery!`;
+            existing.textContent = bannerText;
+            existing.style.display = '';
           }
           // Refresh earnings to include bonus
           loadEarnings(_earningsPeriod);
         } else {
+          _peakPayActive = false;
           _peakPayBonus = 0;
+          _peakPayActivatedAt = null;
           if (existing) existing.remove();
           loadEarnings(_earningsPeriod);
         }
