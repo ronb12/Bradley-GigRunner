@@ -26,14 +26,13 @@ jobs:
       - name: Build Cloud Functions
         run: cd functions && npm run build
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - name: Write service account key
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/sa.json
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
 
       - name: Deploy to Firebase
-        run: |
-          npm install -g firebase-tools
-          firebase deploy --project bradley-gigrunner --non-interactive
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa.json
+        run: firebase deploy --project bradley-gigrunner --non-interactive
