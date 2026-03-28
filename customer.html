@@ -1543,31 +1543,25 @@
         <div class="worker-selection">
           <h4>Available Workers</h4>
           <div id="availableWorkers" class="workers-list">
-            <!-- Available workers will be loaded here -->
+            <div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading workers...</p></div>
           </div>
         </div>
         <div class="service-details">
-          <h4>Service Details</h4>
+          <h4>Order Details</h4>
           <div class="form-group">
-            <label class="form-label">Service Type</label>
-            <select id="serviceType" class="form-input">
-              <option value="one-time">One-time Order</option>
-              <option value="weekly">Weekly Service</option>
-              <option value="monthly">Monthly Service</option>
-            </select>
+            <label class="form-label">Delivery Address <span style="color:#dc3545">*</span></label>
+            <input type="text" id="hireDeliveryAddress" class="form-input" placeholder="Enter your delivery address">
           </div>
           <div class="form-group">
-            <label class="form-label">Budget Range</label>
-            <select id="budgetRange" class="form-input">
-              <option value="20-50">$20 - $50 per order</option>
-              <option value="50-100">$50 - $100 per order</option>
-              <option value="100-200">$100 - $200 per order</option>
-              <option value="200+">$200+ per order</option>
-            </select>
+            <label class="form-label">What would you like to order? <span style="color:#dc3545">*</span></label>
+            <textarea id="hireOrderDetails" class="form-input" rows="3" placeholder="E.g. Big Mac meal + large fries from McDonald's on Main St..."></textarea>
           </div>
           <div class="form-group">
             <label class="form-label">Special Instructions</label>
-            <textarea id="specialInstructions" class="form-input" placeholder="Any specific requirements or preferences..."></textarea>
+            <textarea id="specialInstructions" class="form-input" rows="2" placeholder="Allergies, substitutions, gate codes..."></textarea>
+          </div>
+          <div id="selectedWorkerFee" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px;margin-top:8px;font-size:0.95rem;">
+            <i class="fas fa-info-circle" style="color:#856404"></i> <span id="feeBreakdown"></span>
           </div>
         </div>
         <div class="modal-actions">
@@ -1628,7 +1622,7 @@
       getAuth, onAuthStateChanged, signOut
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import {
-      getFirestore, collection, doc, addDoc, updateDoc, getDoc,
+      getFirestore, collection, doc, addDoc, updateDoc, getDoc, getDocs,
       onSnapshot, orderBy, where, query, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
@@ -1649,6 +1643,18 @@
     let hiredWorkers = [];
     let pickupAutocomplete = null;
     let dropoffAutocomplete = null;
+
+    function showToast(message, type = 'info') {
+      const existing = document.getElementById('toastMsg');
+      if (existing) existing.remove();
+      const toast = document.createElement('div');
+      toast.id = 'toastMsg';
+      const colors = { success: '#28a745', error: '#dc3545', info: '#FF6705', warning: '#ffc107' };
+      toast.style.cssText = `position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:${colors[type]||colors.info};color:white;padding:12px 24px;border-radius:24px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);font-size:0.95rem;max-width:90vw;text-align:center`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3500);
+    }
 
     onAuthStateChanged(auth, async user => {
       if (!user) return location.href = "login.html";
@@ -2060,345 +2066,78 @@
     };
 
     window.checkout = async () => {
-      if (Object.keys(cart).length === 0) {
-        alert('Your cart is empty!');
-        return;
-      }
-      
-      const totalPrice = Object.values(cart).reduce((sum, item) => sum + (item.quantity * item.price), 0);
-      const serviceFee = selectedWorker?.serviceFee || 5.00; // Use worker's service fee or default
-      const totalWithFee = totalPrice + serviceFee;
       const orderItems = Object.values(cart).filter(item => item.quantity > 0);
-      
-      // Process payment first
-      const paymentResult = await processPayment(totalPrice, serviceFee, totalWithFee);
-      if (!paymentResult.success) {
-        alert('Payment failed. Please try again.');
+      if (orderItems.length === 0) {
+        showToast('Your cart is empty!', 'warning');
         return;
       }
-      
+
+      const totalPrice = orderItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+      const deliveryFee = parseFloat(currentRestaurant?.deliveryFee?.replace('$','') || 3.99);
+      const totalWithFee = totalPrice + deliveryFee;
+
+      // Show order confirmation modal
+      const confirmed = await showOrderConfirmModal(totalPrice, deliveryFee, totalWithFee, orderItems);
+      if (!confirmed) return;
+
       try {
-        // Create a food order request with payment confirmation
         await addDoc(collection(db, "requests"), {
           type: 'food_order',
-          restaurant: currentRestaurant?.name || 'Multiple Restaurants',
+          restaurant: currentRestaurant?.name || 'Restaurant',
+          restaurantId: currentRestaurant?.id || null,
           items: orderItems,
           totalPrice,
-          serviceFee,
+          deliveryFee,
           totalWithFee,
           status: "pending",
           userId: currentUserId,
           timestamp: serverTimestamp(),
-          createdAt: new Date(),
-          paymentProcessed: true,
-          paymentId: paymentResult.paymentId,
-          paymentMethod: paymentResult.paymentMethod,
-          foodPaid: true, // Food is already paid for
-          workerPayout: serviceFee // Worker gets this amount
+          createdAt: new Date()
         });
-        
-        alert('Order placed successfully! Food is paid for. A worker will pick up and deliver your order.');
+
+        showToast('Order placed! A driver will pick it up shortly.', 'success');
         cart = {};
         updateCartSummary();
         closeMenu();
         loadJobs();
       } catch (error) {
         console.error("Error placing order:", error);
-        alert("Failed to place order. Please try again.");
+        showToast('Failed to place order. Please try again.', 'error');
       }
     };
 
-    async function processPayment(foodTotal, serviceFee, totalWithFee) {
-      return new Promise((resolve) => {
+    function showOrderConfirmModal(foodTotal, deliveryFee, totalWithFee, items) {
+      return new Promise(resolve => {
+        const itemLines = items.map(i => `<div style="display:flex;justify-content:space-between;font-size:0.9rem;padding:3px 0"><span>${i.quantity}x ${i.itemName}</span><span>$${(i.quantity*i.price).toFixed(2)}</span></div>`).join('');
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.style.display = 'flex';
         modal.innerHTML = `
           <div class="modal-content">
             <div class="modal-header">
-              <h3 class="modal-title">Payment Processing</h3>
+              <h3 class="modal-title">Confirm Order</h3>
               <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
             </div>
-            <div style="padding: 1rem;">
-              <h4>Order Summary:</h4>
-              <div style="margin: 1rem 0; padding: 1rem; background: #F6F6F6; border-radius: 8px;">
-                <p><strong>Food Total:</strong> $${foodTotal.toFixed(2)}</p>
-                <p><strong>Service Fee:</strong> $${serviceFee.toFixed(2)}</p>
-                <hr style="margin: 0.5rem 0;">
-                <p><strong>Total Amount:</strong> $${totalWithFee.toFixed(2)}</p>
-              </div>
-              <div style="background: #d4edda; color: #155724; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
-                <h5><i class="fas fa-info-circle"></i> How This Works:</h5>
-                <p style="margin: 0.5rem 0; font-size: 0.9rem;">
-                  • <strong>You order directly</strong> on the restaurant's website<br>
-                  • <strong>You pay the restaurant</strong> for the food<br>
-                  • <strong>Worker picks up</strong> your pre-paid order<br>
-                  • <strong>Worker delivers</strong> and gets service fee
-                </p>
-              </div>
-              <div style="display: grid; gap: 1rem; margin: 1rem 0;">
-                <button class="btn btn-primary" onclick="processDirectOrder()" style="width: 100%; padding: 1rem;">
-                  <i class="fas fa-external-link-alt"></i>
-                  Order on Restaurant Website - $${foodTotal.toFixed(2)}
+            <div style="padding:1rem">
+              <div style="background:#f9f9f9;border-radius:8px;padding:1rem;margin-bottom:1rem">${itemLines}</div>
+              <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.9rem"><span>Subtotal</span><span>$${foodTotal.toFixed(2)}</span></div>
+              <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:0.9rem"><span>Delivery Fee</span><span>$${deliveryFee.toFixed(2)}</span></div>
+              <hr style="margin:8px 0">
+              <div style="display:flex;justify-content:space-between;font-weight:700;font-size:1.05rem"><span>Total</span><span>$${totalWithFee.toFixed(2)}</span></div>
+              <div style="display:grid;gap:10px;margin-top:1.2rem">
+                <button class="btn btn-primary" id="confirmOrderBtn" style="padding:12px">
+                  <i class="fas fa-check"></i> Place Order — $${totalWithFee.toFixed(2)}
                 </button>
-                <button class="btn btn-secondary" onclick="processServiceFeePayment()" style="width: 100%; padding: 1rem;">
-                  <i class="fas fa-hand-holding-usd"></i>
-                  Pay Service Fee to Worker - $${serviceFee.toFixed(2)}
-                </button>
-                <div style="background: #F6F6F6; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
-                  <h6><i class="fas fa-lightbulb"></i> Recommended Process:</h6>
-                  <ol style="margin: 0.5rem 0; padding-left: 1.2rem; font-size: 0.9rem;">
-                    <li>Click "Order on Restaurant Website" to place your food order</li>
-                    <li>Pay the restaurant directly ($${foodTotal.toFixed(2)})</li>
-                    <li>Get your order confirmation number</li>
-                    <li>Pay the worker service fee ($${serviceFee.toFixed(2)})</li>
-                    <li>Worker picks up your pre-paid order and delivers it</li>
-                  </ol>
-                </div>
+                <button class="btn btn-secondary" onclick="this.closest('.modal').remove()" style="padding:10px">Cancel</button>
               </div>
             </div>
-          </div>
-        `;
-        
+          </div>`;
         document.body.appendChild(modal);
-        
-        window.processDirectOrder = () => {
-          modal.remove();
-          // Open restaurant website for direct ordering
-          const restaurantUrl = getRestaurantOrderUrl(currentRestaurant?.name || 'Applebee\'s');
-          window.open(restaurantUrl, '_blank');
-          
-          // Show confirmation modal for order details
-          showOrderConfirmationModal(foodTotal, serviceFee, totalWithFee, resolve);
-        };
-        
-        window.processServiceFeePayment = async () => {
-          modal.remove();
-          // Show service fee payment options
-          const result = await showServiceFeePaymentModal(serviceFee);
-          resolve(result);
-        };
-        
-        modal.querySelector('.close-btn').onclick = () => {
-          modal.remove();
-          resolve({ success: false });
-        };
+        modal.querySelector('#confirmOrderBtn').onclick = () => { modal.remove(); resolve(true); };
+        modal.querySelector('.close-btn').onclick = () => { modal.remove(); resolve(false); };
       });
     }
 
-    async function simulateStripePayment(amount) {
-      // Simulate Stripe payment processing
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({
-            success: true,
-            paymentId: 'stripe_' + Date.now(),
-            paymentMethod: 'stripe',
-            message: 'Payment processed successfully with Stripe'
-          });
-        }, 2000);
-      });
-    }
-
-    function getRestaurantOrderUrl(restaurantName) {
-      const urls = {
-        'Applebee\'s': 'https://www.applebees.com/en/order-online',
-        'McDonald\'s': 'https://www.mcdonalds.com/us/en-us/order.html',
-        'Subway': 'https://order.subway.com/',
-        'Pizza Hut': 'https://www.pizzahut.com/',
-        'Domino\'s': 'https://www.dominos.com/',
-        'KFC': 'https://www.kfc.com/order-online',
-        'Taco Bell': 'https://www.tacobell.com/order',
-        'Burger King': 'https://www.burgerking.com/order',
-        'Wendy\'s': 'https://www.wendys.com/order',
-        'Chick-fil-A': 'https://www.chick-fil-a.com/order'
-      };
-      return urls[restaurantName] || 'https://www.google.com/search?q=' + encodeURIComponent(restaurantName + ' online ordering');
-    }
-
-    function showOrderConfirmationModal(foodTotal, serviceFee, totalWithFee, resolve) {
-      const modal = document.createElement('div');
-      modal.className = 'modal';
-      modal.style.display = 'flex';
-      modal.innerHTML = `
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3 class="modal-title">Order Confirmation</h3>
-            <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
-          </div>
-          <div style="padding: 1rem;">
-            <div style="background: #d4edda; color: #155724; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
-              <h5><i class="fas fa-check-circle"></i> Restaurant Website Opened!</h5>
-              <p style="margin: 0.5rem 0;">Please complete your order on the restaurant's website.</p>
-            </div>
-            <div style="margin: 1rem 0;">
-              <label for="orderNumber" style="display: block; margin-bottom: 0.5rem; font-weight: bold;">Order Confirmation Number:</label>
-              <input type="text" id="orderNumber" placeholder="Enter your order confirmation number" style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;">
-            </div>
-            <div style="background: #F6F6F6; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
-              <h6>Next Steps:</h6>
-              <ol style="margin: 0.5rem 0; padding-left: 1.2rem; font-size: 0.9rem;">
-                <li>Complete your order on the restaurant website</li>
-                <li>Enter your order confirmation number above</li>
-                <li>Pay the worker service fee ($${serviceFee.toFixed(2)})</li>
-                <li>Worker will pick up your pre-paid order</li>
-              </ol>
-            </div>
-            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-              <button class="btn btn-primary" onclick="confirmOrderWithNumber()" style="flex: 1;">
-                <i class="fas fa-check"></i>
-                Confirm Order
-              </button>
-              <button class="btn btn-secondary" onclick="cancelOrder()" style="flex: 1;">
-                <i class="fas fa-times"></i>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(modal);
-      
-      window.confirmOrderWithNumber = () => {
-        const orderNumber = document.getElementById('orderNumber').value.trim();
-        if (!orderNumber) {
-          alert('Please enter your order confirmation number');
-          return;
-        }
-        modal.remove();
-        resolve({
-          success: true,
-          paymentId: 'restaurant_' + Date.now(),
-          paymentMethod: 'restaurant_direct',
-          orderNumber: orderNumber,
-          message: 'Order confirmed with restaurant. Worker will pick up your pre-paid order.'
-        });
-      };
-      
-      window.cancelOrder = () => {
-        modal.remove();
-        resolve({ success: false });
-      };
-      
-      modal.querySelector('.close-btn').onclick = () => {
-        modal.remove();
-        resolve({ success: false });
-      };
-    }
-
-    async function showServiceFeePaymentModal(serviceFee) {
-      return new Promise((resolve) => {
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.style.display = 'flex';
-        modal.innerHTML = `
-          <div class="modal-content">
-            <div class="modal-header">
-              <h3 class="modal-title">Pay Service Fee</h3>
-              <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
-            </div>
-            <div style="padding: 1rem;">
-              <h4>Service Fee: $${serviceFee.toFixed(2)}</h4>
-              <p style="color: #6c757d; font-size: 0.9rem; margin-bottom: 1rem;">
-                This is the fee for the worker who will pick up and deliver your order.
-              </p>
-              <div style="display: grid; gap: 1rem; margin: 1rem 0;">
-                <button class="btn btn-primary" onclick="payServiceFee('stripe')" style="width: 100%; padding: 1rem;">
-                  <i class="fab fa-stripe"></i>
-                  Pay with Stripe - $${serviceFee.toFixed(2)}
-                </button>
-                <button class="btn btn-secondary" onclick="payServiceFee('paypal')" style="width: 100%; padding: 1rem;">
-                  <i class="fab fa-paypal"></i>
-                  Pay with PayPal - $${serviceFee.toFixed(2)}
-                </button>
-                <button class="btn btn-secondary" onclick="payServiceFee('venmo')" style="width: 100%; padding: 1rem;">
-                  <i class="fab fa-cc-paypal"></i>
-                  Pay with Venmo - $${serviceFee.toFixed(2)}
-                </button>
-                <button class="btn btn-secondary" onclick="payServiceFee('cash')" style="width: 100%; padding: 1rem;">
-                  <i class="fas fa-money-bill"></i>
-                  Pay Cash - $${serviceFee.toFixed(2)}
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        window.payServiceFee = (method) => {
-          modal.remove();
-          resolve({
-            success: true,
-            paymentId: method + '_' + Date.now(),
-            paymentMethod: method,
-            message: `Service fee paid via ${method}. Worker will be notified.`
-          });
-        };
-        
-        modal.querySelector('.close-btn').onclick = () => {
-          modal.remove();
-          resolve({ success: false });
-        };
-      });
-    }
-
-    async function showPaymentConfirmation(foodTotal, serviceFee, totalWithFee) {
-      return new Promise((resolve) => {
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.style.display = 'flex';
-        modal.innerHTML = `
-          <div class="modal-content">
-            <div class="modal-header">
-              <h3 class="modal-title">Order Confirmation</h3>
-              <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
-            </div>
-            <div style="padding: 1rem;">
-              <h4>Order Summary:</h4>
-              <div style="margin: 1rem 0; padding: 1rem; background: #F6F6F6; border-radius: 8px;">
-                <p><strong>Food Total:</strong> $${foodTotal.toFixed(2)}</p>
-                <p><strong>Service Fee:</strong> $${serviceFee.toFixed(2)}</p>
-                <hr style="margin: 0.5rem 0;">
-                <p><strong>Total Amount:</strong> $${totalWithFee.toFixed(2)}</p>
-              </div>
-              <p style="color: #6c757d; font-size: 0.9rem;">
-                <i class="fas fa-info-circle"></i>
-                Your worker will pay for the food at the restaurant. You'll pay the worker directly for the total amount.
-              </p>
-              <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                <button class="btn btn-primary" onclick="confirmPayment()" style="flex: 1;">
-                  <i class="fas fa-check"></i>
-                  Confirm Order
-                </button>
-                <button class="btn btn-secondary" onclick="cancelPayment()" style="flex: 1;">
-                  <i class="fas fa-times"></i>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        window.confirmPayment = () => {
-          modal.remove();
-          resolve(true);
-        };
-        
-        window.cancelPayment = () => {
-          modal.remove();
-          resolve(false);
-        };
-        
-        modal.querySelector('.close-btn').onclick = () => {
-          modal.remove();
-          resolve(false);
-        };
-      });
-    }
 
     window.filterRestaurants = (cuisine) => {
       // Update active filter button
@@ -2417,50 +2156,12 @@
     };
 
     // Personal Service Functions
-    const availableWorkers = [
-      {
-        id: 'worker1',
-        name: 'Sarah Johnson',
-        rating: 4.8,
-        specialties: 'Fine Dining, Italian, Asian Cuisine',
-        experience: '3 years',
-        hourlyRate: 25,
-        serviceFee: 8.00,
-        avatar: 'SJ'
-      },
-      {
-        id: 'worker2',
-        name: 'Mike Chen',
-        rating: 4.9,
-        specialties: 'Fast Food, American, Mexican',
-        experience: '5 years',
-        hourlyRate: 20,
-        serviceFee: 5.00,
-        avatar: 'MC'
-      },
-      {
-        id: 'worker3',
-        name: 'Emily Rodriguez',
-        rating: 4.7,
-        specialties: 'Healthy Options, Mediterranean, Seafood',
-        experience: '2 years',
-        hourlyRate: 22,
-        serviceFee: 6.50,
-        avatar: 'ER'
-      },
-      {
-        id: 'worker4',
-        name: 'David Kim',
-        rating: 4.6,
-        specialties: 'Korean, Japanese, Sushi',
-        experience: '4 years',
-        hourlyRate: 28,
-        serviceFee: 4.00,
-        avatar: 'DK'
-      }
-    ];
-
     window.openHireWorkerModal = () => {
+      selectedWorker = null;
+      document.getElementById('hireDeliveryAddress').value = '';
+      document.getElementById('hireOrderDetails').value = '';
+      document.getElementById('specialInstructions').value = '';
+      document.getElementById('selectedWorkerFee').style.display = 'none';
       document.getElementById('hireWorkerModal').style.display = 'flex';
       loadAvailableWorkers();
     };
@@ -2470,81 +2171,102 @@
       selectedWorker = null;
     };
 
-    function loadAvailableWorkers() {
+    async function loadAvailableWorkers() {
       const workersList = document.getElementById('availableWorkers');
-      workersList.innerHTML = '';
-      
-      availableWorkers.forEach(worker => {
-        const workerCard = document.createElement('div');
-        workerCard.className = 'worker-card';
-        workerCard.onclick = () => selectWorker(worker.id);
-        
-        const stars = '★'.repeat(Math.floor(worker.rating)) + '☆'.repeat(5 - Math.floor(worker.rating));
-        
-        workerCard.innerHTML = `
-          <div class="worker-info">
-            <div class="worker-avatar">${worker.avatar}</div>
-            <div class="worker-details">
-              <h5>${worker.name}</h5>
-              <div class="worker-rating">
-                <span class="stars">${stars}</span>
-                <span class="rating-text">${worker.rating}</span>
+      workersList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i><p>Loading workers...</p></div>';
+
+      try {
+        const q = query(collection(db, "users"), where("roles", "array-contains", "worker"));
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+          workersList.innerHTML = '<p style="text-align:center;color:#888;padding:1rem;">No workers available right now. Check back soon!</p>';
+          return;
+        }
+
+        workersList.innerHTML = '';
+        snapshot.forEach(docSnap => {
+          const w = { id: docSnap.id, ...docSnap.data() };
+          const initials = (w.name || w.email || 'W').split(' ').map(p => p[0]).join('').substring(0, 2).toUpperCase();
+          const fee = w.serviceFee || w.currentServiceFee || 12;
+          const rating = w.rating || 5.0;
+          const stars = '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
+          const card = document.createElement('div');
+          card.className = 'worker-card';
+          card.dataset.workerId = w.id;
+          card.innerHTML = `
+            <div class="worker-info">
+              <div class="worker-avatar">${initials}</div>
+              <div class="worker-details">
+                <h5>${w.name || w.email}</h5>
+                <div class="worker-rating">
+                  <span class="stars">${stars}</span>
+                  <span class="rating-text">${rating.toFixed(1)}</span>
+                </div>
+                <div class="worker-specialties">${w.completedCount ? w.completedCount + ' deliveries completed' : 'New worker'}</div>
+                <div class="worker-service-fee" style="color:#28a745;font-weight:bold;font-size:1.05rem;margin-top:4px;">Service Fee: $${parseFloat(fee).toFixed(2)}</div>
               </div>
-              <div class="worker-specialties">${worker.specialties}</div>
-              <div class="worker-specialties">${worker.experience} • $${worker.hourlyRate}/hour</div>
-              <div class="worker-service-fee" style="color: #28a745; font-weight: bold; font-size: 1.1rem; margin-top: 0.5rem;">Service Fee: $${worker.serviceFee.toFixed(2)}</div>
-            </div>
-          </div>
-        `;
-        
-        workersList.appendChild(workerCard);
-      });
+            </div>`;
+          card.onclick = () => selectWorker(w.id, w, card);
+          workersList.appendChild(card);
+        });
+      } catch (err) {
+        console.error('Error loading workers:', err);
+        workersList.innerHTML = '<p style="text-align:center;color:#888;padding:1rem;">Could not load workers. Please try again.</p>';
+      }
     }
 
-    function selectWorker(workerId) {
-      selectedWorker = availableWorkers.find(w => w.id === workerId);
-      
-      // Update UI
-      document.querySelectorAll('.worker-card').forEach(card => {
-        card.classList.remove('selected');
-      });
-      event.currentTarget.classList.add('selected');
+    function selectWorker(workerId, workerData, cardEl) {
+      selectedWorker = { id: workerId, ...workerData };
+      document.querySelectorAll('.worker-card').forEach(c => c.classList.remove('selected'));
+      cardEl.classList.add('selected');
+      const fee = workerData.serviceFee || workerData.currentServiceFee || 12;
+      document.getElementById('feeBreakdown').textContent = `${workerData.name || workerData.email} — Service Fee: $${parseFloat(fee).toFixed(2)} (charged at delivery)`;
+      document.getElementById('selectedWorkerFee').style.display = 'block';
     }
 
     window.hireWorker = async () => {
       if (!selectedWorker) {
-        alert('Please select a worker first.');
+        showToast('Please select a worker first.', 'warning');
+        return;
+      }
+      const deliveryAddress = document.getElementById('hireDeliveryAddress').value.trim();
+      const orderDetails = document.getElementById('hireOrderDetails').value.trim();
+      const specialInstructions = document.getElementById('specialInstructions').value.trim();
+
+      if (!deliveryAddress) {
+        showToast('Please enter your delivery address.', 'warning');
+        document.getElementById('hireDeliveryAddress').focus();
+        return;
+      }
+      if (!orderDetails) {
+        showToast('Please describe what you would like to order.', 'warning');
+        document.getElementById('hireOrderDetails').focus();
         return;
       }
 
-      const serviceType = document.getElementById('serviceType').value;
-      const budgetRange = document.getElementById('budgetRange').value;
-      const specialInstructions = document.getElementById('specialInstructions').value;
-
-      // Get worker's service fee
-      const workerServiceFee = selectedWorker.serviceFee || 5.00;
+      const serviceFee = parseFloat(selectedWorker.serviceFee || selectedWorker.currentServiceFee || 12);
 
       try {
-        // Create a worker hire request
         await addDoc(collection(db, "workerHires"), {
           customerId: currentUserId,
           workerId: selectedWorker.id,
-          workerName: selectedWorker.name,
-          serviceType,
-          budgetRange,
+          workerName: selectedWorker.name || selectedWorker.email,
+          deliveryAddress,
+          orderDetails,
           specialInstructions,
-          serviceFee: workerServiceFee,
+          serviceFee,
           status: "pending",
           timestamp: serverTimestamp(),
           createdAt: new Date()
         });
 
-        alert(`Successfully hired ${selectedWorker.name}! Service fee: $${workerServiceFee.toFixed(2)}. They will contact you soon to discuss your food ordering needs.`);
+        showToast(`Request sent to ${selectedWorker.name || 'worker'}! They'll confirm shortly.`, 'success');
         closeHireWorkerModal();
         loadHiredWorkers();
       } catch (error) {
         console.error("Error hiring worker:", error);
-        alert("Failed to hire worker. Please try again.");
+        showToast('Failed to send request. Please try again.', 'error');
       }
     };
 
@@ -2567,17 +2289,23 @@
 
     window.viewHiredWorkers = () => {
       if (hiredWorkers.length === 0) {
-        alert('You haven\'t hired any workers yet. Click "Hire a Worker" to get started!');
+        showToast('No workers hired yet. Click "Hire a Worker" to get started!', 'info');
         return;
       }
-      
-      let message = 'Your Hired Workers:\n\n';
-      hiredWorkers.forEach(hire => {
-        message += `• ${hire.workerName} (${hire.serviceType})\n`;
-        message += `  Status: ${hire.status}\n`;
-        message += `  Budget: ${hire.budgetRange}\n\n`;
-      });
-      alert(message);
+      const statusColors = { pending: '#ffc107', confirmed: '#28a745', completed: '#6c757d', cancelled: '#dc3545' };
+      const rows = hiredWorkers.slice(0, 10).map(h => `
+        <div style="padding:10px 0;border-bottom:1px solid #eee;">
+          <strong>${h.workerName}</strong>
+          <span style="float:right;background:${statusColors[h.status]||'#6c757d'};color:white;padding:2px 10px;border-radius:12px;font-size:0.8rem">${h.status}</span>
+          <div style="font-size:0.85rem;color:#555;margin-top:4px">${h.orderDetails || ''}</div>
+          <div style="font-size:0.85rem;color:#555">${h.deliveryAddress || ''}</div>
+          <div style="font-size:0.85rem;color:#28a745;font-weight:600">Fee: $${(h.serviceFee||0).toFixed(2)}</div>
+        </div>`).join('');
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.style.display = 'flex';
+      modal.innerHTML = `<div class="modal-content"><div class="modal-header"><h3 class="modal-title">My Worker Requests</h3><button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button></div><div style="padding:1rem;max-height:60vh;overflow-y:auto">${rows}</div></div>`;
+      document.body.appendChild(modal);
     };
 
     // Enhanced order submission for personal service
@@ -2587,7 +2315,7 @@
       const details = document.getElementById("details").value.trim();
 
       if (!pickup || !dropoff) {
-        alert("Please fill in both pickup and dropoff locations.");
+        showToast("Please fill in both pickup and dropoff locations.", 'warning');
         return;
       }
 
@@ -2604,14 +2332,14 @@
           createdAt: new Date()
         });
 
-        alert("Personal service request submitted successfully! Your assigned worker will handle the order.");
+        showToast("Request submitted! Your worker will handle the order.", 'success');
         document.getElementById("pickup").value = "";
         document.getElementById("dropoff").value = "";
         document.getElementById("details").value = "";
         loadJobs();
       } catch (error) {
         console.error("Error submitting personal service request:", error);
-        alert("Failed to submit request. Please try again.");
+        showToast("Failed to submit request. Please try again.", 'error');
       }
     };
 
@@ -2625,7 +2353,7 @@
     window.previewRoute = () => {
       const pickup = document.getElementById("pickup").value;
       const dropoff = document.getElementById("dropoff").value;
-      if (!pickup || !dropoff) return alert("Both fields required.");
+      if (!pickup || !dropoff) { showToast("Enter both pickup and dropoff addresses.", 'warning'); return; }
       window.open(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(pickup)}&destination=${encodeURIComponent(dropoff)}`, "_blank");
     };
 
@@ -2635,7 +2363,7 @@
       const details = document.getElementById("details").value.trim();
 
       if (!pickup || !dropoff) {
-        alert("Please fill in both pickup and dropoff locations.");
+        showToast("Please fill in both pickup and dropoff locations.", 'warning');
         return;
       }
 
@@ -2650,14 +2378,14 @@
           createdAt: new Date()
         });
 
-        alert("Request submitted successfully!");
+        showToast("Delivery request submitted!", 'success');
         document.getElementById("pickup").value = "";
         document.getElementById("dropoff").value = "";
         document.getElementById("details").value = "";
         loadJobs();
       } catch (error) {
         console.error("Error submitting request:", error);
-        alert("Failed to submit request. Please try again.");
+        showToast("Failed to submit request. Please try again.", 'error');
       }
     };
 
@@ -3046,22 +2774,19 @@
         input.value = "";
       } catch (error) {
         console.error("Error sending message:", error);
-        alert("Failed to send message. Please try again.");
+        showToast("Failed to send message. Please try again.", 'error');
       }
     };
 
     window.cancelRequest = async (jobId) => {
-      if (!confirm("Are you sure you want to cancel this request?")) return;
-      
+      if (!confirm("Cancel this request?")) return;
       try {
-        await updateDoc(doc(db, "requests", jobId), {
-          status: "cancelled"
-        });
-        alert("Request cancelled successfully!");
+        await updateDoc(doc(db, "requests", jobId), { status: "cancelled" });
+        showToast("Request cancelled.", 'info');
         loadJobs();
       } catch (error) {
         console.error("Error cancelling request:", error);
-        alert("Failed to cancel request. Please try again.");
+        showToast("Failed to cancel request. Please try again.", 'error');
       }
     };
 
@@ -3071,7 +2796,7 @@
         location.href = "login.html";
       } catch (error) {
         console.error("Error signing out:", error);
-        alert("Failed to sign out. Please try again.");
+        showToast("Failed to sign out. Please try again.", 'error');
       }
     };
 
