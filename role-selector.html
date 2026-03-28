@@ -127,6 +127,9 @@
       if (roles.includes("driver")) {
         buttonsDiv.innerHTML += `<button class="role-button" onclick="location.href='driver.html'"><span class="role-emoji">🚗</span> Driver Dashboard</button>`;
       }
+      if (roles.includes("restaurant")) {
+        buttonsDiv.innerHTML += `<button class="role-button" onclick="location.href='restaurant-dashboard.html'"><span class="role-emoji">🍽️</span> Restaurant Dashboard</button>`;
+      }
       if (roles.includes("customer")) {
         buttonsDiv.innerHTML += `<button class="role-button" onclick="location.href='customer.html'"><span class="role-emoji">🛍️</span> Order Food</button>`;
       }

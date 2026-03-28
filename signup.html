@@ -321,6 +321,53 @@
             </span>
             <span class="check-indicator"><i class="fas fa-check"></i></span>
           </label>
+          <label class="role-option" id="restaurantOption">
+            <input type="checkbox" id="roleRestaurant" />
+            <span class="role-icon">🍽️</span>
+            <span class="role-text">
+              <span class="role-name">Restaurant</span>
+              <span class="role-desc">List & sell food</span>
+            </span>
+            <span class="check-indicator"><i class="fas fa-check"></i></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Restaurant-specific fields (shown only when Restaurant is selected) -->
+      <div id="restaurantFields" style="display:none;border:1.5px solid #FF3008;border-radius:12px;padding:18px;margin-bottom:16px;background:#fff9f8">
+        <div style="font-size:13px;font-weight:700;color:#FF3008;margin-bottom:12px;">🍽️ Restaurant Details</div>
+        <div class="form-group">
+          <label class="form-label" for="restaurantName">Restaurant Name <span style="color:#dc3545">*</span></label>
+          <input class="form-input" type="text" id="restaurantName" placeholder="e.g. Joe's Burgers" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="restaurantCuisine">Cuisine Type <span style="color:#dc3545">*</span></label>
+          <select class="form-input" id="restaurantCuisine">
+            <option value="">Select cuisine...</option>
+            <option value="American">American</option>
+            <option value="Italian">Italian</option>
+            <option value="Mexican">Mexican</option>
+            <option value="Chinese">Chinese</option>
+            <option value="Japanese">Japanese</option>
+            <option value="Indian">Indian</option>
+            <option value="Thai">Thai</option>
+            <option value="Mediterranean">Mediterranean</option>
+            <option value="Fast Food">Fast Food</option>
+            <option value="Pizza">Pizza</option>
+            <option value="Seafood">Seafood</option>
+            <option value="Healthy">Healthy</option>
+            <option value="Breakfast">Breakfast</option>
+            <option value="Sandwiches">Sandwiches</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="restaurantAddress">Restaurant Address <span style="color:#dc3545">*</span></label>
+          <input class="form-input" type="text" id="restaurantAddress" placeholder="123 Main St, Columbia, SC" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="restaurantPhone">Restaurant Phone</label>
+          <input class="form-input" type="tel" id="restaurantPhone" placeholder="(803) 555-0100" />
         </div>
       </div>
 
@@ -366,6 +413,13 @@
       document.getElementById('driverOption').classList.toggle('selected', cb.checked);
     });
 
+    document.getElementById('restaurantOption').addEventListener('click', () => {
+      const cb = document.getElementById('roleRestaurant');
+      cb.checked = !cb.checked;
+      document.getElementById('restaurantOption').classList.toggle('selected', cb.checked);
+      document.getElementById('restaurantFields').style.display = cb.checked ? 'block' : 'none';
+    });
+
     document.getElementById("signupBtn").addEventListener("click", async (e) => {
       e.preventDefault();
       const firstName = document.getElementById("firstName").value.trim();
@@ -375,6 +429,7 @@
       const password = document.getElementById("password").value.trim();
       const isDriver = document.getElementById("roleDriver").checked;
       const isCustomer = document.getElementById("roleCustomer").checked;
+      const isRestaurant = document.getElementById("roleRestaurant").checked;
       const errorDiv = document.getElementById("errorMessage");
 
       errorDiv.classList.remove('show');
@@ -385,15 +440,28 @@
         return;
       }
 
-      if (!isDriver && !isCustomer) {
+      if (!isDriver && !isCustomer && !isRestaurant) {
         errorDiv.innerText = "Please select at least one role.";
         errorDiv.classList.add('show');
         return;
       }
 
+      // Validate restaurant fields if restaurant role selected
+      if (isRestaurant) {
+        const rName = document.getElementById("restaurantName").value.trim();
+        const rCuisine = document.getElementById("restaurantCuisine").value;
+        const rAddress = document.getElementById("restaurantAddress").value.trim();
+        if (!rName || !rCuisine || !rAddress) {
+          errorDiv.innerText = "Please fill in all restaurant details.";
+          errorDiv.classList.add('show');
+          return;
+        }
+      }
+
       const roles = [];
-      if (isDriver) roles.push("driver");
       if (isCustomer) roles.push("customer");
+      if (isDriver) roles.push("driver");
+      if (isRestaurant) roles.push("restaurant");
 
       const btn = document.getElementById('signupBtn');
       btn.innerText = 'Creating account...';
@@ -406,11 +474,35 @@
         await setDoc(doc(db, "users", uid), {
           firstName,
           lastName,
+          name: `${firstName} ${lastName}`,
           phone,
           email,
           roles,
           createdAt: new Date()
         });
+
+        // Create restaurant profile doc
+        if (isRestaurant) {
+          const rName = document.getElementById("restaurantName").value.trim();
+          const rCuisine = document.getElementById("restaurantCuisine").value;
+          const rAddress = document.getElementById("restaurantAddress").value.trim();
+          const rPhone = document.getElementById("restaurantPhone").value.trim();
+          await setDoc(doc(db, "restaurants", uid), {
+            ownerId: uid,
+            ownerEmail: email,
+            name: rName,
+            cuisine: rCuisine,
+            address: rAddress,
+            phone: rPhone || phone,
+            isOpen: false,
+            rating: 0,
+            deliveryFee: 3.99,
+            deliveryTime: "30-45 min",
+            menu: [],
+            orderCount: 0,
+            createdAt: new Date()
+          });
+        }
 
         window.location.href = "login.html";
       } catch (error) {

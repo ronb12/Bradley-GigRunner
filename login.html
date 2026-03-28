@@ -319,9 +319,13 @@
 
         if (roles.includes("admin")) {
           window.location.href = "admin.html";
-        } else if (roles.length === 1) {
-          window.location.href = roles[0] + ".html";
-        } else if (roles.includes("driver") && roles.includes("customer")) {
+        } else if (roles.includes("restaurant") && roles.length === 1) {
+          window.location.href = "restaurant-dashboard.html";
+        } else if (roles.includes("driver") && roles.length === 1) {
+          window.location.href = "driver-dashboard.html";
+        } else if (roles.includes("customer") && roles.length === 1) {
+          window.location.href = "customer-dashboard.html";
+        } else if (roles.length > 1) {
           window.location.href = "role-selector.html";
         } else {
           window.location.href = "customer-dashboard.html";
