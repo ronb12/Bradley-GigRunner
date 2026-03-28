@@ -2083,8 +2083,12 @@
       try {
         await addDoc(collection(db, "requests"), {
           type: 'food_order',
+          restaurantName: currentRestaurant?.name || 'Restaurant',
           restaurant: currentRestaurant?.name || 'Restaurant',
           restaurantId: currentRestaurant?.id || null,
+          restaurantAddress: currentRestaurant?.address || null,
+          restaurantLat: currentRestaurant?.lat || null,
+          restaurantLng: currentRestaurant?.lng || null,
           items: orderItems,
           totalPrice,
           deliveryFee,

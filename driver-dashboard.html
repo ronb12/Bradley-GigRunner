@@ -429,6 +429,81 @@
         grid-template-columns: repeat(2, 1fr);
       }
     }
+
+    /* ── Order Offer Popup ──────────────────────────────────────────── */
+    .offer-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 9000;
+    }
+    .offer-backdrop.show { display: block; }
+    .offer-popup {
+      position: fixed; bottom: -520px; left: 50%;
+      transform: translateX(-50%);
+      width: min(440px, 96vw);
+      background: white; border-radius: 24px 24px 0 0;
+      box-shadow: 0 -6px 40px rgba(0,0,0,0.3);
+      z-index: 9001;
+      transition: bottom 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      overflow: hidden;
+    }
+    .offer-popup.show { bottom: 0; }
+    .offer-header {
+      background: linear-gradient(135deg,#FF3008,#FF6705);
+      color: white; padding: 18px 20px 14px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .offer-header h3 { font-size: 1.1rem; margin: 0; }
+    .offer-timer {
+      width: 54px; height: 54px; border-radius: 50%;
+      background: white; display: flex; align-items: center;
+      justify-content: center; font-weight: 800; font-size: 1.25rem;
+      color: #FF3008; flex-shrink: 0; position: relative;
+    }
+    .offer-timer svg {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      transform: rotate(-90deg);
+    }
+    .offer-timer circle {
+      fill: none; stroke: #FF3008; stroke-width: 4;
+      stroke-dasharray: 145; stroke-dashoffset: 0;
+      transition: stroke-dashoffset 1s linear;
+    }
+    .offer-timer-count { position: relative; z-index: 1; }
+    .offer-body { padding: 16px 20px; }
+    .offer-row {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 10px 0; border-bottom: 1px solid #f0f0f0;
+    }
+    .offer-row:last-of-type { border-bottom: none; }
+    .offer-icon { font-size: 1.25rem; flex-shrink: 0; width: 28px; text-align: center; }
+    .offer-label { font-size: 0.72rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    .offer-value { font-size: 0.95rem; font-weight: 600; color: #222; margin-top: 2px; }
+    .offer-dist-badge {
+      display: inline-block; background: #e8f5e9; color: #2e7d32;
+      font-size: 0.78rem; font-weight: 700; padding: 3px 10px;
+      border-radius: 12px; margin-top: 4px;
+    }
+    .offer-actions {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      padding: 14px 20px 22px;
+    }
+    .offer-accept {
+      background: #28a745; color: white; border: none;
+      padding: 15px; border-radius: 14px; font-size: 1rem;
+      font-weight: 700; cursor: pointer; transition: transform 0.12s;
+    }
+    .offer-accept:active { transform: scale(0.97); }
+    .offer-decline {
+      background: #f0f0f0; color: #555; border: none;
+      padding: 15px; border-radius: 14px; font-size: 1rem;
+      font-weight: 700; cursor: pointer; transition: transform 0.12s;
+    }
+    .offer-decline:active { transform: scale(0.97); }
+    .distance-tag {
+      display: inline-block; background: #fff3cd; color: #856404;
+      font-size: 0.75rem; font-weight: 600; padding: 2px 8px;
+      border-radius: 10px; margin-left: 6px;
+    }
   </style>
 </head>
 <body>
@@ -545,11 +620,54 @@
 
   <button class="sos-button" onclick="sendSOS()" title="Emergency SOS">🚨</button>
 
+  <!-- DoorDash-style Order Offer Popup -->
+  <div class="offer-backdrop" id="offerBackdrop"></div>
+  <div class="offer-popup" id="offerPopup">
+    <div class="offer-header">
+      <div>
+        <div style="font-size:0.75rem;opacity:0.85;margin-bottom:4px;letter-spacing:1px">NEW ORDER OFFER</div>
+        <h3 id="offerRestaurant">Restaurant Name</h3>
+      </div>
+      <div class="offer-timer">
+        <svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="23" id="offerTimerCircle"/></svg>
+        <span class="offer-timer-count" id="offerTimerCount">45</span>
+      </div>
+    </div>
+    <div class="offer-body">
+      <div class="offer-row">
+        <div class="offer-icon">📍</div>
+        <div>
+          <div class="offer-label">Pickup</div>
+          <div class="offer-value" id="offerPickup">—</div>
+          <span class="offer-dist-badge" id="offerDistance">— mi away</span>
+        </div>
+      </div>
+      <div class="offer-row">
+        <div class="offer-icon">🏠</div>
+        <div>
+          <div class="offer-label">Deliver to</div>
+          <div class="offer-value" id="offerDropoff">—</div>
+        </div>
+      </div>
+      <div class="offer-row">
+        <div class="offer-icon">💰</div>
+        <div>
+          <div class="offer-label">You earn</div>
+          <div class="offer-value" id="offerPay">$0.00</div>
+        </div>
+      </div>
+    </div>
+    <div class="offer-actions">
+      <button class="offer-decline" onclick="declineOffer()">✕ Decline</button>
+      <button class="offer-accept" onclick="acceptOffer()">✓ Accept</button>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
     import {
       getFirestore, collection, addDoc, updateDoc, doc,
-      query, where, onSnapshot, orderBy, serverTimestamp, getDocs, increment
+      query, where, onSnapshot, orderBy, serverTimestamp, getDocs, increment, arrayUnion
     } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
     import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
     import { firebaseConfig, COLLECTIONS, ORDER_STATUS, USER_ROLES } from "./firebase-config.js";
@@ -566,6 +684,22 @@
     let _earningsPeriod = 'today';
     let _chatOrderId = null;
     let _chatUnsub = null;
+
+    // Offer popup state
+    let _offeredOrderIds = new Set(); // orders we've already shown a popup for
+    let _activeOfferId = null;
+    let _offerTimerInterval = null;
+    const OFFER_SECS = 45;
+
+    function haversineDistance(lat1, lng1, lat2, lng2) {
+      const R = 3958.8; // miles
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat/2)**2 +
+                Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+                Math.sin(dLng/2)**2;
+      return R * 2 * Math.asin(Math.sqrt(a));
+    }
 
     function showToast(msg, type = '') {
       const toast = document.getElementById('toast');
@@ -622,77 +756,189 @@
       }
     }
 
-    // ── Active orders ─────────────────────────────────────────────────────────
+    // ── Active orders (assigned to this driver) ───────────────────────────────
     function loadOrders() {
-      const q = query(
+      // 1) Watch MY active orders
+      const myQ = query(
         collection(db, COLLECTIONS.ORDERS),
+        where('driverId', '==', currentUser.uid),
         where('status', 'in', [ORDER_STATUS.READY_FOR_PICKUP, ORDER_STATUS.OUT_FOR_DELIVERY])
       );
-      onSnapshot(q, (snapshot) => {
+      onSnapshot(myQ, (snapshot) => {
         const orders = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderOrders(orders);
+        renderMyOrders(orders);
         updateStats(orders);
+      });
+
+      // 2) Watch pending unassigned orders → trigger offer popups
+      const pendingQ = query(
+        collection(db, COLLECTIONS.ORDERS),
+        where('status', '==', ORDER_STATUS.PENDING)
+      );
+      onSnapshot(pendingQ, (snapshot) => {
+        if (!isOnline) return; // only offer when driver is online
+        const pending = snapshot.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          // Filter out orders this driver already declined
+          .filter(o => !(o.declinedBy || []).includes(currentUser.uid))
+          // Filter out orders already being offered (popup open)
+          .filter(o => o.id !== _activeOfferId);
+
+        // Sort by distance from driver (nearest first)
+        if (currentLocation) {
+          pending.sort((a, b) => {
+            const dA = (a.restaurantLat && a.restaurantLng)
+              ? haversineDistance(currentLocation[0], currentLocation[1], a.restaurantLat, a.restaurantLng)
+              : 999;
+            const dB = (b.restaurantLat && b.restaurantLng)
+              ? haversineDistance(currentLocation[0], currentLocation[1], b.restaurantLat, b.restaurantLng)
+              : 999;
+            return dA - dB;
+          });
+        }
+
+        // Show popup for nearest unoffered order
+        const next = pending.find(o => !_offeredOrderIds.has(o.id));
+        if (next && !_activeOfferId) {
+          showOrderOffer(next);
+        }
       });
     }
 
-    function renderOrders(orders) {
+    function showOrderOffer(order) {
+      _activeOfferId = order.id;
+      _offeredOrderIds.add(order.id);
+
+      const distMiles = (currentLocation && order.restaurantLat && order.restaurantLng)
+        ? haversineDistance(currentLocation[0], currentLocation[1], order.restaurantLat, order.restaurantLng)
+        : null;
+
+      const pay = (order.deliveryFee || order.total || 0);
+      document.getElementById('offerRestaurant').textContent = order.restaurantName || order.restaurant || 'Restaurant';
+      document.getElementById('offerPickup').textContent = order.restaurantAddress || order.restaurantName || 'Restaurant';
+      document.getElementById('offerDistance').textContent = distMiles != null ? distMiles.toFixed(1) + ' mi away' : 'Distance unknown';
+      document.getElementById('offerDropoff').textContent = order.deliveryAddress || order.dropoff || 'Customer address';
+      document.getElementById('offerPay').textContent = '$' + parseFloat(pay).toFixed(2);
+
+      // Show popup
+      document.getElementById('offerBackdrop').classList.add('show');
+      document.getElementById('offerPopup').classList.add('show');
+
+      // Countdown timer
+      let secsLeft = OFFER_SECS;
+      const circle = document.getElementById('offerTimerCircle');
+      const circumference = 2 * Math.PI * 23; // r=23
+      circle.style.strokeDasharray = circumference;
+      circle.style.strokeDashoffset = 0;
+
+      clearInterval(_offerTimerInterval);
+      _offerTimerInterval = setInterval(() => {
+        secsLeft--;
+        document.getElementById('offerTimerCount').textContent = secsLeft;
+        circle.style.strokeDashoffset = circumference * (1 - secsLeft / OFFER_SECS);
+        if (secsLeft <= 10) circle.style.stroke = '#dc3545';
+        if (secsLeft <= 0) {
+          clearInterval(_offerTimerInterval);
+          autoDeclineOffer(order.id);
+        }
+      }, 1000);
+    }
+
+    function hideOfferPopup() {
+      clearInterval(_offerTimerInterval);
+      _activeOfferId = null;
+      document.getElementById('offerBackdrop').classList.remove('show');
+      const popup = document.getElementById('offerPopup');
+      popup.classList.remove('show');
+      // Reset timer color
+      document.getElementById('offerTimerCircle').style.stroke = '#FF3008';
+    }
+
+    window.acceptOffer = async () => {
+      if (!_activeOfferId) return;
+      const orderId = _activeOfferId;
+      hideOfferPopup();
+      try {
+        await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
+          driverId: currentUser.uid,
+          status: ORDER_STATUS.READY_FOR_PICKUP,
+          acceptedAt: serverTimestamp()
+        });
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          acceptedCount: increment(1)
+        }).catch(() => {});
+        showToast('Order accepted! Head to the restaurant.', 'success');
+        updateDriverMetrics();
+      } catch (e) {
+        // Another driver already grabbed it
+        showToast('Order already taken by another driver.', 'error');
+      }
+    };
+
+    window.declineOffer = async () => {
+      if (!_activeOfferId) return;
+      const orderId = _activeOfferId;
+      hideOfferPopup();
+      try {
+        await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
+          declinedBy: arrayUnion(currentUser.uid)
+        });
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          declinedCount: increment(1)
+        }).catch(() => {});
+        updateDriverMetrics();
+      } catch (e) { /* order may have been accepted already */ }
+    };
+
+    async function autoDeclineOffer(orderId) {
+      hideOfferPopup();
+      showToast('Offer expired — passed to next driver.', 'info');
+      try {
+        await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
+          declinedBy: arrayUnion(currentUser.uid)
+        });
+      } catch (e) {}
+    }
+
+    function renderMyOrders(orders) {
       const ordersList = document.getElementById('ordersList');
       if (orders.length === 0) {
-        ordersList.innerHTML = '<p style="color:#767676;font-size:14px;">No available orders at the moment.</p>';
+        ordersList.innerHTML = '<p style="color:#767676;font-size:14px;">No active orders. Stay online to receive offers!</p>';
         return;
       }
-      ordersList.innerHTML = orders.map(order => `
-        <div class="order-card ${order.driverId ? 'current' : 'available'}">
+      ordersList.innerHTML = orders.map(order => {
+        const chatBtn = `<button class="btn btn-secondary" onclick="openDriverChat('${order.id}')">💬 Chat</button>`;
+        let actionBtn = '';
+        if (order.status === ORDER_STATUS.READY_FOR_PICKUP) {
+          actionBtn = `<button class="btn btn-success" onclick="updateOrderStatus('${order.id}','${ORDER_STATUS.OUT_FOR_DELIVERY}')">Picked Up</button>`;
+        } else if (order.status === ORDER_STATUS.OUT_FOR_DELIVERY) {
+          actionBtn = `<button class="btn btn-primary" onclick="updateOrderStatus('${order.id}','${ORDER_STATUS.DELIVERED}')">Mark Delivered</button>`;
+        }
+        return `
+        <div class="order-card current">
           <div class="order-header">
-            <div class="order-id">Order #${order.id.substring(0, 8)}</div>
-            <div class="order-value">$${(order.total || 0).toFixed(2)}</div>
+            <div class="order-id">Order #${order.id.substring(0,8)}</div>
+            <div class="order-value">$${(order.deliveryFee || order.total || 0).toFixed(2)}</div>
           </div>
           <div class="order-details">
             <div class="pickup-info">
               <div class="info-label">Pickup</div>
-              <div class="info-address">${order.restaurantName || order.pickupAddress || 'Restaurant'}</div>
-              <div class="info-time">Ready for pickup</div>
+              <div class="info-address">${order.restaurantName || order.restaurant || 'Restaurant'}</div>
+              <div class="info-time">${order.status === ORDER_STATUS.READY_FOR_PICKUP ? 'Ready for pickup' : 'En route'}</div>
             </div>
             <div class="delivery-info">
               <div class="info-label">Deliver to</div>
               <div class="info-address">${order.deliveryAddress || order.dropoff || 'Customer address'}</div>
-              <div class="info-time">${order.items ? order.items.length : 0} item(s)</div>
+              <div class="info-time">${(order.items || []).length} item(s)</div>
             </div>
           </div>
-          <div class="order-items">
-            ${(order.items || []).map(item => `
-              <div class="order-item">
-                <span>${item.name} x${item.quantity}</span>
-                <span>$${(item.price * item.quantity).toFixed(2)}</span>
-              </div>
-            `).join('')}
-          </div>
-          <div class="order-actions">${getOrderActions(order)}</div>
-        </div>
-      `).join('');
-    }
-
-    function getOrderActions(order) {
-      if (!order.driverId) {
-        return `<button class="btn btn-primary" onclick="acceptOrder('${order.id}')">Accept Order</button>
-                <button class="btn btn-secondary" onclick="declineOrder('${order.id}')">Decline</button>`;
-      } else if (order.driverId === currentUser.uid) {
-        const chatBtn = `<button class="btn btn-secondary" onclick="openDriverChat('${order.id}')">💬 Chat</button>`;
-        switch (order.status) {
-          case ORDER_STATUS.READY_FOR_PICKUP:
-            return `<button class="btn btn-success" onclick="updateOrderStatus('${order.id}','${ORDER_STATUS.OUT_FOR_DELIVERY}')">Picked Up</button>${chatBtn}`;
-          case ORDER_STATUS.OUT_FOR_DELIVERY:
-            return `<button class="btn btn-primary" onclick="updateOrderStatus('${order.id}','${ORDER_STATUS.DELIVERED}')">Mark Delivered</button>${chatBtn}`;
-          default:
-            return `<span style="color:#666">Order in progress</span>${chatBtn}`;
-        }
-      }
-      return `<span style="color:#666">Assigned to another driver</span>`;
+          <div class="order-actions">${actionBtn}${chatBtn}</div>
+        </div>`;
+      }).join('');
     }
 
     function updateStats(orders) {
-      const active = orders.filter(o => o.driverId === currentUser.uid).length;
-      document.getElementById('activeOrders').textContent = active;
+      document.getElementById('activeOrders').textContent = orders.length;
     }
 
     // ── Earnings ──────────────────────────────────────────────────────────────
@@ -845,34 +1091,6 @@
     };
 
     // ── Order actions ─────────────────────────────────────────────────────────
-    window.acceptOrder = async (orderId) => {
-      if (!isOnline) { showToast('Go online to accept orders', 'error'); return; }
-      try {
-        await updateDoc(doc(db, COLLECTIONS.ORDERS, orderId), {
-          driverId: currentUser.uid,
-          status: ORDER_STATUS.READY_FOR_PICKUP,
-          acceptedAt: serverTimestamp()
-        });
-        // Track acceptance for metrics
-        await updateDoc(doc(db, 'users', currentUser.uid), {
-          acceptedCount: increment(1)
-        }).catch(() => {});
-        showToast('Order accepted!', 'success');
-        updateDriverMetrics();
-      } catch (e) {
-        console.error(e);
-        showToast('Error accepting order.', 'error');
-      }
-    };
-
-    // Decline from available orders list (no confirm needed — just don't accept it)
-    window.declineOrder = async (orderId) => {
-      await updateDoc(doc(db, 'users', currentUser.uid), {
-        declinedCount: increment(1)
-      }).catch(() => {});
-      showToast('Order skipped.', 'info');
-      updateDriverMetrics();
-    };
 
     async function updateDriverMetrics() {
       try {
