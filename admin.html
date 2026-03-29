@@ -2,400 +2,830 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Dashboard - Bradley GigRunner</title>
+  <title>Admin Portal - Bradley GigRunner</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    body {
-      font-family: Arial, sans-serif; margin: 0; padding: 0;
-      background: #f4f7f9; color: #222;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f2f5; color: #1a1a1a; }
+
     header {
-      background: #1a4d2e; color: white; padding: 15px; text-align: center;
-      position: relative;
+      background: #FF3008; color: white; padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
+    header h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.3px; }
+    header .admin-email { font-size: 0.82rem; opacity: 0.85; }
     .logout-btn {
-      position: absolute; right: 20px; top: 15px; padding: 8px 15px;
-      background: #fff; color: #1a4d2e; border: none; border-radius: 4px;
-      cursor: pointer;
+      background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4);
+      padding: 7px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem;
     }
-    .tab-buttons {
-      display: flex; justify-content: center; background: #dcefe7; padding: 10px;
+    .logout-btn:hover { background: rgba(255,255,255,0.3); }
+
+    .nav-tabs {
+      background: white; display: flex; gap: 2px; padding: 0 24px;
+      border-bottom: 2px solid #e8e8e8; overflow-x: auto; position: sticky; top: 0; z-index: 10;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     }
-    .tab-buttons button {
-      margin: 0 10px; padding: 10px 20px; background: #1a4d2e; color: white;
-      border: none; border-radius: 5px; cursor: pointer;
+    .nav-tabs button {
+      background: none; border: none; padding: 14px 18px; cursor: pointer;
+      font-size: 0.88rem; font-weight: 600; color: #666; border-bottom: 3px solid transparent;
+      white-space: nowrap; transition: all 0.15s;
     }
-    .tab-buttons button:hover { background: #145032; }
-    .tab-content { display: none; padding: 20px; }
+    .nav-tabs button:hover { color: #FF3008; background: #fff5f5; }
+    .nav-tabs button.active { color: #FF3008; border-bottom-color: #FF3008; }
+
+    .tab-content { display: none; padding: 24px; max-width: 1400px; margin: 0 auto; }
     .tab-content.active { display: block; }
 
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
-    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; }
-    th { background: #e8f5e9; }
-    .badge-pending { background:#fff3cd;color:#856404;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:700; }
-    .badge-paid { background:#e8f5e9;color:#2e7d32;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:700; }
-    .mark-paid-btn { background:#28a745;color:white;border:none;padding:6px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:0.85rem; }
-    .mark-paid-btn:hover { background:#218838; }
-    .payout-summary { display:flex;gap:20px;margin:10px 0;font-weight:bold; }
+    /* Stats Cards */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px;
+    }
+    .stat-card {
+      background: white; border-radius: 12px; padding: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); border-left: 4px solid #FF3008;
+    }
+    .stat-card .label { font-size: 0.78rem; color: #888; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 2rem; font-weight: 800; color: #1a1a1a; margin-top: 4px; }
+    .stat-card .sub { font-size: 0.78rem; color: #aaa; margin-top: 2px; }
+    .stat-card.green { border-left-color: #28a745; }
+    .stat-card.blue { border-left-color: #007bff; }
+    .stat-card.orange { border-left-color: #fd7e14; }
+    .stat-card.purple { border-left-color: #6f42c1; }
 
-    .toolbar {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-top: 10px;
+    /* Tables */
+    .table-card { background: white; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; }
+    .table-card h3 { padding: 16px 20px; font-size: 1rem; border-bottom: 1px solid #f0f0f0; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #fafafa; padding: 11px 14px; text-align: left; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #555; border-bottom: 1px solid #eee; }
+    td { padding: 11px 14px; font-size: 0.88rem; border-bottom: 1px solid #f5f5f5; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+    .badge-customer { background: #e3f2fd; color: #1565c0; }
+    .badge-driver { background: #e8f5e9; color: #2e7d32; }
+    .badge-restaurant { background: #fff3e0; color: #e65100; }
+    .badge-admin { background: #fce4ec; color: #c62828; }
+    .badge-pending { background: #fff3cd; color: #856404; }
+    .badge-paid { background: #e8f5e9; color: #2e7d32; }
+    .badge-active { background: #e8f5e9; color: #2e7d32; }
+    .badge-inactive { background: #f5f5f5; color: #888; }
+    .badge-confirmed { background: #e3f2fd; color: #1565c0; }
+    .badge-preparing { background: #fff3e0; color: #e65100; }
+    .badge-delivered { background: #e8f5e9; color: #2e7d32; }
+    .badge-cancelled { background: #ffebee; color: #c62828; }
+    .badge-out_for_delivery { background: #e8eaf6; color: #3949ab; }
+    .badge-ready_for_pickup { background: #f3e5f5; color: #7b1fa2; }
+
+    /* Toolbar */
+    .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 20px; border-bottom: 1px solid #f0f0f0; }
+    .toolbar input, .toolbar select {
+      padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.88rem; outline: none;
+    }
+    .toolbar input:focus, .toolbar select:focus { border-color: #FF3008; }
+    .toolbar input[type="text"], .toolbar input[type="search"] { min-width: 220px; }
+
+    /* Buttons */
+    .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+    .btn-primary { background: #FF3008; color: white; }
+    .btn-primary:hover { background: #e02000; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-success:hover { background: #218838; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-danger:hover { background: #c82333; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-secondary:hover { background: #5a6268; }
+    .btn-sm { padding: 5px 11px; font-size: 0.78rem; }
+    .btn-warning { background: #ffc107; color: #333; }
+    .btn-warning:hover { background: #e0a800; }
+
+    /* Peak Pay Card */
+    .peak-card {
+      background: white; border-radius: 12px; padding: 24px; max-width: 440px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .peak-status {
+      padding: 14px; border-radius: 10px; text-align: center; font-weight: 700;
+      font-size: 1.05rem; margin-bottom: 18px;
     }
 
-    .summary {
-      display: flex; gap: 20px; margin: 10px 0; font-weight: bold;
-    }
+    /* Empty state */
+    .empty { text-align: center; padding: 40px 20px; color: #aaa; font-size: 0.95rem; }
 
-    .dark-mode {
-      background: #121212;
-      color: #e0e0e0;
-    }
-    .dark-mode table { background: #1f1f1f; color: #fff; }
-    .dark-mode th { background: #333; }
+    /* Section header */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .section-header h2 { font-size: 1.1rem; font-weight: 700; }
 
-    @media (max-width: 600px) {
-      .tab-buttons { flex-direction: column; align-items: center; }
+    /* Toggle switch */
+    .toggle { position: relative; display: inline-block; width: 42px; height: 22px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #ccc; border-radius: 22px; transition: 0.3s; }
+    .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+    input:checked + .slider { background: #28a745; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .payout-summary { display: flex; gap: 20px; padding: 14px 20px; background: #fafafa; border-bottom: 1px solid #f0f0f0; font-weight: 700; font-size: 0.9rem; }
+    .filter-btns { display: flex; gap: 8px; padding: 12px 20px; border-bottom: 1px solid #f0f0f0; }
+
+    @media (max-width: 768px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .tab-content { padding: 16px; }
+      .toolbar input[type="text"] { min-width: 140px; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <h2>Bradley GigRunner Admin</h2>
-    <button class="logout-btn" onclick="logout()">Logout</button>
-  </header>
 
-  <div class="tab-buttons">
-    <button onclick="showTab('requests')">Requests</button>
-    <button onclick="showTab('earnings')">Earnings</button>
-    <button onclick="showTab('payouts')">💸 Payouts</button>
-    <button onclick="showTab('peakpay')">🔥 Peak Pay</button>
-    <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+<header>
+  <div>
+    <h1>🛵 GigRunner Admin</h1>
+    <div class="admin-email" id="adminEmail">Loading...</div>
+  </div>
+  <button class="logout-btn" onclick="logout()">Logout</button>
+</header>
+
+<div class="nav-tabs">
+  <button class="active" onclick="showTab('overview')">📊 Overview</button>
+  <button onclick="showTab('orders')">📦 Orders</button>
+  <button onclick="showTab('users')">👥 Users</button>
+  <button onclick="showTab('drivers')">🚗 Drivers</button>
+  <button onclick="showTab('restaurants')">🍽️ Restaurants</button>
+  <button onclick="showTab('issues')">⚠️ Issues</button>
+  <button onclick="showTab('payouts')">💸 Payouts</button>
+  <button onclick="showTab('peakpay')">🔥 Peak Pay</button>
+</div>
+
+<!-- OVERVIEW TAB -->
+<div id="overview" class="tab-content active">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="label">Total Orders</div>
+      <div class="value" id="ovTotalOrders">—</div>
+      <div class="sub">all time</div>
+    </div>
+    <div class="stat-card green">
+      <div class="label">Completed</div>
+      <div class="value" id="ovCompleted">—</div>
+      <div class="sub">delivered</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="label">Active Orders</div>
+      <div class="value" id="ovActive">—</div>
+      <div class="sub">in progress</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="label">Total Revenue</div>
+      <div class="value" id="ovRevenue">—</div>
+      <div class="sub">platform fees</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="label">Total Users</div>
+      <div class="value" id="ovUsers">—</div>
+      <div class="sub">all roles</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Open Issues</div>
+      <div class="value" id="ovIssues">—</div>
+      <div class="sub">unresolved</div>
+    </div>
   </div>
 
-  <div id="requests" class="tab-content active">
-    <div class="toolbar">
-      <input type="text" id="searchInput" placeholder="Search pickup/dropoff..." onkeyup="filterRequests()" />
-      <button onclick="print()">Print</button>
-      <button onclick="exportToCSV()">Export CSV</button>
-    </div>
-
+  <div class="table-card">
+    <h3>Recent Orders</h3>
     <table>
       <thead>
-        <tr><th>Pickup</th><th>Dropoff</th><th>Status</th><th>Driver</th><th>Payout</th></tr>
+        <tr><th>Order ID</th><th>Customer</th><th>Restaurant</th><th>Total</th><th>Status</th><th>Date</th></tr>
       </thead>
-      <tbody id="requestList"></tbody>
+      <tbody id="recentOrdersList"></tbody>
     </table>
   </div>
+</div>
 
-  <!-- Peak Pay Tab -->
-  <div id="peakpay" class="tab-content">
-    <h3>🔥 Peak Pay Control</h3>
-    <p style="color:#555;margin:8px 0 20px">Activate bonus pay during busy periods. Drivers see a banner and earn extra per delivery.</p>
-    <div style="background:white;border-radius:12px;padding:24px;max-width:420px;box-shadow:0 2px 8px rgba(0,0,0,0.08)">
-      <div id="peakPayStatus" style="margin-bottom:16px;padding:12px;border-radius:8px;background:#f5f5f5;font-weight:600;text-align:center">
-        Loading...
-      </div>
-      <div style="margin-bottom:14px">
-        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Bonus per delivery ($)</label>
-        <input type="number" id="peakPayBonus" value="2.00" min="0.50" max="20" step="0.50"
-          style="width:100%;padding:12px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button onclick="activatePeakPay()" style="background:#FF3008;color:white;border:none;padding:13px;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.95rem">
-          🔥 Activate
-        </button>
-        <button onclick="deactivatePeakPay()" style="background:#6c757d;color:white;border:none;padding:13px;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.95rem">
-          Stop Peak Pay
-        </button>
-      </div>
-    </div>
+<!-- ORDERS TAB -->
+<div id="orders" class="tab-content">
+  <div class="section-header">
+    <h2>All Orders</h2>
+    <button class="btn btn-secondary btn-sm" onclick="exportOrdersCSV()">Export CSV</button>
   </div>
+  <div class="table-card">
+    <div class="toolbar">
+      <input type="search" id="orderSearch" placeholder="Search customer, restaurant, ID..." oninput="filterOrders()" />
+      <select id="orderStatusFilter" onchange="filterOrders()">
+        <option value="">All Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="preparing">Preparing</option>
+        <option value="ready_for_pickup">Ready for Pickup</option>
+        <option value="out_for_delivery">Out for Delivery</option>
+        <option value="delivered">Delivered</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Order ID</th><th>Customer</th><th>Restaurant</th><th>Driver</th><th>Total</th><th>Status</th><th>Date</th><th>Action</th></tr>
+      </thead>
+      <tbody id="ordersList"></tbody>
+    </table>
+  </div>
+</div>
 
-  <!-- Payouts Tab -->
-  <div id="payouts" class="tab-content">
-    <h3>Driver Payout Requests</h3>
+<!-- USERS TAB -->
+<div id="users" class="tab-content">
+  <div class="section-header"><h2>All Users</h2></div>
+  <div class="table-card">
+    <div class="toolbar">
+      <input type="search" id="userSearch" placeholder="Search email or name..." oninput="filterUsers()" />
+      <select id="userRoleFilter" onchange="filterUsers()">
+        <option value="">All Roles</option>
+        <option value="customer">Customers</option>
+        <option value="driver">Drivers</option>
+        <option value="restaurant">Restaurants</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Email</th><th>Name</th><th>Roles</th><th>Joined</th><th>Status</th><th>Action</th></tr>
+      </thead>
+      <tbody id="usersList"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- DRIVERS TAB -->
+<div id="drivers" class="tab-content">
+  <div class="section-header"><h2>Driver Performance</h2></div>
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr><th>Driver</th><th>Email</th><th>Rating</th><th>Deliveries</th><th>Total Earned</th><th>Pending Payout</th><th>Status</th></tr>
+      </thead>
+      <tbody id="driversList"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- RESTAURANTS TAB -->
+<div id="restaurants" class="tab-content">
+  <div class="section-header"><h2>Restaurants</h2></div>
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr><th>Restaurant</th><th>Cuisine</th><th>Owner</th><th>Orders</th><th>Rating</th><th>Active</th><th>Action</th></tr>
+      </thead>
+      <tbody id="restaurantsList"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ISSUES TAB -->
+<div id="issues" class="tab-content">
+  <div class="section-header"><h2>Issue Reports</h2></div>
+  <div class="table-card">
+    <div class="toolbar">
+      <select id="issueStatusFilter" onchange="filterIssues()">
+        <option value="">All Issues</option>
+        <option value="open">Open</option>
+        <option value="resolved">Resolved</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Order ID</th><th>Driver</th><th>Issue Type</th><th>Notes</th><th>Date</th><th>Status</th><th>Action</th></tr>
+      </thead>
+      <tbody id="issuesList"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PAYOUTS TAB -->
+<div id="payouts" class="tab-content">
+  <div class="section-header"><h2>Driver Payout Requests</h2></div>
+  <div class="table-card">
     <div class="payout-summary">
       <span id="pendingPayoutCount">Pending: 0</span>
       <span id="pendingPayoutTotal">Amount owed: $0.00</span>
     </div>
-    <div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap">
-      <button onclick="filterPayouts('pending')" id="filterPending" style="background:#856404;color:white;border:none;padding:7px 16px;border-radius:8px;cursor:pointer;font-weight:600">Pending</button>
-      <button onclick="filterPayouts('paid')" id="filterPaid" style="background:#2e7d32;color:white;border:none;padding:7px 16px;border-radius:8px;cursor:pointer;font-weight:600">Paid</button>
-      <button onclick="filterPayouts('all')" id="filterAll" style="background:#555;color:white;border:none;padding:7px 16px;border-radius:8px;cursor:pointer;font-weight:600">All</button>
+    <div class="filter-btns">
+      <button class="btn btn-warning btn-sm" onclick="filterPayouts('pending')">Pending</button>
+      <button class="btn btn-success btn-sm" onclick="filterPayouts('paid')">Paid</button>
+      <button class="btn btn-secondary btn-sm" onclick="filterPayouts('all')">All</button>
     </div>
     <table>
       <thead>
-        <tr>
-          <th>Driver</th>
-          <th>Amount</th>
-          <th>Method</th>
-          <th>Handle</th>
-          <th>Requested</th>
-          <th>Status</th>
-          <th>Action</th>
-        </tr>
+        <tr><th>Driver</th><th>Amount</th><th>Method</th><th>Handle</th><th>Requested</th><th>Status</th><th>Action</th></tr>
       </thead>
       <tbody id="payoutList"></tbody>
     </table>
   </div>
+</div>
 
-  <div id="earnings" class="tab-content">
-    <h3>Total Earnings</h3>
-    <div class="summary">
-      <span id="totalJobs">Jobs: 0</span>
-      <span id="completedJobs">Completed: 0</span>
-      <span id="avgPayout">Avg Payout: $0.00</span>
+<!-- PEAK PAY TAB -->
+<div id="peakpay" class="tab-content">
+  <div class="section-header"><h2>Peak Pay Control</h2></div>
+  <p style="color:#666;margin-bottom:20px;font-size:0.9rem">Activate bonus pay during busy periods. Drivers see a banner and earn extra per delivery.</p>
+  <div class="peak-card">
+    <div class="peak-status" id="peakPayStatus">Loading...</div>
+    <div style="margin-bottom:16px">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Bonus per delivery ($)</label>
+      <input type="number" id="peakPayBonus" value="2.00" min="0.50" max="20" step="0.50"
+        style="width:100%;padding:12px;border:1.5px solid #ddd;border-radius:8px;font-size:1rem;outline:none">
     </div>
-    <p id="earningsAmount">$0.00</p>
-    <button onclick="exportMonthlyReport()">Export Monthly Report</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button class="btn btn-primary" onclick="activatePeakPay()">🔥 Activate</button>
+      <button class="btn btn-secondary" onclick="deactivatePeakPay()">Stop Peak Pay</button>
+    </div>
   </div>
+</div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
-    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
-    import { getFirestore, collection, doc, updateDoc, setDoc, getDoc, onSnapshot, query, where, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+  import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+  import {
+    getFirestore, collection, doc, updateDoc, setDoc, getDoc,
+    onSnapshot, query, where, orderBy, serverTimestamp, getDocs, addDoc
+  } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
-      authDomain: "bradley-gigrunner.firebaseapp.com",
-      projectId: "bradley-gigrunner",
-      storageBucket: "bradley-gigrunner.appspot.com",
-      messagingSenderId: "497753581430",
-      appId: "1:497753581430:web:db6c22866194dd3285bc57"
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSyBYJkHvoa43DbF5Wn_a8uGZ9o_olCMnuFc",
+    authDomain: "bradley-gigrunner.firebaseapp.com",
+    projectId: "bradley-gigrunner",
+    storageBucket: "bradley-gigrunner.appspot.com",
+    messagingSenderId: "497753581430",
+    appId: "1:497753581430:web:db6c22866194dd3285bc57"
+  };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
 
-    window.logout = async () => {
-      try {
-        await signOut(auth);
-        window.location.href = "login.html";
-      } catch (err) {
-        console.error("Logout failed:", err);
-        alert("Logout error: " + err.message);
-      }
-    };
+  // ── Auth Guard ─────────────────────────────────────────────────────────────
+  onAuthStateChanged(auth, (user) => {
+    if (!user) { window.location.href = "login.html"; return; }
+    document.getElementById('adminEmail').textContent = user.email;
+    initAdmin();
+  });
 
-    onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        window.location.href = "login.html";
-      }
-    });
+  window.logout = async () => {
+    await signOut(auth);
+    window.location.href = "login.html";
+  };
 
-    window.showTab = (id) => {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-      document.getElementById(id).classList.add('active');
-    };
+  // ── Tab Navigation ─────────────────────────────────────────────────────────
+  window.showTab = (id) => {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-tabs button').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.target.classList.add('active');
+  };
 
-    window.toggleDarkMode = () => {
-      document.body.classList.toggle('dark-mode');
-    };
+  // ── Data ───────────────────────────────────────────────────────────────────
+  let _allOrders = [], _allUsers = [], _allDrivers = [], _allRestaurants = [], _allIssues = [], _allPayouts = [];
+  let _payoutFilter = 'pending';
 
-    window.filterRequests = () => {
-      const query = document.getElementById('searchInput').value.toLowerCase();
-      const rows = document.querySelectorAll("#requestList tr");
-      rows.forEach(row => {
-        const pickup = row.children[0].textContent.toLowerCase();
-        const dropoff = row.children[1].textContent.toLowerCase();
-        row.style.display = (pickup.includes(query) || dropoff.includes(query)) ? '' : 'none';
-      });
-    };
-
-    window.exportToCSV = () => {
-      let csv = "Pickup,Dropoff,Status,Driver,Payout\n";
-      const rows = document.querySelectorAll("#requestList tr");
-      rows.forEach(row => {
-        const cols = row.querySelectorAll("td");
-        csv += `${cols[0].textContent},${cols[1].textContent},${cols[2].querySelector("select").value},${cols[3].querySelector("select").value},${cols[4].textContent}\n`;
-      });
-      const blob = new Blob([csv], { type: "text/csv" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "requests.csv";
-      link.click();
-    };
-
-    window.exportMonthlyReport = () => {
-      const date = new Date();
-      const month = date.toLocaleString('default', { month: 'long' });
-      const year = date.getFullYear();
-      const csvContent = `Report for ${month} ${year}\n` +
-        `Total Jobs,${totalJobs}\nCompleted Jobs,${completedJobs}\nAverage Payout,$${avgPayout}\nTotal Earnings,$${totalEarnings.toFixed(2)}\n`;
-
-      const blob = new Blob([csvContent], { type: 'text/csv' });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `monthly_report_${month}_${year}.csv`;
-      link.click();
-    };
-
-    let totalJobs = 0, completedJobs = 0, totalEarnings = 0, avgPayout = 0;
-
-    // ── Payouts ───────────────────────────────────────────────────────────────
-    let _allPayouts = [];
-    let _payoutFilter = 'pending';
-
-    function loadPayouts() {
-      const q = query(collection(db, 'payoutRequests'), orderBy('requestedAt', 'desc'));
-      onSnapshot(q, (snap) => {
-        _allPayouts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderPayouts(_payoutFilter);
-      });
-    }
-
-    window.filterPayouts = (status) => {
-      _payoutFilter = status;
-      renderPayouts(status);
-    };
-
-    function renderPayouts(filter) {
-      const rows = filter === 'all' ? _allPayouts : _allPayouts.filter(p => p.status === filter);
-      const pending = _allPayouts.filter(p => p.status === 'pending');
-      const pendingTotal = pending.reduce((s, p) => s + (p.amount || 0), 0);
-      document.getElementById('pendingPayoutCount').textContent = `Pending: ${pending.length}`;
-      document.getElementById('pendingPayoutTotal').textContent = `Amount owed: $${pendingTotal.toFixed(2)}`;
-
-      const tbody = document.getElementById('payoutList');
-      if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#888;padding:20px">No ${filter} payouts.</td></tr>`;
-        return;
-      }
-      tbody.innerHTML = rows.map(p => {
-        const ts = p.requestedAt?.toDate ? p.requestedAt.toDate() : new Date();
-        const badge = p.status === 'paid'
-          ? `<span class="badge-paid">✓ Paid</span>`
-          : `<span class="badge-pending">Pending</span>`;
-        const actionBtn = p.status === 'pending'
-          ? `<button class="mark-paid-btn" onclick="markPayoutPaid('${p.id}')">Mark Paid</button>`
-          : (p.paidAt?.toDate ? `<small style="color:#888">${p.paidAt.toDate().toLocaleDateString()}</small>` : '—');
-        return `<tr>
-          <td>${p.driverEmail || p.driverName || '—'}</td>
-          <td><strong>$${(p.amount||0).toFixed(2)}</strong></td>
-          <td style="text-transform:capitalize">${p.payMethod || '—'}</td>
-          <td><code>${p.payHandle || '—'}</code></td>
-          <td>${ts.toLocaleDateString()} ${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
-          <td>${badge}</td>
-          <td>${actionBtn}</td>
-        </tr>`;
-      }).join('');
-    }
-
-    window.markPayoutPaid = async (payoutId) => {
-      if (!confirm('Mark this payout as paid? This confirms you have sent the money.')) return;
-      try {
-        await updateDoc(doc(db, 'payoutRequests', payoutId), {
-          status: 'paid',
-          paidAt: serverTimestamp(),
-          paidBy: auth.currentUser?.email || 'admin'
-        });
-      } catch (e) {
-        alert('Error: ' + e.message);
-      }
-    };
-
-    function loadRequests() {
-      const list = document.getElementById("requestList");
-      onSnapshot(collection(db, "requests"), snapshot => {
-        list.innerHTML = "";
-        totalJobs = 0;
-        completedJobs = 0;
-        totalEarnings = 0;
-
-        snapshot.forEach(docSnap => {
-          const data = docSnap.data();
-          const docId = docSnap.id;
-          const payout = parseFloat(data.payout || 0);
-          totalEarnings += payout;
-          totalJobs++;
-          if (data.status === 'Completed') completedJobs++;
-
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${data.pickup || ''}</td>
-            <td>${data.dropoff || ''}</td>
-            <td>
-              <select onchange="updateStatus('${docId}', this.value)">
-                <option ${data.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                <option ${data.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                <option ${data.status === 'Completed' ? 'selected' : ''}>Completed</option>
-              </select>
-            </td>
-            <td>
-              <select onchange="assignDriver('${docId}', this.value)">
-                <option ${data.driver === 'None' ? 'selected' : ''}>None</option>
-                <option ${data.driver === 'Driver A' ? 'selected' : ''}>Driver A</option>
-                <option ${data.driver === 'Driver B' ? 'selected' : ''}>Driver B</option>
-              </select>
-            </td>
-            <td>$${payout.toFixed(2)}</td>
-          `;
-          list.appendChild(row);
-        });
-
-        avgPayout = totalJobs ? (totalEarnings / totalJobs).toFixed(2) : 0;
-        document.getElementById('earningsAmount').textContent = `$${totalEarnings.toFixed(2)}`;
-        document.getElementById('totalJobs').textContent = `Jobs: ${totalJobs}`;
-        document.getElementById('completedJobs').textContent = `Completed: ${completedJobs}`;
-        document.getElementById('avgPayout').textContent = `Avg Payout: $${avgPayout}`;
-      });
-    }
-
-    window.updateStatus = (docId, status) => {
-      updateDoc(doc(db, "requests", docId), { status })
-        .then(() => console.log("Status updated"))
-        .catch(err => console.error("Error updating status", err));
-    };
-
-    window.assignDriver = (docId, driver) => {
-      updateDoc(doc(db, "requests", docId), { driver })
-        .then(() => console.log("Driver assigned:" + driver))
-        .catch(err => console.error("Error assigning driver", err));
-    };
-
-    loadRequests();
+  function initAdmin() {
+    loadOverview();
+    loadOrders();
+    loadUsers();
+    loadRestaurants();
+    loadIssues();
     loadPayouts();
     loadPeakPayStatus();
+  }
 
-    function loadPeakPayStatus() {
-      onSnapshot(doc(db, 'config', 'peakPay'), (snap) => {
-        const el = document.getElementById('peakPayStatus');
-        if (!snap.exists() || !snap.data().active) {
-          el.style.background = '#f5f5f5';
-          el.style.color = '#555';
-          el.textContent = '⚫ Peak Pay is OFF';
-        } else {
-          const d = snap.data();
-          el.style.background = '#fff3cd';
-          el.style.color = '#856404';
-          el.textContent = `🔥 Peak Pay ACTIVE — +$${(d.bonusPerDelivery||2).toFixed(2)}/delivery`;
-        }
-      });
+  // ── Overview ───────────────────────────────────────────────────────────────
+  function loadOverview() {
+    // Orders snapshot for stats
+    onSnapshot(collection(db, 'orders'), (snap) => {
+      const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const total = orders.length;
+      const completed = orders.filter(o => o.status === 'delivered').length;
+      const active = orders.filter(o => !['delivered','cancelled'].includes(o.status)).length;
+      const revenue = orders
+        .filter(o => o.status === 'delivered')
+        .reduce((s, o) => s + (o.deliveryFee || 0), 0);
+
+      document.getElementById('ovTotalOrders').textContent = total;
+      document.getElementById('ovCompleted').textContent = completed;
+      document.getElementById('ovActive').textContent = active;
+      document.getElementById('ovRevenue').textContent = '$' + revenue.toFixed(2);
+
+      // Recent 10 orders
+      const sorted = [...orders].sort((a, b) => {
+        const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return tb - ta;
+      }).slice(0, 10);
+
+      const tbody = document.getElementById('recentOrdersList');
+      if (!sorted.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">No orders yet.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = sorted.map(o => {
+        const ts = o.createdAt?.toDate ? o.createdAt.toDate() : new Date();
+        return `<tr>
+          <td><code style="font-size:0.78rem">${o.id.slice(0,8)}…</code></td>
+          <td>${o.customerEmail || '—'}</td>
+          <td>${o.restaurantName || '—'}</td>
+          <td><strong>$${((o.total||0)).toFixed(2)}</strong></td>
+          <td>${statusBadge(o.status)}</td>
+          <td style="color:#888;font-size:0.82rem">${ts.toLocaleDateString()} ${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+        </tr>`;
+      }).join('');
+    });
+
+    // User count
+    onSnapshot(collection(db, 'users'), (snap) => {
+      document.getElementById('ovUsers').textContent = snap.size;
+    });
+
+    // Open issues count
+    onSnapshot(collection(db, 'issueReports'), (snap) => {
+      const open = snap.docs.filter(d => !d.data().resolved).length;
+      document.getElementById('ovIssues').textContent = open;
+    });
+  }
+
+  // ── Orders ─────────────────────────────────────────────────────────────────
+  function loadOrders() {
+    const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    onSnapshot(q, (snap) => {
+      _allOrders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderOrders();
+    });
+  }
+
+  window.filterOrders = () => renderOrders();
+
+  function renderOrders() {
+    const search = (document.getElementById('orderSearch')?.value || '').toLowerCase();
+    const statusF = document.getElementById('orderStatusFilter')?.value || '';
+    let rows = _allOrders.filter(o => {
+      const matchSearch = !search ||
+        (o.customerEmail || '').toLowerCase().includes(search) ||
+        (o.restaurantName || '').toLowerCase().includes(search) ||
+        o.id.toLowerCase().includes(search);
+      const matchStatus = !statusF || (o.status || '') === statusF;
+      return matchSearch && matchStatus;
+    });
+
+    const tbody = document.getElementById('ordersList');
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="8" class="empty">No orders found.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(o => {
+      const ts = o.createdAt?.toDate ? o.createdAt.toDate() : new Date();
+      return `<tr>
+        <td><code style="font-size:0.78rem">${o.id.slice(0,8)}…</code></td>
+        <td>${o.customerEmail || '—'}</td>
+        <td>${o.restaurantName || '—'}</td>
+        <td>${o.driverEmail || o.driverId ? `<span style="color:#2e7d32;font-size:0.82rem">${o.driverEmail || o.driverId?.slice(0,8)}</span>` : '<span style="color:#aaa">Unassigned</span>'}</td>
+        <td><strong>$${(o.total||0).toFixed(2)}</strong></td>
+        <td>${statusBadge(o.status)}</td>
+        <td style="color:#888;font-size:0.82rem">${ts.toLocaleDateString()} ${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+        <td>
+          <select onchange="updateOrderStatus('${o.id}', this.value)" style="padding:4px 8px;border:1px solid #ddd;border-radius:6px;font-size:0.8rem">
+            ${['pending','confirmed','preparing','ready_for_pickup','out_for_delivery','delivered','cancelled'].map(s =>
+              `<option value="${s}" ${o.status===s?'selected':''}>${s.replace(/_/g,' ')}</option>`
+            ).join('')}
+          </select>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  window.updateOrderStatus = async (orderId, status) => {
+    try {
+      await updateDoc(doc(db, 'orders', orderId), { status });
+    } catch(e) { alert('Error: ' + e.message); }
+  };
+
+  window.exportOrdersCSV = () => {
+    const rows = [['ID','Customer','Restaurant','Driver','Total','Status','Date']];
+    _allOrders.forEach(o => {
+      const ts = o.createdAt?.toDate ? o.createdAt.toDate().toLocaleDateString() : '';
+      rows.push([o.id, o.customerEmail||'', o.restaurantName||'', o.driverEmail||'', (o.total||0).toFixed(2), o.status||'', ts]);
+    });
+    downloadCSV(rows, 'orders.csv');
+  };
+
+  // ── Users ──────────────────────────────────────────────────────────────────
+  function loadUsers() {
+    onSnapshot(collection(db, 'users'), (snap) => {
+      _allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderUsers();
+    });
+  }
+
+  window.filterUsers = () => renderUsers();
+
+  function renderUsers() {
+    const search = (document.getElementById('userSearch')?.value || '').toLowerCase();
+    const roleF = document.getElementById('userRoleFilter')?.value || '';
+    let rows = _allUsers.filter(u => {
+      const matchSearch = !search ||
+        (u.email || '').toLowerCase().includes(search) ||
+        (u.name || u.displayName || '').toLowerCase().includes(search);
+      const matchRole = !roleF || (u.roles || []).includes(roleF);
+      return matchSearch && matchRole;
+    });
+
+    const tbody = document.getElementById('usersList');
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty">No users found.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(u => {
+      const joined = u.createdAt?.toDate ? u.createdAt.toDate().toLocaleDateString() : '—';
+      const roles = (u.roles || ['customer']).map(r => `<span class="badge badge-${r}">${r}</span>`).join(' ');
+      const disabled = u.disabled;
+      return `<tr>
+        <td>${u.email || '—'}</td>
+        <td>${u.name || u.displayName || '—'}</td>
+        <td>${roles}</td>
+        <td style="color:#888;font-size:0.82rem">${joined}</td>
+        <td>${disabled ? '<span class="badge badge-inactive">Disabled</span>' : '<span class="badge badge-active">Active</span>'}</td>
+        <td>
+          ${disabled
+            ? `<button class="btn btn-success btn-sm" onclick="setUserDisabled('${u.id}', false)">Enable</button>`
+            : `<button class="btn btn-danger btn-sm" onclick="setUserDisabled('${u.id}', true)">Disable</button>`
+          }
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  window.setUserDisabled = async (uid, disabled) => {
+    const action = disabled ? 'disable' : 'enable';
+    if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+    try {
+      await updateDoc(doc(db, 'users', uid), { disabled });
+    } catch(e) { alert('Error: ' + e.message); }
+  };
+
+  // ── Drivers ────────────────────────────────────────────────────────────────
+  function loadDrivers(allUsers, allOrders, allPayouts) {
+    const drivers = allUsers.filter(u => (u.roles || []).includes('driver'));
+    const tbody = document.getElementById('driversList');
+    if (!drivers.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty">No drivers yet.</td></tr>`;
+      return;
     }
 
-    window.activatePeakPay = async () => {
-      const bonus = parseFloat(document.getElementById('peakPayBonus').value) || 2;
-      try {
-        await setDoc(doc(db, 'config', 'peakPay'), {
-          active: true,
-          bonusPerDelivery: bonus,
-          activatedAt: serverTimestamp(),
-          activatedBy: auth.currentUser?.email || 'admin'
-        });
-      } catch(e) { alert('Error: ' + e.message); }
-    };
+    tbody.innerHTML = drivers.map(d => {
+      const myOrders = allOrders.filter(o => o.driverId === d.id && o.status === 'delivered');
+      const totalEarned = myOrders.reduce((s, o) => s + (o.deliveryFee || 0) + (o.tip || 0), 0);
+      const paidOut = allPayouts.filter(p => p.driverId === d.id && p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
+      const pending = Math.max(0, totalEarned - paidOut);
+      const rating = d.ratingAvg ? d.ratingAvg.toFixed(1) : '—';
+      const disabled = d.disabled;
+      return `<tr>
+        <td><strong>${d.name || d.displayName || '—'}</strong></td>
+        <td>${d.email || '—'}</td>
+        <td>${rating} ${d.ratingCount ? `<span style="color:#aaa;font-size:0.78rem">(${d.ratingCount})</span>` : ''}</td>
+        <td>${myOrders.length}</td>
+        <td>$${totalEarned.toFixed(2)}</td>
+        <td>${pending > 0 ? `<strong style="color:#e65100">$${pending.toFixed(2)}</strong>` : `<span style="color:#aaa">$0.00</span>`}</td>
+        <td>${disabled ? '<span class="badge badge-inactive">Disabled</span>' : '<span class="badge badge-active">Active</span>'}</td>
+      </tr>`;
+    }).join('');
+  }
 
-    window.deactivatePeakPay = async () => {
-      try {
-        await setDoc(doc(db, 'config', 'peakPay'), {
-          active: false,
-          deactivatedAt: serverTimestamp(),
-          deactivatedBy: auth.currentUser?.email || 'admin'
-        }, { merge: true });
-      } catch(e) { alert('Error: ' + e.message); }
+  // ── Restaurants ────────────────────────────────────────────────────────────
+  function loadRestaurants() {
+    onSnapshot(collection(db, 'restaurants'), (snap) => {
+      _allRestaurants = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderRestaurants();
+    });
+  }
+
+  function renderRestaurants() {
+    const tbody = document.getElementById('restaurantsList');
+    if (!_allRestaurants.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty">No restaurants yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = _allRestaurants.map(r => {
+      const isOpen = r.isOpen !== false;
+      return `<tr>
+        <td><strong>${r.name || '—'}</strong></td>
+        <td>${r.cuisine || '—'}</td>
+        <td style="font-size:0.82rem;color:#666">${r.ownerEmail || '—'}</td>
+        <td>${r.orderCount || 0}</td>
+        <td>${r.rating ? r.rating.toFixed(1) : '—'}</td>
+        <td>
+          <label class="toggle">
+            <input type="checkbox" ${isOpen ? 'checked' : ''} onchange="toggleRestaurant('${r.id}', this.checked)">
+            <span class="slider"></span>
+          </label>
+        </td>
+        <td>
+          ${!r.approved
+            ? `<button class="btn btn-success btn-sm" onclick="approveRestaurant('${r.id}')">Approve</button>`
+            : `<span class="badge badge-active" style="font-size:0.75rem">Approved</span>`
+          }
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  window.toggleRestaurant = async (restaurantId, isOpen) => {
+    try {
+      await updateDoc(doc(db, 'restaurants', restaurantId), { isOpen });
+    } catch(e) { alert('Error: ' + e.message); }
+  };
+
+  window.approveRestaurant = async (restaurantId) => {
+    try {
+      await updateDoc(doc(db, 'restaurants', restaurantId), { approved: true });
+    } catch(e) { alert('Error: ' + e.message); }
+  };
+
+  // ── Issues ─────────────────────────────────────────────────────────────────
+  function loadIssues() {
+    const q = query(collection(db, 'issueReports'), orderBy('createdAt', 'desc'));
+    onSnapshot(q, (snap) => {
+      _allIssues = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderIssues();
+    });
+  }
+
+  window.filterIssues = () => renderIssues();
+
+  function renderIssues() {
+    const statusF = document.getElementById('issueStatusFilter')?.value || '';
+    let rows = _allIssues.filter(i => {
+      if (statusF === 'open') return !i.resolved;
+      if (statusF === 'resolved') return i.resolved;
+      return true;
+    });
+
+    const tbody = document.getElementById('issuesList');
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty">No issues found.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(i => {
+      const ts = i.createdAt?.toDate ? i.createdAt.toDate() : new Date();
+      return `<tr>
+        <td><code style="font-size:0.78rem">${(i.orderId||'—').slice(0,8)}…</code></td>
+        <td style="font-size:0.82rem">${i.driverEmail || '—'}</td>
+        <td><strong>${(i.issueType || '—').replace(/_/g,' ')}</strong></td>
+        <td style="max-width:220px;font-size:0.82rem;color:#555">${i.notes || '—'}</td>
+        <td style="color:#888;font-size:0.82rem">${ts.toLocaleDateString()} ${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${i.resolved ? '<span class="badge badge-active">Resolved</span>' : '<span class="badge badge-pending">Open</span>'}</td>
+        <td>
+          ${!i.resolved
+            ? `<button class="btn btn-success btn-sm" onclick="resolveIssue('${i.id}')">Resolve</button>`
+            : `<span style="color:#aaa;font-size:0.82rem">—</span>`
+          }
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  window.resolveIssue = async (issueId) => {
+    try {
+      await updateDoc(doc(db, 'issueReports', issueId), {
+        resolved: true,
+        resolvedAt: serverTimestamp(),
+        resolvedBy: auth.currentUser?.email || 'admin'
+      });
+    } catch(e) { alert('Error: ' + e.message); }
+  };
+
+  // ── Payouts ────────────────────────────────────────────────────────────────
+  function loadPayouts() {
+    const q = query(collection(db, 'payoutRequests'), orderBy('requestedAt', 'desc'));
+    onSnapshot(q, (snap) => {
+      _allPayouts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // After payouts load, refresh driver tab if data available
+      if (_allUsers.length && _allOrders.length) loadDrivers(_allUsers, _allOrders, _allPayouts);
+      renderPayouts(_payoutFilter);
+    });
+  }
+
+  window.filterPayouts = (status) => {
+    _payoutFilter = status;
+    renderPayouts(status);
+  };
+
+  function renderPayouts(filter) {
+    const rows = filter === 'all' ? _allPayouts : _allPayouts.filter(p => p.status === filter);
+    const pending = _allPayouts.filter(p => p.status === 'pending');
+    const pendingTotal = pending.reduce((s, p) => s + (p.amount || 0), 0);
+    document.getElementById('pendingPayoutCount').textContent = `Pending: ${pending.length}`;
+    document.getElementById('pendingPayoutTotal').textContent = `Amount owed: $${pendingTotal.toFixed(2)}`;
+
+    const tbody = document.getElementById('payoutList');
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty">No ${filter} payouts.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = rows.map(p => {
+      const ts = p.requestedAt?.toDate ? p.requestedAt.toDate() : new Date();
+      const badge = p.status === 'paid'
+        ? `<span class="badge badge-paid">✓ Paid</span>`
+        : `<span class="badge badge-pending">Pending</span>`;
+      const action = p.status === 'pending'
+        ? `<button class="btn btn-success btn-sm" onclick="markPayoutPaid('${p.id}')">Mark Paid</button>`
+        : (p.paidAt?.toDate ? `<small style="color:#888">${p.paidAt.toDate().toLocaleDateString()}</small>` : '—');
+      return `<tr>
+        <td>${p.driverEmail || p.driverName || '—'}</td>
+        <td><strong>$${(p.amount||0).toFixed(2)}</strong></td>
+        <td style="text-transform:capitalize">${p.payMethod || '—'}</td>
+        <td><code>${p.payHandle || '—'}</code></td>
+        <td style="color:#888;font-size:0.82rem">${ts.toLocaleDateString()} ${ts.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${badge}</td>
+        <td>${action}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  window.markPayoutPaid = async (payoutId) => {
+    if (!confirm('Confirm you have sent the money?')) return;
+    try {
+      await updateDoc(doc(db, 'payoutRequests', payoutId), {
+        status: 'paid',
+        paidAt: serverTimestamp(),
+        paidBy: auth.currentUser?.email || 'admin'
+      });
+    } catch(e) { alert('Error: ' + e.message); }
+  };
+
+  // ── Peak Pay ───────────────────────────────────────────────────────────────
+  function loadPeakPayStatus() {
+    onSnapshot(doc(db, 'config', 'peakPay'), (snap) => {
+      const el = document.getElementById('peakPayStatus');
+      if (!snap.exists() || !snap.data().active) {
+        el.style.background = '#f5f5f5';
+        el.style.color = '#555';
+        el.textContent = '⚫ Peak Pay is OFF';
+      } else {
+        const d = snap.data();
+        el.style.background = '#fff3cd';
+        el.style.color = '#856404';
+        el.textContent = `🔥 Peak Pay ACTIVE — +$${(d.bonusPerDelivery||2).toFixed(2)}/delivery`;
+      }
+    });
+  }
+
+  window.activatePeakPay = async () => {
+    const bonus = parseFloat(document.getElementById('peakPayBonus').value) || 2;
+    try {
+      await setDoc(doc(db, 'config', 'peakPay'), {
+        active: true,
+        bonusPerDelivery: bonus,
+        activatedAt: serverTimestamp(),
+        activatedBy: auth.currentUser?.email || 'admin'
+      });
+    } catch(e) { alert('Error: ' + e.message); }
+  };
+
+  window.deactivatePeakPay = async () => {
+    try {
+      await setDoc(doc(db, 'config', 'peakPay'), {
+        active: false,
+        deactivatedAt: serverTimestamp(),
+        deactivatedBy: auth.currentUser?.email || 'admin'
+      }, { merge: true });
+    } catch(e) { alert('Error: ' + e.message); }
+  };
+
+  // ── Shared watcher for driver tab ──────────────────────────────────────────
+  onSnapshot(collection(db, 'orders'), (snap) => {
+    _allOrders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (_allUsers.length) loadDrivers(_allUsers, _allOrders, _allPayouts);
+  });
+  onSnapshot(collection(db, 'users'), (snap) => {
+    _allUsers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loadDrivers(_allUsers, _allOrders, _allPayouts);
+    renderUsers();
+  });
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function statusBadge(status) {
+    const s = (status || 'pending').toLowerCase();
+    const labels = {
+      pending: 'Pending', confirmed: 'Confirmed', preparing: 'Preparing',
+      ready_for_pickup: 'Ready', out_for_delivery: 'Out for Delivery',
+      delivered: 'Delivered', cancelled: 'Cancelled'
     };
-  </script>
+    return `<span class="badge badge-${s}">${labels[s] || s}</span>`;
+  }
+
+  function downloadCSV(rows, filename) {
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  }
+</script>
 </body>
 </html>
